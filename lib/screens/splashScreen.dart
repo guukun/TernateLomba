@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+// membaca file tema dan autentikasi
 import '../appTheme.dart';
 import 'authScreen.dart';
 

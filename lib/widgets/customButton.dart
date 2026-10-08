@@ -9,7 +9,7 @@ class CustomButton extends StatelessWidget {
     super.key,
     required this.text,
     required this.onPressed,
-    this.loading = false,
+    this.loading = false, 
   });
 
   // Build Widget

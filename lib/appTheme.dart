@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-/// Palet warna mengikuti desain Figma TernateLomba (biru + laut Ternate).
+/// Palet warna 
 class AppColors {
   static const primary = Color(0xFF1E6FE8); // tombol & aksen
   static const primaryDark = Color(0xFF0E4AB8); // gradasi logo
   static const navy = Color(0xFF0F1F45); // teks judul
   static const grey = Color(0xFF64748B); // teks sekunder
-  static const lightBlue = Color(0xFF86D6FB); // aksen logo
+  static const lightBlue = Color(0xFF86D6FB); // aksen logo TernateLomb
   static const sea = Color(0xFF8ED3F5);
   static const seaDeep = Color(0xFF1E8FD8);
   static const fieldBg = Color(0xFFF8FAFC);

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+// membaca file tema dan autentikasi
 import '../appTheme.dart';
 import 'authScreen.dart';
 
@@ -12,13 +13,13 @@ class SplashScreen extends StatefulWidget {
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
-
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   late Animation<double> _animation;
 
+  // timer
   Timer? _timer;
 
   @override

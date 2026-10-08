@@ -4,23 +4,21 @@ import 'appTheme.dart';
 import 'screens/splashScreen.dart';
 
 void main() {
-  runApp(
-    const TernateLombaApp(),
-  );
+  runApp(const TernateLombaApp());
 }
 
 class TernateLombaApp extends StatelessWidget {
-  const TernateLombaApp({
-    super.key,
-  });
+  const TernateLombaApp({super.key});
 
-// Testinggg
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'TernateLomba',
+
       debugShowCheckedModeBanner: false,
+
       theme: AppTheme.light,
+
       home: const SplashScreen(),
     );
   }

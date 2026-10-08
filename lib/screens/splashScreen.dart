@@ -19,6 +19,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   late Animation<double> _animation;
 
+  // timer
   Timer? _timer;
 
   @override

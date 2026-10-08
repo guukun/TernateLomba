@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Palet warna mengikuti desain Figma TernateLomba
+/// Palet warna 
 class AppColors {
   static const primary = Color(0xFF1E6FE8); // tombol & aksen
   static const primaryDark = Color(0xFF0E4AB8); // gradasi logo

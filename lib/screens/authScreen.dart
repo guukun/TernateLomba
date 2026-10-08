@@ -6,6 +6,7 @@ import '../appTheme.dart';
 import '../service/api_service.dart';
 import '../widgets/customTextfield.dart';
 import '../widgets/customButton.dart';
+import '../beranda/homePage.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -94,46 +95,49 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) return;
 
       if (isLogin) {
-        final token = data['token'];
-        final user = data['user'];
+  // Memastikan respons Laravel berisi token dan data pengguna.
+  final token = data['token'];
+  final user = data['user'];
 
-        if (token is! String || token.isEmpty || user is! Map) {
-          _showMessage(
-            'Respons login tidak lengkap. '
-            'Laravel harus mengirim token dan user.',
-          );
-          return;
-        }
+  if (token is! String || token.isEmpty || user is! Map) {
+    _showMessage(
+      'Respons login tidak lengkap. '
+      'Laravel harus mengirim token dan user.',
+    );
+    return;
+  }
 
-        _showMessage(
-          (data['pesan'] ?? 'Login berhasil').toString(),
-          success: true,
-        );
+  _showMessage(
+    (data['pesan'] ?? 'Login berhasil').toString(),
+    success: true,
+  );
 
-        // Tambahkan penyimpanan token dan navigasi beranda di sini.
-        // token berisi token Sanctum.
-        // user['username'] berisi nama pengguna.
-      } else {
-        // ApiService hanya berhasil jika Laravel mengirim HTTP 201.
-        _showMessage(
-          (data['pesan'] ?? 'Akun berhasil dibuat. Silakan masuk.')
-              .toString(),
-          success: true,
-        );
+  // Mengganti halaman login dengan halaman beranda.
+  // Tombol kembali tidak akan membuka halaman login ini lagi.
+  Navigator.of(context).pushReplacement(
+    MaterialPageRoute(
+      builder: (context) => HomePage(),
+    ),
+  );
+} else {
+  // Registrasi berhasil: kembali ke tab login.
+  _showMessage(
+    (data['pesan'] ?? 'Akun berhasil dibuat. Silakan masuk.')
+        .toString(),
+    success: true,
+  );
 
-        _formKey.currentState?.reset();
+  _formKey.currentState?.reset();
+  _username.text = username;
+  _password.clear();
+  _confirm.clear();
 
-        // Pertahankan username agar mudah digunakan untuk login.
-        _username.text = username;
-        _password.clear();
-        _confirm.clear();
-
-        setState(() {
-          _tab = 0;
-          _hidePassword = true;
-          _hideConfirm = true;
-        });
-      }
+  setState(() {
+    _tab = 0;
+    _hidePassword = true;
+    _hideConfirm = true;
+  });
+}
     } on TimeoutException {
       _showMessage(
         'Server belum merespons dalam 20 detik. '

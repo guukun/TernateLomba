@@ -112,13 +112,14 @@ class _AuthScreenState extends State<AuthScreen> {
     success: true,
   );
 
-  // Mengganti halaman login dengan halaman beranda.
-  // Tombol kembali tidak akan membuka halaman login ini lagi.
-  Navigator.of(context).pushReplacement(
-    MaterialPageRoute(
-      builder: (context) => HomePage(),
+  // Membuka beranda dengan username dari respons login Laravel.
+Navigator.of(context).pushReplacement(
+  MaterialPageRoute(
+    builder: (context) => HomePage(
+      username: user['username']?.toString() ?? username,
     ),
-  );
+  ),
+);
 } else {
   // Registrasi berhasil: kembali ke tab login.
   _showMessage(

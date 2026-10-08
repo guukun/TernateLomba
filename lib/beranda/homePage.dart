@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final String username;
+
+  const HomePage({super.key, required this.username});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -41,12 +43,10 @@ class _HomePageState extends State<HomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
 
                     children: [
-                      const Text(
-                        "Halo, Valdo Backend 👋",
-
-                        style: TextStyle(
+                      Text(
+                        'Halo, ${widget.username} 👋',
+                        style: const TextStyle(
                           fontSize: 20,
-
                           fontWeight: FontWeight.bold,
                         ),
                       ),

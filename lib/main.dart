@@ -14,7 +14,7 @@ class TernateLombaApp extends StatelessWidget {
     super.key,
   });
 
-// Testingg
+// Testinggg
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

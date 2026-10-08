@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../appTheme.dart';
+import '../service/api_service.dart';
 import '../widgets/customTextfield.dart';
 import '../widgets/customButton.dart';
 
@@ -21,7 +25,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   bool _hidePassword = true;
   bool _hideConfirm = true;
-
   bool _loading = false;
 
   bool get _isLogin => _tab == 0;
@@ -31,44 +34,126 @@ class _AuthScreenState extends State<AuthScreen> {
     _username.dispose();
     _password.dispose();
     _confirm.dispose();
-
     super.dispose();
   }
 
   void _changeTab(int value) {
+    if (_loading || _tab == value) return;
+
+    _formKey.currentState?.reset();
+
     setState(() {
       _tab = value;
     });
+  }
 
-    _formKey.currentState?.reset();
+  void _showMessage(String message, {bool success = false}) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: success ? AppColors.green : Colors.red,
+        content: Text(message),
+      ),
+    );
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    // Mencegah permintaan ganda.
+    if (_loading) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final isLogin = _isLogin;
+    final username = _username.text.trim();
+    final password = _password.text;
+    final confirmation = _confirm.text;
+
+    FocusScope.of(context).unfocus();
 
     setState(() {
       _loading = true;
     });
 
-    await Future.delayed(
-      const Duration(seconds: 1),
-    );
+    try {
+      final Map<String, dynamic> data;
 
-    setState(() {
-      _loading = false;
-    });
+      // Alamat API dan pengiriman HTTP diatur oleh ApiService.
+      if (isLogin) {
+        data = await ApiService.login(
+          username,
+          password,
+        ).timeout(const Duration(seconds: 20));
+      } else {
+        data = await ApiService.register(
+          username,
+          password,
+          confirmation,
+        ).timeout(const Duration(seconds: 20));
+      }
 
-    if (!_isLogin) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: AppColors.green,
-          content: Text(
-            "Registrasi berhasil",
-          ),
-        ),
+      if (!mounted) return;
+
+      if (isLogin) {
+        final token = data['token'];
+        final user = data['user'];
+
+        if (token is! String || token.isEmpty || user is! Map) {
+          _showMessage(
+            'Respons login tidak lengkap. '
+            'Laravel harus mengirim token dan user.',
+          );
+          return;
+        }
+
+        _showMessage(
+          (data['pesan'] ?? 'Login berhasil').toString(),
+          success: true,
+        );
+
+        // Tambahkan penyimpanan token dan navigasi beranda di sini.
+        // token berisi token Sanctum.
+        // user['username'] berisi nama pengguna.
+      } else {
+        // ApiService hanya berhasil jika Laravel mengirim HTTP 201.
+        _showMessage(
+          (data['pesan'] ?? 'Akun berhasil dibuat. Silakan masuk.')
+              .toString(),
+          success: true,
+        );
+
+        _formKey.currentState?.reset();
+
+        // Pertahankan username agar mudah digunakan untuk login.
+        _username.text = username;
+        _password.clear();
+        _confirm.clear();
+
+        setState(() {
+          _tab = 0;
+          _hidePassword = true;
+          _hideConfirm = true;
+        });
+      }
+    } on TimeoutException {
+      _showMessage(
+        'Server belum merespons dalam 20 detik. '
+        'Periksa endpoint login/register dan koneksi database.',
       );
-
-      _changeTab(0);
+    } on FormatException {
+      _showMessage(
+        'Respons Laravel bukan JSON yang sesuai. '
+        'Periksa URL API dan log Laravel.',
+      );
+    } catch (e) {
+      // Menampilkan pesan error dari ApiService.
+      final message = e.toString().replaceFirst('Exception: ', '');
+      _showMessage(message);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -91,9 +176,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          _changeTab(index);
-        },
+        onTap: _loading ? null : () => _changeTab(index),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -105,7 +188,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     BoxShadow(
                       color: Colors.black.withAlpha(20),
                       blurRadius: 6,
-                    )
+                    ),
                   ]
                 : null,
           ),
@@ -127,7 +210,9 @@ class _AuthScreenState extends State<AuthScreen> {
     return IconButton(
       onPressed: tap,
       icon: Icon(
-        hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+        hidden
+            ? Icons.visibility_outlined
+            : Icons.visibility_off_outlined,
         color: AppColors.grey,
       ),
     );
@@ -148,7 +233,6 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // LOGO PNG
                   Center(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(20),
@@ -160,20 +244,16 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
                   const Text(
-                    "Cari lomba? Gas!",
+                    'Cari lomba? Gas!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: AppColors.grey,
                       fontSize: 12,
                     ),
                   ),
-
                   const SizedBox(height: 28),
-
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
@@ -182,46 +262,34 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     child: Row(
                       children: [
-                        _tabButton(
-                          "Masuk",
-                          0,
-                        ),
-                        _tabButton(
-                          "Daftar",
-                          1,
-                        ),
+                        _tabButton('Masuk', 0),
+                        _tabButton('Daftar', 1),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
-                  _label(
-                    "Nama Pengguna",
-                  ),
-
+                  _label('Nama Pengguna'),
                   CustomTextField(
                     controller: _username,
-                    hintText: "Masukkan nama pengguna",
+                    hintText: 'Masukkan nama pengguna',
                     icon: Icons.person_outline,
                     validator: (v) {
-                      if (v == null || v.isEmpty) {
-                        return "Nama pengguna wajib diisi";
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Nama pengguna wajib diisi';
+                      }
+
+                      if (!_isLogin && v.trim().length > 255) {
+                        return 'Nama pengguna maksimal 255 karakter';
                       }
 
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 16),
-
-                  _label(
-                    "Password",
-                  ),
-
+                  _label('Password'),
                   CustomTextField(
                     controller: _password,
-                    hintText: "Masukkan password",
+                    hintText: 'Masukkan password',
                     icon: Icons.lock_outline,
                     obscureText: _hidePassword,
                     suffixIcon: _passwordEye(
@@ -232,16 +300,24 @@ class _AuthScreenState extends State<AuthScreen> {
                         });
                       },
                     ),
-                  ),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) {
+                        return 'Password wajib diisi';
+                      }
 
+                      if (!_isLogin && v.length < 8) {
+                        return 'Password minimal 8 karakter';
+                      }
+
+                      return null;
+                    },
+                  ),
                   if (!_isLogin) ...[
                     const SizedBox(height: 16),
-                    _label(
-                      "Konfirmasi Password",
-                    ),
+                    _label('Konfirmasi Password'),
                     CustomTextField(
                       controller: _confirm,
-                      hintText: "Ulangi password",
+                      hintText: 'Ulangi password',
                       icon: Icons.lock_outline,
                       obscureText: _hideConfirm,
                       suffixIcon: _passwordEye(
@@ -253,41 +329,43 @@ class _AuthScreenState extends State<AuthScreen> {
                         },
                       ),
                       validator: (v) {
+                        if (v == null || v.isEmpty) {
+                          return 'Konfirmasi password wajib diisi';
+                        }
+
                         if (v != _password.text) {
-                          return "Password tidak sama";
+                          return 'Password tidak sama';
                         }
 
                         return null;
                       },
                     ),
                   ],
-
                   const SizedBox(height: 26),
-
                   CustomButton(
-                    text: _isLogin ? "Masuk" : "Daftar",
+                    text: _isLogin ? 'Masuk' : 'Daftar',
                     loading: _loading,
                     onPressed: _submit,
                   ),
-
                   const SizedBox(height: 20),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        _isLogin ? "Belum punya akun? " : "Sudah punya akun? ",
+                        _isLogin
+                            ? 'Belum punya akun? '
+                            : 'Sudah punya akun? ',
                         style: const TextStyle(
                           color: AppColors.grey,
                           fontSize: 12,
                         ),
                       ),
                       GestureDetector(
-                        onTap: () {
-                          _changeTab(_isLogin ? 1 : 0);
-                        },
+                        onTap: _loading
+                            ? null
+                            : () => _changeTab(_isLogin ? 1 : 0),
                         child: Text(
-                          _isLogin ? "Registrasi" : "Masuk",
+                          _isLogin ? 'Registrasi' : 'Masuk',
                           style: const TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.bold,
@@ -296,7 +374,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                       ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),

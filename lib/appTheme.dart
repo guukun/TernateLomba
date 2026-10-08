@@ -6,7 +6,7 @@ class AppColors {
   static const primaryDark = Color(0xFF0E4AB8); // gradasi logo
   static const navy = Color(0xFF0F1F45); // teks judul
   static const grey = Color(0xFF64748B); // teks sekunder
-  static const lightBlue = Color(0xFF86D6FB); // aksen logo ternate lomba
+  static const lightBlue = Color(0xFF86D6FB); // aksen logo TernateLomba
   static const sea = Color(0xFF8ED3F5);
   static const seaDeep = Color(0xFF1E8FD8);
   static const fieldBg = Color(0xFFF8FAFC);

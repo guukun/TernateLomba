@@ -12,6 +12,7 @@ class CustomButton extends StatelessWidget {
     this.loading = false,
   });
 
+  // Build Widget
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(

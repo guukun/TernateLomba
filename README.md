@@ -1,4 +1,5 @@
 # ternatelomba
+TernateLomba adalah aplikasi mobile berbasis Android yang menjadi platform terpusat untuk mencari informasi lomba, melakukan pendaftaran, serta mengajukan dan mengelola lomba secara digital melalui sistem verifikasi administrator, sehingga memudahkan peserta dan penyelenggara dalam mengakses informasi dan mengelola kegiatan perlombaan secara terstruktur.
 
 ## Pembagian tugas
 Milestone 1:

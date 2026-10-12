@@ -15,6 +15,7 @@ class AuthScreen extends StatefulWidget {
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
+// mengontrol autentikasi form
 class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
 
@@ -22,22 +23,35 @@ class _AuthScreenState extends State<AuthScreen> {
   final _password = TextEditingController();
   final _confirm = TextEditingController();
 
+  // inisialisasi tab halaman login
   int _tab = 0;
 
+  // menandakan password dan confirm password dari awal sudah tersembunyi
   bool _hidePassword = true;
   bool _hideConfirm = true;
+
+  // mencari tahu apakah sedang loading atau tidak
   bool _loading = false;
 
+  // MODE PENGEMBANGAN
+  // true  = dummy login (tanpa database Laravel)
+  // false = kembali menggunakan Laravel API
+  static const bool dummyLogin = true;
+
+  // get login di halaman login dan tab 0 untuk menandakan di login
   bool get _isLogin => _tab == 0;
 
+  // membersihkan resource atau memori ketika berganti halaman
   @override
   void dispose() {
     _username.dispose();
     _password.dispose();
     _confirm.dispose();
+
     super.dispose();
   }
 
+  // mengubah login ke register
   void _changeTab(int value) {
     if (_loading || _tab == value) return;
 
@@ -48,12 +62,14 @@ class _AuthScreenState extends State<AuthScreen> {
     });
   }
 
+  // menampilkan message
   void _showMessage(String message, {bool success = false}) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: success ? AppColors.green : Colors.red,
+
         content: Text(message),
       ),
     );
@@ -62,11 +78,15 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _submit() async {
     // Mencegah permintaan ganda.
     if (_loading) return;
+
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final isLogin = _isLogin;
+
     final username = _username.text.trim();
+
     final password = _password.text;
+
     final confirmation = _confirm.text;
 
     FocusScope.of(context).unfocus();
@@ -78,16 +98,38 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       final Map<String, dynamic> data;
 
-      // Alamat API dan pengiriman HTTP diatur oleh ApiService.
       if (isLogin) {
-        data = await ApiService.login(
-          username,
-          password,
-        ).timeout(const Duration(seconds: 20));
+        if (dummyLogin) {
+          // ==========================
+          // DUMMY LOGIN MODE
+          // ==========================
+
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          data = {
+            'token': 'dummy_token_flutter',
+
+            'user': {'username': username, 'role': 'User'},
+
+            'pesan': 'Login dummy berhasil',
+          };
+        } else {
+          // LOGIN ASLI LARAVEL
+
+          data = await ApiService.login(
+            username,
+
+            password,
+          ).timeout(const Duration(seconds: 20));
+        }
       } else {
+        // REGISTER TETAP MENGGUNAKAN LARAVEL
+
         data = await ApiService.register(
           username,
+
           password,
+
           confirmation,
         ).timeout(const Duration(seconds: 20));
       }
@@ -95,63 +137,60 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) return;
 
       if (isLogin) {
-  // Memastikan respons Laravel berisi token dan data pengguna.
-  final token = data['token'];
-  final user = data['user'];
+        final token = data['token'];
 
-  if (token is! String || token.isEmpty || user is! Map) {
-    _showMessage(
-      'Respons login tidak lengkap. '
-      'Laravel harus mengirim token dan user.',
-    );
-    return;
-  }
+        final user = data['user'];
 
-  _showMessage(
-    (data['pesan'] ?? 'Login berhasil').toString(),
-    success: true,
-  );
+        if (token is! String || token.isEmpty || user is! Map) {
+          _showMessage('Respons login tidak lengkap.');
 
-  // Membuka beranda dengan username dari respons login Laravel.
-Navigator.of(context).pushReplacement(
-  MaterialPageRoute(
-    builder: (context) => HomePage(
-      username: user['username']?.toString() ?? username,
-    ),
-  ),
-);
-} else {
-  // Registrasi berhasil: kembali ke tab login.
-  _showMessage(
-    (data['pesan'] ?? 'Akun berhasil dibuat. Silakan masuk.')
-        .toString(),
-    success: true,
-  );
+          return;
+        }
 
-  _formKey.currentState?.reset();
-  _username.text = username;
-  _password.clear();
-  _confirm.clear();
+        _showMessage(
+          (data['pesan'] ?? 'Login berhasil').toString(),
 
-  setState(() {
-    _tab = 0;
-    _hidePassword = true;
-    _hideConfirm = true;
-  });
-}
+          success: true,
+        );
+
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) =>
+                HomePage(username: user['username']?.toString() ?? username),
+          ),
+        );
+      } else {
+        // Registrasi berhasil: kembali ke tab login.
+
+        _showMessage(
+          (data['pesan'] ?? 'Akun berhasil dibuat. Silakan masuk.').toString(),
+
+          success: true,
+        );
+
+        _formKey.currentState?.reset();
+
+        _username.text = username;
+
+        _password.clear();
+
+        _confirm.clear();
+
+        setState(() {
+          _tab = 0;
+
+          _hidePassword = true;
+
+          _hideConfirm = true;
+        });
+      }
     } on TimeoutException {
-      _showMessage(
-        'Server belum merespons dalam 20 detik. '
-        'Periksa endpoint login/register dan koneksi database.',
-      );
+      _showMessage('Server belum merespons dalam 20 detik.');
     } on FormatException {
-      _showMessage(
-        'Respons Laravel bukan JSON yang sesuai. '
-        'Periksa URL API dan log Laravel.',
-      );
+      _showMessage('Respons Laravel bukan JSON yang sesuai.');
     } catch (e) {
-      // Menampilkan pesan error dari ApiService.
       final message = e.toString().replaceFirst('Exception: ', '');
+
       _showMessage(message);
     } finally {
       if (mounted) {
@@ -165,11 +204,15 @@ Navigator.of(context).pushReplacement(
   Widget _label(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
+
       child: Text(
         text,
+
         style: const TextStyle(
           color: AppColors.navy,
+
           fontSize: 13,
+
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -182,26 +225,29 @@ Navigator.of(context).pushReplacement(
     return Expanded(
       child: GestureDetector(
         onTap: _loading ? null : () => _changeTab(index),
+
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
+
           padding: const EdgeInsets.symmetric(vertical: 12),
+
           decoration: BoxDecoration(
             color: active ? Colors.white : Colors.transparent,
+
             borderRadius: BorderRadius.circular(10),
+
             boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(20),
-                      blurRadius: 6,
-                    ),
-                  ]
+                ? [BoxShadow(color: Colors.black.withAlpha(20), blurRadius: 6)]
                 : null,
           ),
+
           child: Center(
             child: Text(
               text,
+
               style: TextStyle(
                 fontWeight: FontWeight.w700,
+
                 color: active ? AppColors.navy : AppColors.grey,
               ),
             ),
@@ -214,10 +260,10 @@ Navigator.of(context).pushReplacement(
   Widget _passwordEye(bool hidden, VoidCallback tap) {
     return IconButton(
       onPressed: tap,
+
       icon: Icon(
-        hidden
-            ? Icons.visibility_outlined
-            : Icons.visibility_off_outlined,
+        hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+
         color: AppColors.grey,
       ),
     );
@@ -229,55 +275,72 @@ Navigator.of(context).pushReplacement(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 24,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+
             child: Form(
               key: _formKey,
+
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
+
                 children: [
                   Center(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(20),
+
                       child: Image.asset(
                         'assets/logo/logo.png',
+
                         width: 90,
+
                         height: 90,
+
                         fit: BoxFit.cover,
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 20),
+
                   const Text(
                     'Cari lomba? Gas!',
+
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.grey,
-                      fontSize: 12,
-                    ),
+
+                    style: TextStyle(color: AppColors.grey, fontSize: 12),
                   ),
+
                   const SizedBox(height: 28),
+
                   Container(
                     padding: const EdgeInsets.all(4),
+
                     decoration: BoxDecoration(
                       color: AppColors.tabBg,
+
                       borderRadius: BorderRadius.circular(12),
                     ),
+
                     child: Row(
                       children: [
                         _tabButton('Masuk', 0),
+
                         _tabButton('Daftar', 1),
                       ],
                     ),
                   ),
+
                   const SizedBox(height: 24),
+
                   _label('Nama Pengguna'),
+
                   CustomTextField(
                     controller: _username,
+
                     hintText: 'Masukkan nama pengguna',
+
                     icon: Icons.person_outline,
+
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return 'Nama pengguna wajib diisi';
@@ -290,21 +353,26 @@ Navigator.of(context).pushReplacement(
                       return null;
                     },
                   ),
+
                   const SizedBox(height: 16),
+
                   _label('Password'),
+
                   CustomTextField(
                     controller: _password,
+
                     hintText: 'Masukkan password',
+
                     icon: Icons.lock_outline,
+
                     obscureText: _hidePassword,
-                    suffixIcon: _passwordEye(
-                      _hidePassword,
-                      () {
-                        setState(() {
-                          _hidePassword = !_hidePassword;
-                        });
-                      },
-                    ),
+
+                    suffixIcon: _passwordEye(_hidePassword, () {
+                      setState(() {
+                        _hidePassword = !_hidePassword;
+                      });
+                    }),
+
                     validator: (v) {
                       if (v == null || v.isEmpty) {
                         return 'Password wajib diisi';
@@ -317,22 +385,27 @@ Navigator.of(context).pushReplacement(
                       return null;
                     },
                   ),
+
                   if (!_isLogin) ...[
                     const SizedBox(height: 16),
+
                     _label('Konfirmasi Password'),
+
                     CustomTextField(
                       controller: _confirm,
+
                       hintText: 'Ulangi password',
+
                       icon: Icons.lock_outline,
+
                       obscureText: _hideConfirm,
-                      suffixIcon: _passwordEye(
-                        _hideConfirm,
-                        () {
-                          setState(() {
-                            _hideConfirm = !_hideConfirm;
-                          });
-                        },
-                      ),
+
+                      suffixIcon: _passwordEye(_hideConfirm, () {
+                        setState(() {
+                          _hideConfirm = !_hideConfirm;
+                        });
+                      }),
+
                       validator: (v) {
                         if (v == null || v.isEmpty) {
                           return 'Konfirmasi password wajib diisi';
@@ -346,34 +419,46 @@ Navigator.of(context).pushReplacement(
                       },
                     ),
                   ],
+
                   const SizedBox(height: 26),
+
                   CustomButton(
                     text: _isLogin ? 'Masuk' : 'Daftar',
+
                     loading: _loading,
+
                     onPressed: _submit,
                   ),
+
                   const SizedBox(height: 20),
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
+
                     children: [
                       Text(
-                        _isLogin
-                            ? 'Belum punya akun? '
-                            : 'Sudah punya akun? ',
+                        _isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? ',
+
                         style: const TextStyle(
                           color: AppColors.grey,
+
                           fontSize: 12,
                         ),
                       ),
+
                       GestureDetector(
                         onTap: _loading
                             ? null
                             : () => _changeTab(_isLogin ? 1 : 0),
+
                         child: Text(
                           _isLogin ? 'Registrasi' : 'Masuk',
+
                           style: const TextStyle(
                             color: AppColors.primary,
+
                             fontWeight: FontWeight.bold,
+
                             fontSize: 12,
                           ),
                         ),

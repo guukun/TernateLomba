@@ -158,7 +158,6 @@ class SeaPainter extends CustomPainter {
     final h = size.height;
 
 // gunung
-
     canvas.drawPath(
       Path()
         ..moveTo(0, h * .7)
@@ -169,7 +168,6 @@ class SeaPainter extends CustomPainter {
     );
 
 // laut 1
-
     canvas.drawRect(
       Rect.fromLTWH(
         0,
@@ -181,7 +179,6 @@ class SeaPainter extends CustomPainter {
     );
 
 // laut 2
-
     canvas.drawRect(
       Rect.fromLTWH(
         0,

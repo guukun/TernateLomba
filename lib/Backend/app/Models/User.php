@@ -13,7 +13,7 @@ class User extends Authenticatable
 
     protected $table = 'users';
 
-    // Karena tabel menggunakan id_user, bukan id
+    // tabel menggunakan id_user
     protected $primaryKey = 'id_user';
 
     public $incrementing = true;

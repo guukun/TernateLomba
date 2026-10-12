@@ -79,7 +79,7 @@ Route::post('/register', function (Request $request) {
         ],
     ]);
 
-    // Role ditentukan oleh backend untuk akun baru.
+    // Role ditentukan untuk akun baru.
     $user = User::create([
         'username' => $data['username'],
         'password' => Hash::make($data['password']),

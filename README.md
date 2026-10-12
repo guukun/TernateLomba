@@ -1,7 +1,5 @@
 # ternatelomba
 
-A new Flutter project.
-
 ## Pembagian tugas
 Milestone 1:
 1. Teguh - authScreen

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../profile/profilePage.dart';
 
 class HomePage extends StatefulWidget {
   final String username;
@@ -310,31 +311,6 @@ class _HomePageState extends State<HomePage> {
             const Spacer(),
           ],
         ),
-      ),
-
-      // BOTTOM MENU
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-
-        type: BottomNavigationBarType.fixed,
-
-        selectedItemColor: Colors.blue,
-
-        unselectedItemColor: Colors.grey,
-
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Beranda"),
-
-          BottomNavigationBarItem(
-            icon: Icon(Icons.card_giftcard),
-
-            label: "Lomba Saya",
-          ),
-
-          BottomNavigationBarItem(icon: Icon(Icons.explore), label: "Ajukan"),
-
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-        ],
       ),
     );
   }

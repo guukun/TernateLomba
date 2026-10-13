@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 // tarik file apptheme
-import '../appTheme.dart';
+import '../config/appTheme.dart';
 
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;

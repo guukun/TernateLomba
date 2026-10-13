@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'appTheme.dart';
-import 'screens/splashScreen.dart';
+import 'config/appTheme.dart';
+import 'screens/splash/splashScreen.dart';
 
 void main() {
   runApp(const TernateLombaApp());

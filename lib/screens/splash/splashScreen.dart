@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 // membaca file tema dan autentikasi
-import '../appTheme.dart';
-import 'authScreen.dart';
+import '../../config/appTheme.dart';
+import '../auth/authScreen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({

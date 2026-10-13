@@ -2,11 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../appTheme.dart';
-import '../service/api_service.dart';
-import '../widgets/customTextfield.dart';
-import '../widgets/customButton.dart';
-import '../beranda/homePage.dart';
+import '../../config/appTheme.dart';
+import '../../services/api_service.dart';
+import '../../widgets/customTextfield.dart';
+import '../../widgets/customButton.dart';
+import '../../pages/beranda/homePage.dart';
+import '../../navigation/mainPage.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -156,7 +157,7 @@ class _AuthScreenState extends State<AuthScreen> {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) =>
-                HomePage(username: user['username']?.toString() ?? username),
+                MainPage(username: user['username']?.toString() ?? username),
           ),
         );
       } else {

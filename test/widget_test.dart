@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ternatelomba/main.dart';
+import '../lib/main.dart';
 
 void main() {
   testWidgets('Splash lalu halaman Masuk tampil', (tester) async {

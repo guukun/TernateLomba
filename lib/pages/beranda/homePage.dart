@@ -13,59 +13,72 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  String kategoriAktif = "Semua";
+  final TextEditingController searchController = TextEditingController();
 
   String keyword = "";
 
-  final TextEditingController searchController = TextEditingController();
+  String kategoriAktif = "Semua";
 
   final List<Map<String, String>> daftarLomba = [
     {
       "kategori": "Pendidikan",
-
-      "judul": "Lomba Karya Tulis Ilmiah",
-
+      "judul": "Lomba Karya Tulis Ilmiah Nasional 2026",
       "penyelenggara": "Universitas Khairun",
-
       "kuota": "67/100",
-
-      "deskripsi": "Lomba karya tulis ilmiah tingkat pelajar dan mahasiswa dalam rangka meningkatkan inovasi dan kreativitas generasi muda.",
-
-      "persyaratan":
-          "• Peserta aktif pelajar atau mahasiswa\n"
-          "• Karya original\n"
-          "• Belum pernah dipublikasikan",
+      "poster": "LKTI",
+      "tanggal": "Nov 2026",
+      "deskripsi": "Kompetisi karya tulis ilmiah tingkat nasional untuk mahasiswa dan pelajar.",
+      "persyaratan": "Peserta aktif mahasiswa atau pelajar.\nKarya belum pernah dipublikasikan.",
+      "biaya": "Gratis",
+      "hadiah": "Sertifikat dan uang pembinaan",
     },
 
     {
       "kategori": "Seni",
-
-      "judul": "Festival Fotografi Pesona Bahari",
-
+      "judul": "Festival Fotografi Pesona Ternate 2026",
       "penyelenggara": "Dispar Kota Ternate",
-
       "kuota": "50/100",
+      "poster": "FOTO",
+      "tanggal": "Des 2026",
+      "deskripsi": "Kompetisi fotografi budaya dan alam Ternate.",
+      "persyaratan": "Foto merupakan karya sendiri.",
+      "biaya": "Rp25.000",
+      "hadiah": "Trofi dan sertifikat",
+    },
 
-      "deskripsi":
-          "Kompetisi fotografi dengan tema budaya dan keindahan Ternate.",
-
-      "persyaratan":
-          "• Foto karya sendiri\n"
-          "• Tidak melanggar hak cipta",
+    {
+      "kategori": "Teknologi",
+      "judul": "AI Innovation Competition 2026",
+      "penyelenggara": "Tech Indonesia",
+      "kuota": "80/100",
+      "poster": "AI",
+      "tanggal": "Des 2026",
+      "deskripsi": "Kompetisi inovasi teknologi dan digital.",
+      "persyaratan": "Proposal inovasi teknologi.",
+      "biaya": "Gratis",
+      "hadiah": "Uang pembinaan",
     },
   ];
 
-  List<Map<String, String>> get lombaFilter {
-    return daftarLomba.where((item) {
-      bool kategori =
-          kategoriAktif == "Semua" || item["kategori"] == kategoriAktif;
+  List<Map<String, String>> get lombaTampil {
+    return daftarLomba.where((lomba) {
+      final cocokKategori =
+          kategoriAktif == "Semua" || lomba["kategori"] == kategoriAktif;
 
-      bool cari =
-          item["judul"]!.toLowerCase().contains(keyword.toLowerCase()) ||
-          item["penyelenggara"]!.toLowerCase().contains(keyword.toLowerCase());
+      final cocokSearch =
+          lomba["judul"]!.toLowerCase().contains(keyword.toLowerCase()) ||
+          lomba["kategori"]!.toLowerCase().contains(keyword.toLowerCase()) ||
+          lomba["penyelenggara"]!.toLowerCase().contains(keyword.toLowerCase());
 
-      return kategori && cari;
+      return cocokKategori && cocokSearch;
     }).toList();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+
+    super.dispose();
   }
 
   @override
@@ -76,10 +89,8 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(
         child: Column(
           children: [
-            // HEADER
-
             Padding(
-              padding: const EdgeInsets.fromLTRB(25, 20, 25, 15),
+              padding: const EdgeInsets.fromLTRB(22, 20, 22, 15),
 
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -93,7 +104,7 @@ class _HomePageState extends State<HomePage> {
                         "Halo, ${widget.username} 👋",
 
                         style: const TextStyle(
-                          fontSize: 20,
+                          fontSize: 23,
 
                           fontWeight: FontWeight.bold,
 
@@ -115,40 +126,56 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
 
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
 
-                        MaterialPageRoute(
-                          builder: (context) => const NotificationPage(),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+
+                          MaterialPageRoute(
+                            builder: (context) => const NotificationPage(),
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        width: 45,
+
+                        height: 45,
+
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+
+                          shape: BoxShape.circle,
+
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+
+                              blurRadius: 8,
+                            ),
+                          ],
                         ),
-                      );
-                    },
 
-                    child: Container(
-                      width: 45,
+                        child: const Icon(
+                          Icons.notifications_none,
 
-                      height: 45,
-
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-
-                        shape: BoxShape.circle,
+                          color: Color(0xff263247),
+                        ),
                       ),
-
-                      child: const Icon(Icons.notifications_none),
                     ),
                   ),
                 ],
               ),
             ),
+            // SEARCH BAR
 
-            // SEARCH
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 25),
+              margin: const EdgeInsets.symmetric(horizontal: 22),
 
-              height: 50,
+              height: 52,
 
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -166,49 +193,62 @@ class _HomePageState extends State<HomePage> {
                 },
 
                 decoration: const InputDecoration(
+                  border: InputBorder.none,
+
                   hintText: "Cari lomba karya tulis, fotografi...",
 
-                  prefixIcon: Icon(Icons.search),
+                  prefixIcon: Icon(Icons.search, color: Color(0xff9AA8BD)),
 
-                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 15),
                 ),
               ),
             ),
 
             const SizedBox(height: 20),
 
+            // CATEGORY
             SizedBox(
-              height: 40,
+              height: 45,
 
               child: ListView(
                 scrollDirection: Axis.horizontal,
 
-                padding: const EdgeInsets.symmetric(horizontal: 25),
+                padding: const EdgeInsets.symmetric(horizontal: 22),
 
                 children: [
-                  kategori("Semua"),
+                  kategoriButton("Semua"),
 
-                  kategori("Pendidikan"),
+                  kategoriButton("Pendidikan"),
 
-                  kategori("Seni"),
+                  kategoriButton("Seni"),
 
-                  kategori("Teknologi"),
+                  kategoriButton("Teknologi"),
                 ],
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 25),
 
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 25),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 22),
 
-              child: Align(
-                alignment: Alignment.centerLeft,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 22),
 
-                child: Text(
-                  "Lomba Terbaru",
+                child: Align(
+                  alignment: Alignment.centerLeft,
 
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  child: Text(
+                    "Lomba Terbaru",
+
+                    style: TextStyle(
+                      fontSize: 18,
+
+                      fontWeight: FontWeight.bold,
+
+                      color: Color(0xff263247),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -217,12 +257,12 @@ class _HomePageState extends State<HomePage> {
 
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 25),
+                padding: const EdgeInsets.symmetric(horizontal: 22),
 
-                itemCount: lombaFilter.length,
+                itemCount: lombaTampil.length,
 
                 itemBuilder: (context, index) {
-                  return cardLomba(lombaFilter[index]);
+                  return cardLomba(context, lombaTampil[index]);
                 },
               ),
             ),
@@ -232,219 +272,215 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget cardLomba(Map<String, String> lomba) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
+  Widget kategoriButton(String text) {
+    final bool aktif = kategoriAktif == text;
 
-      height: 120,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
 
-      padding: const EdgeInsets.all(12),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            kategoriAktif = text;
+          });
+        },
 
-      decoration: BoxDecoration(
-        color: Colors.white,
+        child: Container(
+          margin: const EdgeInsets.only(right: 10),
 
-        borderRadius: BorderRadius.circular(18),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
 
-        border: Border.all(color: const Color(0xffE7EDF5)),
-      ),
+          decoration: BoxDecoration(
+            color: aktif ? const Color(0xff2878FF) : Colors.white,
 
-      child: Row(
-        children: [
-          // POSTER
+            borderRadius: BorderRadius.circular(25),
+          ),
 
-          Container(
-            width: 78,
+          child: Center(
+            child: Text(
+              text,
 
-            height: 90,
+              style: TextStyle(
+                color: aktif ? Colors.white : const Color(0xff98A5B8),
 
-            decoration: BoxDecoration(
-              color: const Color(0xff15295B),
-
-              borderRadius: BorderRadius.circular(12),
-            ),
-
-            child: const Center(
-              child: Text(
-                "LKTI\n2026",
-
-                textAlign: TextAlign.center,
-
-                style: TextStyle(
-                  color: Colors.white,
-
-                  fontSize: 11,
-
-                  fontWeight: FontWeight.bold,
-                ),
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
-
-          const SizedBox(width: 12),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-
-                    vertical: 3,
-                  ),
-
-                  decoration: BoxDecoration(
-                    color: const Color(0xffE8F1FF),
-
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-
-                  child: Text(
-                    lomba["kategori"]!,
-
-                    style: const TextStyle(
-                      color: Color(0xff1769FF),
-
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 5),
-
-                Text(
-                  lomba["judul"]!,
-
-                  maxLines: 1,
-
-                  overflow: TextOverflow.ellipsis,
-
-                  style: const TextStyle(
-                    fontSize: 15,
-
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                const SizedBox(height: 4),
-
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.account_balance,
-
-                      size: 13,
-
-                      color: Color(0xff98A5B8),
-                    ),
-
-                    const SizedBox(width: 5),
-
-                    Expanded(
-                      child: Text(
-                        lomba["penyelenggara"]!,
-
-                        maxLines: 1,
-
-                        overflow: TextOverflow.ellipsis,
-
-                        style: const TextStyle(
-                          fontSize: 12,
-
-                          color: Color(0xff98A5B8),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                Text(
-                  "Kuota : ${lomba["kuota"]}",
-
-                  style: const TextStyle(
-                    fontSize: 12,
-
-                    color: Color(0xff1769FF),
-
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-
-                MaterialPageRoute(
-                  builder: (context) => DetailLombaPage(lomba: lomba),
-                ),
-              );
-            },
-
-            child: Container(
-              height: 36,
-
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-
-              decoration: BoxDecoration(
-                color: const Color(0xff1769FF),
-
-                borderRadius: BorderRadius.circular(12),
-              ),
-
-              child: const Center(
-                child: Text(
-                  "Lihat Detail",
-
-                  style: TextStyle(
-                    color: Colors.white,
-
-                    fontSize: 11,
-
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget kategori(String text) {
-    bool aktif = kategoriAktif == text;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          kategoriAktif = text;
-        });
-      },
+  Widget cardLomba(BuildContext context, Map<String, String> lomba) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
 
       child: Container(
-        margin: const EdgeInsets.only(right: 10),
+        margin: const EdgeInsets.only(bottom: 18),
 
-        padding: const EdgeInsets.symmetric(horizontal: 18),
+        padding: const EdgeInsets.all(14),
 
         decoration: BoxDecoration(
-          color: aktif ? const Color(0xff1769FF) : Colors.white,
+          color: Colors.white,
 
-          borderRadius: BorderRadius.circular(20),
-
-          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(18),
         ),
 
-        child: Center(
-          child: Text(
-            text,
+        child: Row(
+          children: [
+            Container(
+              width: 82,
 
-            style: TextStyle(color: aktif ? Colors.white : Colors.grey),
-          ),
+              height: 90,
+
+              decoration: BoxDecoration(
+                color: lomba["kategori"] == "Seni"
+                    ? const Color(0xff075E49)
+                    : const Color(0xff172B59),
+
+                borderRadius: BorderRadius.circular(15),
+              ),
+
+              child: Center(
+                child: Text(
+                  "${lomba["poster"]}\n${lomba["tanggal"]}",
+
+                  textAlign: TextAlign.center,
+
+                  style: const TextStyle(
+                    color: Colors.white,
+
+                    fontSize: 12,
+
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 14),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+
+                      vertical: 4,
+                    ),
+
+                    decoration: BoxDecoration(
+                      color: const Color(0xffE8F1FF),
+
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+
+                    child: Text(
+                      lomba["kategori"]!,
+
+                      style: const TextStyle(
+                        color: Color(0xff2878FF),
+
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  Text(
+                    lomba["judul"]!,
+
+                    maxLines: 1,
+
+                    overflow: TextOverflow.ellipsis,
+
+                    style: const TextStyle(
+                      fontSize: 15,
+
+                      fontWeight: FontWeight.bold,
+
+                      color: Color(0xff263247),
+                    ),
+                  ),
+
+                  const SizedBox(height: 5),
+
+                  Text(
+                    "🏛 ${lomba["penyelenggara"]}",
+
+                    maxLines: 1,
+
+                    overflow: TextOverflow.ellipsis,
+
+                    style: const TextStyle(
+                      fontSize: 12,
+
+                      color: Color(0xff98A5B8),
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  Text(
+                    "Kuota : ${lomba["kuota"]}",
+
+                    style: const TextStyle(
+                      fontSize: 12,
+
+                      color: Color(0xff2878FF),
+
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+
+              child: SizedBox(
+                width: 95,
+
+                height: 38,
+
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xff2878FF),
+
+                    padding: EdgeInsets.zero,
+
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+
+                      MaterialPageRoute(
+                        builder: (context) => DetailLombaPage(lomba: lomba),
+                      ),
+                    );
+                  },
+
+                  child: const Text(
+                    "Lihat Detail",
+
+                    style: TextStyle(color: Colors.white, fontSize: 11),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

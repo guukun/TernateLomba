@@ -1,89 +1,339 @@
 import 'package:flutter/material.dart';
 
-class LombaSayaPage extends StatefulWidget {
-  const LombaSayaPage({super.key});
+class DetailLombaPage extends StatelessWidget {
+  final Map<String, String> lomba;
 
-  @override
-  State<LombaSayaPage> createState() => _LombaSayaPageState();
-}
-
-class _LombaSayaPageState extends State<LombaSayaPage> {
-  int selectedTab = 0;
-
-  static const Color primaryBlue = Color(0xFF2878FF);
-  static const Color textColor = Color(0xFF263247);
-  static const Color mutedColor = Color(0xFF98A5B8);
+  const DetailLombaPage({super.key, required this.lomba});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xffF8FAFC),
+
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 22, 20, 22),
-              child: Text(
-                'Lomba Saya',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
+            // HEADER
+
+            Container(
+              height: 300,
+
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xff26364F), Color(0xff53647D)],
+
+                  begin: Alignment.topCenter,
+
+                  end: Alignment.bottomCenter,
                 ),
               ),
-            ),
 
-            // Tab
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F4F8),
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Row(
+              child: Stack(
                 children: [
-                  _buildTab('Lomba Diikuti', 0),
-                  _buildTab('Lomba Dibuat', 1),
+                  Positioned(
+                    top: 20,
+
+                    left: 20,
+
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+
+                      child: Container(
+                        width: 42,
+
+                        height: 42,
+
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+
+                          shape: BoxShape.circle,
+                        ),
+
+                        child: const Icon(
+                          Icons.arrow_back,
+
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  Positioned(
+                    left: 25,
+
+                    bottom: 35,
+
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+
+                            vertical: 5,
+                          ),
+
+                          decoration: BoxDecoration(
+                            color: const Color(0xff4285F4),
+
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+
+                          child: Text(
+                            "${lomba["kategori"]} • Nasional",
+
+                            style: const TextStyle(
+                              color: Colors.white,
+
+                              fontSize: 11,
+
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 15),
+
+                        Text(
+                          lomba["judul"] ?? "",
+
+                          style: const TextStyle(
+                            color: Colors.white,
+
+                            fontSize: 22,
+
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.account_balance,
+
+                              size: 16,
+
+                              color: Colors.white70,
+                            ),
+
+                            const SizedBox(width: 6),
+
+                            Text(
+                              lomba["penyelenggara"] ?? "",
+
+                              style: const TextStyle(
+                                color: Colors.white70,
+
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 20),
-
-            // Content
             Expanded(
-              child: ClipRect(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  reverseDuration: const Duration(milliseconds: 250),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, animation) {
-                    final scaleAnimation = Tween<double>(begin: 0.96, end: 1.0)
-                        .animate(
-                          CurvedAnimation(
-                            parent: animation,
-                            curve: Curves.easeOutCubic,
-                          ),
-                        );
+              child: Container(
+                transform: Matrix4.translationValues(0, -25, 0),
 
-                    return FadeTransition(
-                      opacity: animation,
-                      child: ScaleTransition(
-                        scale: scaleAnimation,
-                        child: child,
+                padding: const EdgeInsets.fromLTRB(20, 25, 20, 0),
+
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                ),
+
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+
+                    children: [
+                      // KUOTA
+
+                      Container(
+                        padding: const EdgeInsets.all(16),
+
+                        decoration: BoxDecoration(
+                          color: const Color(0xffF8FAFD),
+
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+                              children: [
+                                const Text(
+                                  "Status Pendaftar",
+
+                                  style: TextStyle(
+                                    color: Color(0xff98A5B8),
+
+                                    fontSize: 13,
+                                  ),
+                                ),
+
+                                Text(
+                                  "${lomba["kuota"]} Kuota Terisi",
+
+                                  style: const TextStyle(
+                                    color: Color(0xff1769FF),
+
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+
+                              child: const LinearProgressIndicator(
+                                value: 0.67,
+
+                                minHeight: 8,
+
+                                backgroundColor: Color(0xffDCE5F2),
+
+                                color: Color(0xff1769FF),
+                              ),
+                            ),
+
+                            const SizedBox(height: 8),
+
+                            const Text(
+                              "Sisa 33 kursi pendaftaran tersedia",
+
+                              style: TextStyle(
+                                color: Color(0xff98A5B8),
+
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    );
-                  },
 
-                  child: KeyedSubtree(
-                    key: ValueKey<int>(selectedTab),
-                    child: selectedTab == 0
-                        ? _buildLombaDiikuti()
-                        : _buildLombaDibuat(),
+                      const SizedBox(height: 20),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: infoBox(
+                              "Biaya Pendaftaran",
+
+                              "Gratis",
+
+                              Colors.green,
+                            ),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          Expanded(
+                            child: infoBox(
+                              "Total Hadiah",
+
+                              "Rp 15.000.000",
+
+                              const Color(0xff263247),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: infoBox(
+                              "Batas Pendaftaran",
+
+                              "20 Nov 2026",
+
+                              Colors.red,
+                            ),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          Expanded(
+                            child: infoBox(
+                              "Pelaksanaan",
+
+                              "1 - 3 Des 2026",
+
+                              const Color(0xff263247),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 25),
+
+                      const Text(
+                        "Deskripsi Singkat",
+
+                        style: TextStyle(
+                          fontSize: 17,
+
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      Text(
+                        lomba["deskripsi"] ?? "Tidak ada deskripsi lomba.",
+
+                        style: const TextStyle(
+                          fontSize: 14,
+
+                          height: 1.6,
+
+                          color: Color(0xff5F6B7A),
+                        ),
+                      ),
+
+                      const SizedBox(height: 25),
+
+                      const Text(
+                        "Persyaratan Lomba",
+
+                        style: TextStyle(
+                          fontSize: 17,
+
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      Text(
+                        lomba["persyaratan"] ?? "",
+
+                        style: const TextStyle(fontSize: 14, height: 1.7),
+                      ),
+
+                      const SizedBox(height: 30),
+                    ],
                   ),
                 ),
               ),
@@ -91,157 +341,75 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
           ],
         ),
       ),
-    );
-  }
 
-  // TAB BUTTON
-  Widget _buildTab(String title, int index) {
-    final bool isSelected = selectedTab == index;
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(20),
 
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          height: 55,
 
-        onTap: () {
-          if (selectedTab == index) return;
+          child: ElevatedButton(
+            onPressed: () {},
 
-          setState(() {
-            selectedTab = index;
-          });
-        },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xff1769FF),
 
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOutCubic,
-
-          padding: const EdgeInsets.symmetric(vertical: 13),
-
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
-            
-            // perbaiki border radius
-            borderRadius: BorderRadius.circular(10),
-
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : [],
-          ),
-
-          child: AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 250),
-
-            style: TextStyle(
-              fontSize: 14,
-
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-
-              color: isSelected ? textColor : mutedColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
             ),
 
-            child: Text(title, textAlign: TextAlign.center),
+            child: const Text(
+              "Daftar Sekarang →",
+
+              style: TextStyle(
+                color: Colors.white,
+
+                fontSize: 16,
+
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  // LOMBA DIIKUTI
-  Widget _buildLombaDiikuti() {
-    return _buildEmptyState(
-      icon: Icons.emoji_events_outlined,
+  Widget infoBox(String title, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(15),
 
-      title: 'Belum mengikuti lomba',
+      decoration: BoxDecoration(
+        color: const Color(0xffF8FAFD),
 
-      description:
-          'Kamu belum mengikuti lomba apa pun.\n'
-          'Temukan lomba menarik di TernateLomba!',
-    );
-  }
+        borderRadius: BorderRadius.circular(15),
+      ),
 
-  // LOMBA DIBUAT
-  Widget _buildLombaDibuat() {
-    return _buildEmptyState(
-      icon: Icons.add,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
 
-      title: 'Belum ada lomba yang dibuat',
+        children: [
+          Text(
+            title,
 
-      description:
-          'Anda belum pernah membuat lomba.\n'
-          'Mulai buat lomba dan bagikan kepada masyarakat Ternate!',
-    );
-  }
+            style: const TextStyle(color: Color(0xff98A5B8), fontSize: 12),
+          ),
 
-  // EMPTY STATE
-  Widget _buildEmptyState({
-    required IconData icon,
+          const SizedBox(height: 8),
 
-    required String title,
+          Text(
+            value,
 
-    required String description,
-  }) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+            style: TextStyle(
+              color: color,
 
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+              fontSize: 15,
 
-          children: [
-            Container(
-              width: 82,
-
-              height: 82,
-
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-
-                color: const Color(0xFFF7FAFD),
-
-                border: Border.all(color: const Color(0xFFD7E2EF), width: 2),
-              ),
-
-              child: Icon(icon, color: const Color(0xFF9DAFC4), size: 38),
+              fontWeight: FontWeight.bold,
             ),
-
-            const SizedBox(height: 24),
-
-            Text(
-              title,
-
-              textAlign: TextAlign.center,
-
-              style: const TextStyle(
-                fontSize: 17,
-
-                fontWeight: FontWeight.bold,
-
-                color: textColor,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            Text(
-              description,
-
-              textAlign: TextAlign.center,
-
-              style: const TextStyle(
-                fontSize: 14,
-
-                height: 1.6,
-
-                color: mutedColor,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

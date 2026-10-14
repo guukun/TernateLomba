@@ -18,8 +18,8 @@ class _HomePageState extends State<HomePage> {
 
   final TextEditingController searchController = TextEditingController();
 
-  // DATA LOMBA SEMENTARA
-  // nanti bisa diganti dari API Laravel
+  // DATA SEMENTARA
+  // Nanti diganti dari API Laravel
 
   final List<Map<String, String>> daftarLomba = [
     {
@@ -27,13 +27,15 @@ class _HomePageState extends State<HomePage> {
       "judul": "Lomba Karya Tulis Ilmiah",
       "penyelenggara": "Universitas Khairun",
       "kuota": "67/100",
+      "poster": "",
     },
 
     {
       "kategori": "Seni",
       "judul": "Festival Fotografi Ternate",
-      "penyelenggara": "Komunitas Seni Ternate",
+      "penyelenggara": "Dispar Kota Ternate",
       "kuota": "50/100",
+      "poster": "",
     },
 
     {
@@ -41,22 +43,21 @@ class _HomePageState extends State<HomePage> {
       "judul": "AI Innovation Competition",
       "penyelenggara": "Tech Indonesia",
       "kuota": "80/100",
+      "poster": "",
     },
   ];
-
-  // FILTER DATA
 
   List<Map<String, String>> get lombaFilter {
     return daftarLomba.where((item) {
       bool sesuaiKategori =
           kategoriAktif == "Semua" || item["kategori"] == kategoriAktif;
 
-      bool sesuaiPencarian =
+      bool sesuaiSearch =
           item["judul"]!.toLowerCase().contains(keyword.toLowerCase()) ||
           item["kategori"]!.toLowerCase().contains(keyword.toLowerCase()) ||
           item["penyelenggara"]!.toLowerCase().contains(keyword.toLowerCase());
 
-      return sesuaiKategori && sesuaiPencarian;
+      return sesuaiKategori && sesuaiSearch;
     }).toList();
   }
 
@@ -88,20 +89,25 @@ class _HomePageState extends State<HomePage> {
                           fontSize: 20,
 
                           fontWeight: FontWeight.bold,
+
+                          color: Color(0xff263247),
                         ),
                       ),
 
                       const SizedBox(height: 6),
 
                       const Text(
-                        "Temukan berbagai lomba menarik di Ternate",
+                        "Temukan berbagai lomba menarik di Ternate!",
 
-                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 13,
+
+                          color: Color(0xff98A5B8),
+                        ),
                       ),
                     ],
                   ),
 
-                  // NOTIFICATION BUTTON
                   Container(
                     height: 45,
 
@@ -187,24 +193,34 @@ class _HomePageState extends State<HomePage> {
 
             const SizedBox(height: 25),
 
-            // TITLE
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 25),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 25),
 
-              child: Align(
-                alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
-                child: Text(
-                  "Lomba Terbaru",
+                children: [
+                  const Text(
+                    "Lomba Terbaru",
 
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+
+                  Text(
+                    "Lihat Semua",
+
+                    style: TextStyle(
+                      color: Colors.blue.shade600,
+
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
 
             const SizedBox(height: 15),
 
-            // CARD LIST
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 25),
@@ -214,124 +230,179 @@ class _HomePageState extends State<HomePage> {
                 itemBuilder: (context, index) {
                   final lomba = lombaFilter[index];
 
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 15),
-
-                    height: 120,
-
-                    padding: const EdgeInsets.all(12),
-
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-
-                      borderRadius: BorderRadius.circular(18),
-
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 75,
-
-                          height: 90,
-
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-
-                          child: const Icon(Icons.image, color: Colors.grey),
-                        ),
-
-                        const SizedBox(width: 12),
-
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-
-                            children: [
-                              Text(
-                                lomba["kategori"]!,
-
-                                style: const TextStyle(
-                                  color: Colors.blue,
-
-                                  fontSize: 12,
-
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-
-                              const SizedBox(height: 6),
-
-                              Text(
-                                lomba["judul"]!,
-
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-
-                                  fontSize: 14,
-                                ),
-                              ),
-
-                              const SizedBox(height: 5),
-
-                              Text(
-                                lomba["penyelenggara"]!,
-
-                                style: TextStyle(
-                                  fontSize: 12,
-
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-
-                              Text(
-                                "Kuota : ${lomba["kuota"]}",
-
-                                style: const TextStyle(
-                                  fontSize: 12,
-
-                                  color: Colors.blue,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        Container(
-                          height: 38,
-
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-
-                          decoration: BoxDecoration(
-                            color: const Color(0xff1769FF),
-
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-
-                          child: const Center(
-                            child: Text(
-                              "Lihat",
-
-                              style: TextStyle(
-                                color: Colors.white,
-
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+                  return buildCardLomba(lomba);
                 },
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget buildCardLomba(Map<String, String> lomba) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+
+      padding: const EdgeInsets.all(12),
+
+      height: 140,
+
+      decoration: BoxDecoration(
+        color: Colors.white,
+
+        borderRadius: BorderRadius.circular(20),
+
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+
+      child: Row(
+        children: [
+          Container(
+            width: 85,
+
+            height: 110,
+
+            decoration: BoxDecoration(
+              color: const Color(0xffEEF4FF),
+
+              borderRadius: BorderRadius.circular(14),
+            ),
+
+            child: const Icon(
+              Icons.image_outlined,
+
+              size: 40,
+
+              color: Colors.grey,
+            ),
+          ),
+
+          const SizedBox(width: 14),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+
+                  decoration: BoxDecoration(
+                    color: const Color(0xffE8F1FF),
+
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+
+                  child: Text(
+                    lomba["kategori"]!,
+
+                    style: const TextStyle(
+                      color: Color(0xff1769FF),
+
+                      fontSize: 11,
+
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 7),
+
+                Text(
+                  lomba["judul"]!,
+
+                  maxLines: 1,
+
+                  overflow: TextOverflow.ellipsis,
+
+                  style: const TextStyle(
+                    fontSize: 16,
+
+                    fontWeight: FontWeight.bold,
+
+                    color: Color(0xff263247),
+                  ),
+                ),
+
+                const SizedBox(height: 6),
+
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.account_balance,
+
+                      size: 14,
+
+                      color: Color(0xff98A5B8),
+                    ),
+
+                    const SizedBox(width: 5),
+
+                    Expanded(
+                      child: Text(
+                        lomba["penyelenggara"]!,
+
+                        maxLines: 1,
+
+                        overflow: TextOverflow.ellipsis,
+
+                        style: const TextStyle(
+                          fontSize: 12,
+
+                          color: Color(0xff98A5B8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 5),
+
+                Text(
+                  "Kuota : ${lomba["kuota"]}",
+
+                  style: const TextStyle(
+                    fontSize: 12,
+
+                    color: Color(0xff1769FF),
+
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Container(
+            height: 40,
+
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+
+            decoration: BoxDecoration(
+              color: const Color(0xff1769FF),
+
+              borderRadius: BorderRadius.circular(12),
+            ),
+
+            child: const Center(
+              child: Text(
+                "Lihat Detail",
+
+                style: TextStyle(
+                  color: Colors.white,
+
+                  fontSize: 12,
+
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

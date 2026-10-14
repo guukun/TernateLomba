@@ -1,452 +1,452 @@
 import 'package:flutter/material.dart';
 
-// import 'detailLombaPage.dart';
-// import 'notificationPage.dart';
+import 'detailLombaPage.dart';
+import 'notificationPage.dart';
 
-// class HomePage extends StatefulWidget {
-//   final String username;
+class HomePage extends StatefulWidget {
+  final String username;
 
-//   const HomePage({super.key, required this.username});
+  const HomePage({super.key, required this.username});
 
-//   @override
-//   State<HomePage> createState() => _HomePageState();
-// }
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
 
-// class _HomePageState extends State<HomePage> {
-//   String kategoriAktif = "Semua";
+class _HomePageState extends State<HomePage> {
+  String kategoriAktif = "Semua";
 
-//   String keyword = "";
+  String keyword = "";
 
-//   final TextEditingController searchController = TextEditingController();
+  final TextEditingController searchController = TextEditingController();
 
-//   final List<Map<String, String>> daftarLomba = [
-//     {
-//       "kategori": "Pendidikan",
+  final List<Map<String, String>> daftarLomba = [
+    {
+      "kategori": "Pendidikan",
 
-//       "judul": "Lomba Karya Tulis Ilmiah",
+      "judul": "Lomba Karya Tulis Ilmiah",
 
-//       "penyelenggara": "Universitas Khairun",
+      "penyelenggara": "Universitas Khairun",
 
-//       "kuota": "67/100",
+      "kuota": "67/100",
 
-//       "deskripsi": "Lomba karya tulis ilmiah tingkat pelajar dan mahasiswa dalam rangka meningkatkan inovasi dan kreativitas generasi muda.",
+      "deskripsi": "Lomba karya tulis ilmiah tingkat pelajar dan mahasiswa dalam rangka meningkatkan inovasi dan kreativitas generasi muda.",
 
-//       "persyaratan":
-//           "• Peserta aktif pelajar atau mahasiswa\n"
-//           "• Karya original\n"
-//           "• Belum pernah dipublikasikan",
-//     },
+      "persyaratan":
+          "• Peserta aktif pelajar atau mahasiswa\n"
+          "• Karya original\n"
+          "• Belum pernah dipublikasikan",
+    },
 
-//     {
-//       "kategori": "Seni",
+    {
+      "kategori": "Seni",
 
-//       "judul": "Festival Fotografi Pesona Bahari",
+      "judul": "Festival Fotografi Pesona Bahari",
 
-//       "penyelenggara": "Dispar Kota Ternate",
+      "penyelenggara": "Dispar Kota Ternate",
 
-//       "kuota": "50/100",
+      "kuota": "50/100",
 
-//       "deskripsi":
-//           "Kompetisi fotografi dengan tema budaya dan keindahan Ternate.",
+      "deskripsi":
+          "Kompetisi fotografi dengan tema budaya dan keindahan Ternate.",
 
-//       "persyaratan":
-//           "• Foto karya sendiri\n"
-//           "• Tidak melanggar hak cipta",
-//     },
-//   ];
+      "persyaratan":
+          "• Foto karya sendiri\n"
+          "• Tidak melanggar hak cipta",
+    },
+  ];
 
-//   List<Map<String, String>> get lombaFilter {
-//     return daftarLomba.where((item) {
-//       bool kategori =
-//           kategoriAktif == "Semua" || item["kategori"] == kategoriAktif;
+  List<Map<String, String>> get lombaFilter {
+    return daftarLomba.where((item) {
+      bool kategori =
+          kategoriAktif == "Semua" || item["kategori"] == kategoriAktif;
 
-//       bool cari =
-//           item["judul"]!.toLowerCase().contains(keyword.toLowerCase()) ||
-//           item["penyelenggara"]!.toLowerCase().contains(keyword.toLowerCase());
+      bool cari =
+          item["judul"]!.toLowerCase().contains(keyword.toLowerCase()) ||
+          item["penyelenggara"]!.toLowerCase().contains(keyword.toLowerCase());
 
-//       return kategori && cari;
-//     }).toList();
-//   }
+      return kategori && cari;
+    }).toList();
+  }
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       backgroundColor: const Color(0xffF8FAFC),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xffF8FAFC),
 
-//       body: SafeArea(
-//         child: Column(
-//           children: [
-//             // HEADER
+      body: SafeArea(
+        child: Column(
+          children: [
+            // HEADER
 
-//             Padding(
-//               padding: const EdgeInsets.fromLTRB(25, 20, 25, 15),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(25, 20, 25, 15),
 
-//               child: Row(
-//                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
-//                 children: [
-//                   Column(
-//                     crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
 
-//                     children: [
-//                       Text(
-//                         "Halo, ${widget.username} 👋",
+                    children: [
+                      Text(
+                        "Halo, ${widget.username} 👋",
 
-//                         style: const TextStyle(
-//                           fontSize: 20,
+                        style: const TextStyle(
+                          fontSize: 20,
 
-//                           fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.bold,
 
-//                           color: Color(0xff263247),
-//                         ),
-//                       ),
+                          color: Color(0xff263247),
+                        ),
+                      ),
 
-//                       const SizedBox(height: 5),
+                      const SizedBox(height: 5),
 
-//                       const Text(
-//                         "Temukan berbagai lomba menarik di Ternate!",
+                      const Text(
+                        "Temukan berbagai lomba menarik di Ternate!",
 
-//                         style: TextStyle(
-//                           fontSize: 13,
+                        style: TextStyle(
+                          fontSize: 13,
 
-//                           color: Color(0xff98A5B8),
-//                         ),
-//                       ),
-//                     ],
-//                   ),
+                          color: Color(0xff98A5B8),
+                        ),
+                      ),
+                    ],
+                  ),
 
-//                   GestureDetector(
-//                     onTap: () {
-//                       Navigator.push(
-//                         context,
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
 
-//                         MaterialPageRoute(
-//                           builder: (context) => const NotificationPage(),
-//                         ),
-//                       );
-//                     },
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationPage(),
+                        ),
+                      );
+                    },
 
-//                     child: Container(
-//                       width: 45,
+                    child: Container(
+                      width: 45,
 
-//                       height: 45,
+                      height: 45,
 
-//                       decoration: const BoxDecoration(
-//                         color: Colors.white,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
 
-//                         shape: BoxShape.circle,
-//                       ),
+                        shape: BoxShape.circle,
+                      ),
 
-//                       child: const Icon(Icons.notifications_none),
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ),
+                      child: const Icon(Icons.notifications_none),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
-//             // SEARCH
-//             Container(
-//               margin: const EdgeInsets.symmetric(horizontal: 25),
+            // SEARCH
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 25),
 
-//               height: 50,
+              height: 50,
 
-//               decoration: BoxDecoration(
-//                 color: Colors.white,
+              decoration: BoxDecoration(
+                color: Colors.white,
 
-//                 borderRadius: BorderRadius.circular(30),
-//               ),
+                borderRadius: BorderRadius.circular(30),
+              ),
 
-//               child: TextField(
-//                 controller: searchController,
+              child: TextField(
+                controller: searchController,
 
-//                 onChanged: (value) {
-//                   setState(() {
-//                     keyword = value;
-//                   });
-//                 },
+                onChanged: (value) {
+                  setState(() {
+                    keyword = value;
+                  });
+                },
 
-//                 decoration: const InputDecoration(
-//                   hintText: "Cari lomba karya tulis, fotografi...",
+                decoration: const InputDecoration(
+                  hintText: "Cari lomba karya tulis, fotografi...",
 
-//                   prefixIcon: Icon(Icons.search),
+                  prefixIcon: Icon(Icons.search),
 
-//                   border: InputBorder.none,
-//                 ),
-//               ),
-//             ),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
 
-//             const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-//             SizedBox(
-//               height: 40,
+            SizedBox(
+              height: 40,
 
-//               child: ListView(
-//                 scrollDirection: Axis.horizontal,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
 
-//                 padding: const EdgeInsets.symmetric(horizontal: 25),
+                padding: const EdgeInsets.symmetric(horizontal: 25),
 
-//                 children: [
-//                   kategori("Semua"),
+                children: [
+                  kategori("Semua"),
 
-//                   kategori("Pendidikan"),
+                  kategori("Pendidikan"),
 
-//                   kategori("Seni"),
+                  kategori("Seni"),
 
-//                   kategori("Teknologi"),
-//                 ],
-//               ),
-//             ),
+                  kategori("Teknologi"),
+                ],
+              ),
+            ),
 
-//             const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-//             const Padding(
-//               padding: EdgeInsets.symmetric(horizontal: 25),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 25),
 
-//               child: Align(
-//                 alignment: Alignment.centerLeft,
+              child: Align(
+                alignment: Alignment.centerLeft,
 
-//                 child: Text(
-//                   "Lomba Terbaru",
+                child: Text(
+                  "Lomba Terbaru",
 
-//                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-//                 ),
-//               ),
-//             ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
 
-//             const SizedBox(height: 15),
+            const SizedBox(height: 15),
 
-//             Expanded(
-//               child: ListView.builder(
-//                 padding: const EdgeInsets.symmetric(horizontal: 25),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 25),
 
-//                 itemCount: lombaFilter.length,
+                itemCount: lombaFilter.length,
 
-//                 itemBuilder: (context, index) {
-//                   return cardLomba(lombaFilter[index]);
-//                 },
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
+                itemBuilder: (context, index) {
+                  return cardLomba(lombaFilter[index]);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-//   Widget cardLomba(Map<String, String> lomba) {
-//     return Container(
-//       margin: const EdgeInsets.only(bottom: 15),
+  Widget cardLomba(Map<String, String> lomba) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
 
-//       height: 120,
+      height: 120,
 
-//       padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
 
-//       decoration: BoxDecoration(
-//         color: Colors.white,
+      decoration: BoxDecoration(
+        color: Colors.white,
 
-//         borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
 
-//         border: Border.all(color: const Color(0xffE7EDF5)),
-//       ),
+        border: Border.all(color: const Color(0xffE7EDF5)),
+      ),
 
-//       child: Row(
-//         children: [
-//           // POSTER
+      child: Row(
+        children: [
+          // POSTER
 
-//           Container(
-//             width: 78,
+          Container(
+            width: 78,
 
-//             height: 90,
+            height: 90,
 
-//             decoration: BoxDecoration(
-//               color: const Color(0xff15295B),
+            decoration: BoxDecoration(
+              color: const Color(0xff15295B),
 
-//               borderRadius: BorderRadius.circular(12),
-//             ),
+              borderRadius: BorderRadius.circular(12),
+            ),
 
-//             child: const Center(
-//               child: Text(
-//                 "LKTI\n2026",
+            child: const Center(
+              child: Text(
+                "LKTI\n2026",
 
-//                 textAlign: TextAlign.center,
+                textAlign: TextAlign.center,
 
-//                 style: TextStyle(
-//                   color: Colors.white,
+                style: TextStyle(
+                  color: Colors.white,
 
-//                   fontSize: 11,
+                  fontSize: 11,
 
-//                   fontWeight: FontWeight.bold,
-//                 ),
-//               ),
-//             ),
-//           ),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
 
-//           const SizedBox(width: 12),
+          const SizedBox(width: 12),
 
-//           Expanded(
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
 
-//               children: [
-//                 Container(
-//                   padding: const EdgeInsets.symmetric(
-//                     horizontal: 9,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
 
-//                     vertical: 3,
-//                   ),
+                    vertical: 3,
+                  ),
 
-//                   decoration: BoxDecoration(
-//                     color: const Color(0xffE8F1FF),
+                  decoration: BoxDecoration(
+                    color: const Color(0xffE8F1FF),
 
-//                     borderRadius: BorderRadius.circular(20),
-//                   ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
 
-//                   child: Text(
-//                     lomba["kategori"]!,
+                  child: Text(
+                    lomba["kategori"]!,
 
-//                     style: const TextStyle(
-//                       color: Color(0xff1769FF),
+                    style: const TextStyle(
+                      color: Color(0xff1769FF),
 
-//                       fontSize: 11,
-//                     ),
-//                   ),
-//                 ),
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
 
-//                 const SizedBox(height: 5),
+                const SizedBox(height: 5),
 
-//                 Text(
-//                   lomba["judul"]!,
+                Text(
+                  lomba["judul"]!,
 
-//                   maxLines: 1,
+                  maxLines: 1,
 
-//                   overflow: TextOverflow.ellipsis,
+                  overflow: TextOverflow.ellipsis,
 
-//                   style: const TextStyle(
-//                     fontSize: 15,
+                  style: const TextStyle(
+                    fontSize: 15,
 
-//                     fontWeight: FontWeight.bold,
-//                   ),
-//                 ),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
 
-//                 const SizedBox(height: 4),
+                const SizedBox(height: 4),
 
-//                 Row(
-//                   children: [
-//                     const Icon(
-//                       Icons.account_balance,
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.account_balance,
 
-//                       size: 13,
+                      size: 13,
 
-//                       color: Color(0xff98A5B8),
-//                     ),
+                      color: Color(0xff98A5B8),
+                    ),
 
-//                     const SizedBox(width: 5),
+                    const SizedBox(width: 5),
 
-//                     Expanded(
-//                       child: Text(
-//                         lomba["penyelenggara"]!,
+                    Expanded(
+                      child: Text(
+                        lomba["penyelenggara"]!,
 
-//                         maxLines: 1,
+                        maxLines: 1,
 
-//                         overflow: TextOverflow.ellipsis,
+                        overflow: TextOverflow.ellipsis,
 
-//                         style: const TextStyle(
-//                           fontSize: 12,
+                        style: const TextStyle(
+                          fontSize: 12,
 
-//                           color: Color(0xff98A5B8),
-//                         ),
-//                       ),
-//                     ),
-//                   ],
-//                 ),
+                          color: Color(0xff98A5B8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
 
-//                 Text(
-//                   "Kuota : ${lomba["kuota"]}",
+                Text(
+                  "Kuota : ${lomba["kuota"]}",
 
-//                   style: const TextStyle(
-//                     fontSize: 12,
+                  style: const TextStyle(
+                    fontSize: 12,
 
-//                     color: Color(0xff1769FF),
+                    color: Color(0xff1769FF),
 
-//                     fontWeight: FontWeight.bold,
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           ),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
 
-//           GestureDetector(
-//             onTap: () {
-//               Navigator.push(
-//                 context,
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
 
-//                 MaterialPageRoute(
-//                   builder: (context) => DetailLombaPage(lomba: lomba),
-//                 ),
-//               );
-//             },
+                MaterialPageRoute(
+                  builder: (context) => DetailLombaPage(lomba: lomba),
+                ),
+              );
+            },
 
-//             child: Container(
-//               height: 36,
+            child: Container(
+              height: 36,
 
-//               padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
 
-//               decoration: BoxDecoration(
-//                 color: const Color(0xff1769FF),
+              decoration: BoxDecoration(
+                color: const Color(0xff1769FF),
 
-//                 borderRadius: BorderRadius.circular(12),
-//               ),
+                borderRadius: BorderRadius.circular(12),
+              ),
 
-//               child: const Center(
-//                 child: Text(
-//                   "Lihat Detail",
+              child: const Center(
+                child: Text(
+                  "Lihat Detail",
 
-//                   style: TextStyle(
-//                     color: Colors.white,
+                  style: TextStyle(
+                    color: Colors.white,
 
-//                     fontSize: 11,
+                    fontSize: 11,
 
-//                     fontWeight: FontWeight.bold,
-//                   ),
-//                 ),
-//               ),
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-//   Widget kategori(String text) {
-//     bool aktif = kategoriAktif == text;
+  Widget kategori(String text) {
+    bool aktif = kategoriAktif == text;
 
-//     return GestureDetector(
-//       onTap: () {
-//         setState(() {
-//           kategoriAktif = text;
-//         });
-//       },
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          kategoriAktif = text;
+        });
+      },
 
-//       child: Container(
-//         margin: const EdgeInsets.only(right: 10),
+      child: Container(
+        margin: const EdgeInsets.only(right: 10),
 
-//         padding: const EdgeInsets.symmetric(horizontal: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 18),
 
-//         decoration: BoxDecoration(
-//           color: aktif ? const Color(0xff1769FF) : Colors.white,
+        decoration: BoxDecoration(
+          color: aktif ? const Color(0xff1769FF) : Colors.white,
 
-//           borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(20),
 
-//           border: Border.all(color: Colors.grey.shade300),
-//         ),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
 
-//         child: Center(
-//           child: Text(
-//             text,
+        child: Center(
+          child: Text(
+            text,
 
-//             style: TextStyle(color: aktif ? Colors.white : Colors.grey),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
+            style: TextStyle(color: aktif ? Colors.white : Colors.grey),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -1,372 +1,452 @@
 import 'package:flutter/material.dart';
 
-import 'notificationPage.dart';
+// import 'detailLombaPage.dart';
+// import 'notificationPage.dart';
 
-class HomePage extends StatefulWidget {
-  final String username;
+// class HomePage extends StatefulWidget {
+//   final String username;
 
-  const HomePage({super.key, required this.username});
+//   const HomePage({super.key, required this.username});
 
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
+//   @override
+//   State<HomePage> createState() => _HomePageState();
+// }
 
-class _HomePageState extends State<HomePage> {
-  String kategoriAktif = "Semua";
+// class _HomePageState extends State<HomePage> {
+//   String kategoriAktif = "Semua";
 
-  String keyword = "";
+//   String keyword = "";
 
-  final TextEditingController searchController = TextEditingController();
+//   final TextEditingController searchController = TextEditingController();
 
-  // DATA LOMBA SEMENTARA
-  // nanti bisa diganti dari API Laravel
+//   final List<Map<String, String>> daftarLomba = [
+//     {
+//       "kategori": "Pendidikan",
 
-  final List<Map<String, String>> daftarLomba = [
-    {
-      "kategori": "Pendidikan",
-      "judul": "Lomba Karya Tulis Ilmiah",
-      "penyelenggara": "Universitas Khairun",
-      "kuota": "67/100",
-    },
+//       "judul": "Lomba Karya Tulis Ilmiah",
 
-    {
-      "kategori": "Seni",
-      "judul": "Festival Fotografi Ternate",
-      "penyelenggara": "Komunitas Seni Ternate",
-      "kuota": "50/100",
-    },
+//       "penyelenggara": "Universitas Khairun",
 
-    {
-      "kategori": "Teknologi",
-      "judul": "AI Innovation Competition",
-      "penyelenggara": "Tech Indonesia",
-      "kuota": "80/100",
-    },
-  ];
+//       "kuota": "67/100",
 
-  // FILTER DATA
+//       "deskripsi": "Lomba karya tulis ilmiah tingkat pelajar dan mahasiswa dalam rangka meningkatkan inovasi dan kreativitas generasi muda.",
 
-  List<Map<String, String>> get lombaFilter {
-    return daftarLomba.where((item) {
-      bool sesuaiKategori =
-          kategoriAktif == "Semua" || item["kategori"] == kategoriAktif;
+//       "persyaratan":
+//           "• Peserta aktif pelajar atau mahasiswa\n"
+//           "• Karya original\n"
+//           "• Belum pernah dipublikasikan",
+//     },
 
-      bool sesuaiPencarian =
-          item["judul"]!.toLowerCase().contains(keyword.toLowerCase()) ||
-          item["kategori"]!.toLowerCase().contains(keyword.toLowerCase()) ||
-          item["penyelenggara"]!.toLowerCase().contains(keyword.toLowerCase());
+//     {
+//       "kategori": "Seni",
 
-      return sesuaiKategori && sesuaiPencarian;
-    }).toList();
-  }
+//       "judul": "Festival Fotografi Pesona Bahari",
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xffF8FAFC),
+//       "penyelenggara": "Dispar Kota Ternate",
 
-      body: SafeArea(
-        child: Column(
-          children: [
-            // HEADER
+//       "kuota": "50/100",
 
-            Padding(
-              padding: const EdgeInsets.fromLTRB(25, 20, 25, 15),
+//       "deskripsi":
+//           "Kompetisi fotografi dengan tema budaya dan keindahan Ternate.",
 
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//       "persyaratan":
+//           "• Foto karya sendiri\n"
+//           "• Tidak melanggar hak cipta",
+//     },
+//   ];
 
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+//   List<Map<String, String>> get lombaFilter {
+//     return daftarLomba.where((item) {
+//       bool kategori =
+//           kategoriAktif == "Semua" || item["kategori"] == kategoriAktif;
 
-                    children: [
-                      Text(
-                        "Halo, ${widget.username} 👋",
+//       bool cari =
+//           item["judul"]!.toLowerCase().contains(keyword.toLowerCase()) ||
+//           item["penyelenggara"]!.toLowerCase().contains(keyword.toLowerCase());
 
-                        style: const TextStyle(
-                          fontSize: 20,
+//       return kategori && cari;
+//     }).toList();
+//   }
 
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       backgroundColor: const Color(0xffF8FAFC),
 
-                      const SizedBox(height: 6),
+//       body: SafeArea(
+//         child: Column(
+//           children: [
+//             // HEADER
 
-                      const Text(
-                        "Temukan berbagai lomba menarik di Ternate",
+//             Padding(
+//               padding: const EdgeInsets.fromLTRB(25, 20, 25, 15),
 
-                        style: TextStyle(fontSize: 13, color: Colors.grey),
-                      ),
-                    ],
-                  ),
+//               child: Row(
+//                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
-                  // NOTIFICATION BUTTON
-                  Container(
-                    height: 45,
+//                 children: [
+//                   Column(
+//                     crossAxisAlignment: CrossAxisAlignment.start,
 
-                    width: 45,
+//                     children: [
+//                       Text(
+//                         "Halo, ${widget.username} 👋",
 
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
+//                         style: const TextStyle(
+//                           fontSize: 20,
 
-                      shape: BoxShape.circle,
-                    ),
+//                           fontWeight: FontWeight.bold,
 
-                    child: IconButton(
-                      icon: const Icon(Icons.notifications_none),
+//                           color: Color(0xff263247),
+//                         ),
+//                       ),
 
-                      onPressed: () {
-                        Navigator.push(
-                          context,
+//                       const SizedBox(height: 5),
 
-                          MaterialPageRoute(
-                            builder: (context) => const NotificationPage(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
+//                       const Text(
+//                         "Temukan berbagai lomba menarik di Ternate!",
 
-            // SEARCH
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 25),
+//                         style: TextStyle(
+//                           fontSize: 13,
 
-              height: 50,
+//                           color: Color(0xff98A5B8),
+//                         ),
+//                       ),
+//                     ],
+//                   ),
 
-              decoration: BoxDecoration(
-                color: Colors.white,
+//                   GestureDetector(
+//                     onTap: () {
+//                       Navigator.push(
+//                         context,
 
-                borderRadius: BorderRadius.circular(30),
-              ),
+//                         MaterialPageRoute(
+//                           builder: (context) => const NotificationPage(),
+//                         ),
+//                       );
+//                     },
 
-              child: TextField(
-                controller: searchController,
+//                     child: Container(
+//                       width: 45,
 
-                onChanged: (value) {
-                  setState(() {
-                    keyword = value;
-                  });
-                },
+//                       height: 45,
 
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
+//                       decoration: const BoxDecoration(
+//                         color: Colors.white,
 
-                  hintText: "Cari lomba karya tulis, fotografi...",
+//                         shape: BoxShape.circle,
+//                       ),
 
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
+//                       child: const Icon(Icons.notifications_none),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
 
-            const SizedBox(height: 20),
+//             // SEARCH
+//             Container(
+//               margin: const EdgeInsets.symmetric(horizontal: 25),
 
-            // CATEGORY
-            SizedBox(
-              height: 40,
+//               height: 50,
 
-              child: ListView(
-                scrollDirection: Axis.horizontal,
+//               decoration: BoxDecoration(
+//                 color: Colors.white,
 
-                padding: const EdgeInsets.symmetric(horizontal: 25),
+//                 borderRadius: BorderRadius.circular(30),
+//               ),
 
-                children: [
-                  category("Semua"),
+//               child: TextField(
+//                 controller: searchController,
 
-                  category("Pendidikan"),
+//                 onChanged: (value) {
+//                   setState(() {
+//                     keyword = value;
+//                   });
+//                 },
 
-                  category("Seni"),
+//                 decoration: const InputDecoration(
+//                   hintText: "Cari lomba karya tulis, fotografi...",
 
-                  category("Teknologi"),
-                ],
-              ),
-            ),
+//                   prefixIcon: Icon(Icons.search),
 
-            const SizedBox(height: 25),
+//                   border: InputBorder.none,
+//                 ),
+//               ),
+//             ),
 
-            // TITLE
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 25),
+//             const SizedBox(height: 20),
 
-              child: Align(
-                alignment: Alignment.centerLeft,
+//             SizedBox(
+//               height: 40,
 
-                child: Text(
-                  "Lomba Terbaru",
+//               child: ListView(
+//                 scrollDirection: Axis.horizontal,
 
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
+//                 padding: const EdgeInsets.symmetric(horizontal: 25),
 
-            const SizedBox(height: 15),
+//                 children: [
+//                   kategori("Semua"),
 
-            // CARD LIST
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 25),
+//                   kategori("Pendidikan"),
 
-                itemCount: lombaFilter.length,
+//                   kategori("Seni"),
 
-                itemBuilder: (context, index) {
-                  final lomba = lombaFilter[index];
+//                   kategori("Teknologi"),
+//                 ],
+//               ),
+//             ),
 
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 15),
+//             const SizedBox(height: 20),
 
-                    height: 120,
+//             const Padding(
+//               padding: EdgeInsets.symmetric(horizontal: 25),
 
-                    padding: const EdgeInsets.all(12),
+//               child: Align(
+//                 alignment: Alignment.centerLeft,
 
-                    decoration: BoxDecoration(
-                      color: Colors.white,
+//                 child: Text(
+//                   "Lomba Terbaru",
 
-                      borderRadius: BorderRadius.circular(18),
+//                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+//                 ),
+//               ),
+//             ),
 
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
+//             const SizedBox(height: 15),
 
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 75,
+//             Expanded(
+//               child: ListView.builder(
+//                 padding: const EdgeInsets.symmetric(horizontal: 25),
 
-                          height: 90,
+//                 itemCount: lombaFilter.length,
 
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
+//                 itemBuilder: (context, index) {
+//                   return cardLomba(lombaFilter[index]);
+//                 },
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
 
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+//   Widget cardLomba(Map<String, String> lomba) {
+//     return Container(
+//       margin: const EdgeInsets.only(bottom: 15),
 
-                          child: const Icon(Icons.image, color: Colors.grey),
-                        ),
+//       height: 120,
 
-                        const SizedBox(width: 12),
+//       padding: const EdgeInsets.all(12),
 
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+//       decoration: BoxDecoration(
+//         color: Colors.white,
 
-                            children: [
-                              Text(
-                                lomba["kategori"]!,
+//         borderRadius: BorderRadius.circular(18),
 
-                                style: const TextStyle(
-                                  color: Colors.blue,
+//         border: Border.all(color: const Color(0xffE7EDF5)),
+//       ),
 
-                                  fontSize: 12,
+//       child: Row(
+//         children: [
+//           // POSTER
 
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+//           Container(
+//             width: 78,
 
-                              const SizedBox(height: 6),
+//             height: 90,
 
-                              Text(
-                                lomba["judul"]!,
+//             decoration: BoxDecoration(
+//               color: const Color(0xff15295B),
 
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+//               borderRadius: BorderRadius.circular(12),
+//             ),
 
-                                  fontSize: 14,
-                                ),
-                              ),
+//             child: const Center(
+//               child: Text(
+//                 "LKTI\n2026",
 
-                              const SizedBox(height: 5),
+//                 textAlign: TextAlign.center,
 
-                              Text(
-                                lomba["penyelenggara"]!,
+//                 style: TextStyle(
+//                   color: Colors.white,
 
-                                style: TextStyle(
-                                  fontSize: 12,
+//                   fontSize: 11,
 
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
+//                   fontWeight: FontWeight.bold,
+//                 ),
+//               ),
+//             ),
+//           ),
 
-                              Text(
-                                "Kuota : ${lomba["kuota"]}",
+//           const SizedBox(width: 12),
 
-                                style: const TextStyle(
-                                  fontSize: 12,
+//           Expanded(
+//             child: Column(
+//               crossAxisAlignment: CrossAxisAlignment.start,
 
-                                  color: Colors.blue,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+//               children: [
+//                 Container(
+//                   padding: const EdgeInsets.symmetric(
+//                     horizontal: 9,
 
-                        Container(
-                          height: 38,
+//                     vertical: 3,
+//                   ),
 
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+//                   decoration: BoxDecoration(
+//                     color: const Color(0xffE8F1FF),
 
-                          decoration: BoxDecoration(
-                            color: const Color(0xff1769FF),
+//                     borderRadius: BorderRadius.circular(20),
+//                   ),
 
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+//                   child: Text(
+//                     lomba["kategori"]!,
 
-                          child: const Center(
-                            child: Text(
-                              "Lihat",
+//                     style: const TextStyle(
+//                       color: Color(0xff1769FF),
 
-                              style: TextStyle(
-                                color: Colors.white,
+//                       fontSize: 11,
+//                     ),
+//                   ),
+//                 ),
 
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+//                 const SizedBox(height: 5),
 
-  Widget category(String text) {
-    bool aktif = kategoriAktif == text;
+//                 Text(
+//                   lomba["judul"]!,
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          kategoriAktif = text;
-        });
-      },
+//                   maxLines: 1,
 
-      child: Container(
-        margin: const EdgeInsets.only(right: 10),
+//                   overflow: TextOverflow.ellipsis,
 
-        padding: const EdgeInsets.symmetric(horizontal: 18),
+//                   style: const TextStyle(
+//                     fontSize: 15,
 
-        decoration: BoxDecoration(
-          color: aktif ? Colors.blue : Colors.white,
+//                     fontWeight: FontWeight.bold,
+//                   ),
+//                 ),
 
-          borderRadius: BorderRadius.circular(20),
+//                 const SizedBox(height: 4),
 
-          border: Border.all(color: Colors.grey.shade300),
-        ),
+//                 Row(
+//                   children: [
+//                     const Icon(
+//                       Icons.account_balance,
 
-        child: Center(
-          child: Text(
-            text,
+//                       size: 13,
 
-            style: TextStyle(color: aktif ? Colors.white : Colors.grey),
-          ),
-        ),
-      ),
-    );
-  }
-}
+//                       color: Color(0xff98A5B8),
+//                     ),
+
+//                     const SizedBox(width: 5),
+
+//                     Expanded(
+//                       child: Text(
+//                         lomba["penyelenggara"]!,
+
+//                         maxLines: 1,
+
+//                         overflow: TextOverflow.ellipsis,
+
+//                         style: const TextStyle(
+//                           fontSize: 12,
+
+//                           color: Color(0xff98A5B8),
+//                         ),
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+
+//                 Text(
+//                   "Kuota : ${lomba["kuota"]}",
+
+//                   style: const TextStyle(
+//                     fontSize: 12,
+
+//                     color: Color(0xff1769FF),
+
+//                     fontWeight: FontWeight.bold,
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ),
+
+//           GestureDetector(
+//             onTap: () {
+//               Navigator.push(
+//                 context,
+
+//                 MaterialPageRoute(
+//                   builder: (context) => DetailLombaPage(lomba: lomba),
+//                 ),
+//               );
+//             },
+
+//             child: Container(
+//               height: 36,
+
+//               padding: const EdgeInsets.symmetric(horizontal: 12),
+
+//               decoration: BoxDecoration(
+//                 color: const Color(0xff1769FF),
+
+//                 borderRadius: BorderRadius.circular(12),
+//               ),
+
+//               child: const Center(
+//                 child: Text(
+//                   "Lihat Detail",
+
+//                   style: TextStyle(
+//                     color: Colors.white,
+
+//                     fontSize: 11,
+
+//                     fontWeight: FontWeight.bold,
+//                   ),
+//                 ),
+//               ),
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget kategori(String text) {
+//     bool aktif = kategoriAktif == text;
+
+//     return GestureDetector(
+//       onTap: () {
+//         setState(() {
+//           kategoriAktif = text;
+//         });
+//       },
+
+//       child: Container(
+//         margin: const EdgeInsets.only(right: 10),
+
+//         padding: const EdgeInsets.symmetric(horizontal: 18),
+
+//         decoration: BoxDecoration(
+//           color: aktif ? const Color(0xff1769FF) : Colors.white,
+
+//           borderRadius: BorderRadius.circular(20),
+
+//           border: Border.all(color: Colors.grey.shade300),
+//         ),
+
+//         child: Center(
+//           child: Text(
+//             text,
+
+//             style: TextStyle(color: aktif ? Colors.white : Colors.grey),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }

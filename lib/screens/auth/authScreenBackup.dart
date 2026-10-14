@@ -2,11 +2,11 @@
 
 // import 'package:flutter/material.dart';
 
-// import '../appTheme.dart';
-// import '../service/api_service.dart';
-// import '../widgets/customTextfield.dart';
-// import '../widgets/customButton.dart';
-// import '../beranda/homePage.dart';
+// import '../../config/appTheme.dart';
+// import '../../services/api_service.dart';
+// import '../../widgets/customTextfield.dart';
+// import '../../widgets/customButton.dart';
+// import '../../navigation/mainPage.dart';
 
 // class AuthScreen extends StatefulWidget {
 //   const AuthScreen({super.key});
@@ -15,27 +15,25 @@
 //   State<AuthScreen> createState() => _AuthScreenState();
 // }
 
-// // mengontrol autentikasi form
 // class _AuthScreenState extends State<AuthScreen> {
+//   // Mengakses validasi formulir.
 //   final _formKey = GlobalKey<FormState>();
+
+//   // Membaca input pengguna.
 //   final _username = TextEditingController();
 //   final _password = TextEditingController();
 //   final _confirm = TextEditingController();
 
-//   // iniliasasi tab halaman login
+//   // 0 = login, 1 = register.
 //   int _tab = 0;
 
-//   // menandakan password dan confirm password dari awal sudah tersembunyi
 //   bool _hidePassword = true;
 //   bool _hideConfirm = true;
-
-//   // mencari tahu apakah sedang loading atau tidak
 //   bool _loading = false;
 
-//   // get login di halaman login dan tab 0 untuk menandakan di login
+//   // Menentukan mode berdasarkan tab aktif.
 //   bool get _isLogin => _tab == 0;
 
-//   // membersihkan resource atau memori ketika berganti halaman
 //   @override
 //   void dispose() {
 //     _username.dispose();
@@ -44,20 +42,18 @@
 //     super.dispose();
 //   }
 
-//   // mengubah login ke register
+//   // Mengganti tab ketika tidak ada permintaan berlangsung.
 //   void _changeTab(int value) {
-//     // value adalah bool dari register (0) dan login (1)
 //     if (_loading || _tab == value) return;
 
 //     _formKey.currentState?.reset();
 
-//     // set state halamannya
 //     setState(() {
 //       _tab = value;
 //     });
 //   }
 
-//   // menampilkan message
+//   // Menampilkan pesan berhasil atau gagal.
 //   void _showMessage(String message, {bool success = false}) {
 //     if (!mounted) return;
 
@@ -69,8 +65,8 @@
 //     );
 //   }
 
+//   // Login dan registrasi melalui API Laravel.
 //   Future<void> _submit() async {
-//     // Mencegah permintaan ganda.
 //     if (_loading) return;
 //     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -88,7 +84,6 @@
 //     try {
 //       final Map<String, dynamic> data;
 
-//       // Alamat API dan pengiriman HTTP diatur oleh ApiService.
 //       if (isLogin) {
 //         data = await ApiService.login(
 //           username,
@@ -105,14 +100,24 @@
 //       if (!mounted) return;
 
 //       if (isLogin) {
-//         // Memastikan respons Laravel berisi token dan data pengguna.
+//         // Data akun harus berasal dari Laravel.
 //         final token = data['token'];
 //         final user = data['user'];
 
 //         if (token is! String || token.isEmpty || user is! Map) {
+//           _showMessage('Respons login tidak lengkap.');
+//           return;
+//         }
+
+//         final usernameLogin = user['username'];
+//         final roleLogin = user['role'];
+
+//         if (usernameLogin is! String ||
+//             usernameLogin.trim().isEmpty ||
+//             roleLogin is! String ||
+//             roleLogin.trim().isEmpty) {
 //           _showMessage(
-//             'Respons login tidak lengkap. '
-//             'Laravel harus mengirim token dan user.',
+//             'Respons Laravel belum memiliki username dan role yang valid.',
 //           );
 //           return;
 //         }
@@ -122,21 +127,26 @@
 //           success: true,
 //         );
 
-//         // Membuka beranda dengan username dari respons login Laravel.
+//         // Membuka halaman utama dengan data akun asli.
 //         Navigator.of(context).pushReplacement(
 //           MaterialPageRoute(
-//             builder: (context) =>
-//                 HomePage(username: user['username']?.toString() ?? username),
+//             builder: (context) => MainPage(
+//               username: usernameLogin,
+//               role: roleLogin,
+//               token: token,
+//             ),
 //           ),
 //         );
 //       } else {
-//         // Registrasi berhasil: kembali ke tab login.
 //         _showMessage(
-//           (data['pesan'] ?? 'Akun berhasil dibuat. Silakan masuk.').toString(),
+//           (data['pesan'] ?? 'Akun berhasil dibuat. Silakan masuk.')
+//               .toString(),
 //           success: true,
 //         );
 
 //         _formKey.currentState?.reset();
+
+//         // Username dipertahankan untuk login.
 //         _username.text = username;
 //         _password.clear();
 //         _confirm.clear();
@@ -148,17 +158,10 @@
 //         });
 //       }
 //     } on TimeoutException {
-//       _showMessage(
-//         'Server belum merespons dalam 20 detik. '
-//         'Periksa endpoint login/register dan koneksi database.',
-//       );
+//       _showMessage('Server belum merespons dalam 20 detik.');
 //     } on FormatException {
-//       _showMessage(
-//         'Respons Laravel bukan JSON yang sesuai. '
-//         'Periksa URL API dan log Laravel.',
-//       );
+//       _showMessage('Respons Laravel bukan JSON yang sesuai.');
 //     } catch (e) {
-//       // Menampilkan pesan error dari ApiService.
 //       final message = e.toString().replaceFirst('Exception: ', '');
 //       _showMessage(message);
 //     } finally {
@@ -170,6 +173,7 @@
 //     }
 //   }
 
+//   // Label di atas input.
 //   Widget _label(String text) {
 //     return Padding(
 //       padding: const EdgeInsets.only(bottom: 6),
@@ -184,6 +188,7 @@
 //     );
 //   }
 
+//   // Tombol tab login/register.
 //   Widget _tabButton(String text, int index) {
 //     final active = _tab == index;
 
@@ -197,7 +202,12 @@
 //             color: active ? Colors.white : Colors.transparent,
 //             borderRadius: BorderRadius.circular(10),
 //             boxShadow: active
-//                 ? [BoxShadow(color: Colors.black.withAlpha(20), blurRadius: 6)]
+//                 ? [
+//                     BoxShadow(
+//                       color: Colors.black.withAlpha(20),
+//                       blurRadius: 6,
+//                     ),
+//                   ]
 //                 : null,
 //           ),
 //           child: Center(
@@ -214,11 +224,14 @@
 //     );
 //   }
 
+//   // Tombol untuk melihat atau menyembunyikan password.
 //   Widget _passwordEye(bool hidden, VoidCallback tap) {
 //     return IconButton(
 //       onPressed: tap,
 //       icon: Icon(
-//         hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+//         hidden
+//             ? Icons.visibility_outlined
+//             : Icons.visibility_off_outlined,
 //         color: AppColors.grey,
 //       ),
 //     );
@@ -230,12 +243,16 @@
 //       body: SafeArea(
 //         child: Center(
 //           child: SingleChildScrollView(
-//             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+//             padding: const EdgeInsets.symmetric(
+//               horizontal: 24,
+//               vertical: 24,
+//             ),
 //             child: Form(
 //               key: _formKey,
 //               child: Column(
 //                 crossAxisAlignment: CrossAxisAlignment.stretch,
 //                 children: [
+//                   // Logo aplikasi.
 //                   Center(
 //                     child: ClipRRect(
 //                       borderRadius: BorderRadius.circular(20),
@@ -247,13 +264,20 @@
 //                       ),
 //                     ),
 //                   ),
+
 //                   const SizedBox(height: 20),
+
 //                   const Text(
 //                     'Cari lomba? Gas!',
 //                     textAlign: TextAlign.center,
-//                     style: TextStyle(color: AppColors.grey, fontSize: 12),
+//                     style: TextStyle(
+//                       color: AppColors.grey,
+//                       fontSize: 12,
+//                     ),
 //                   ),
+
 //                   const SizedBox(height: 28),
+
 //                   Container(
 //                     padding: const EdgeInsets.all(4),
 //                     decoration: BoxDecoration(
@@ -267,8 +291,11 @@
 //                       ],
 //                     ),
 //                   ),
+
 //                   const SizedBox(height: 24),
+
 //                   _label('Nama Pengguna'),
+
 //                   CustomTextField(
 //                     controller: _username,
 //                     hintText: 'Masukkan nama pengguna',
@@ -285,18 +312,24 @@
 //                       return null;
 //                     },
 //                   ),
+
 //                   const SizedBox(height: 16),
+
 //                   _label('Password'),
+
 //                   CustomTextField(
 //                     controller: _password,
 //                     hintText: 'Masukkan password',
 //                     icon: Icons.lock_outline,
 //                     obscureText: _hidePassword,
-//                     suffixIcon: _passwordEye(_hidePassword, () {
-//                       setState(() {
-//                         _hidePassword = !_hidePassword;
-//                       });
-//                     }),
+//                     suffixIcon: _passwordEye(
+//                       _hidePassword,
+//                       () {
+//                         setState(() {
+//                           _hidePassword = !_hidePassword;
+//                         });
+//                       },
+//                     ),
 //                     validator: (v) {
 //                       if (v == null || v.isEmpty) {
 //                         return 'Password wajib diisi';
@@ -309,19 +342,26 @@
 //                       return null;
 //                     },
 //                   ),
+
+//                   // Konfirmasi hanya muncul saat registrasi.
 //                   if (!_isLogin) ...[
 //                     const SizedBox(height: 16),
+
 //                     _label('Konfirmasi Password'),
+
 //                     CustomTextField(
 //                       controller: _confirm,
 //                       hintText: 'Ulangi password',
 //                       icon: Icons.lock_outline,
 //                       obscureText: _hideConfirm,
-//                       suffixIcon: _passwordEye(_hideConfirm, () {
-//                         setState(() {
-//                           _hideConfirm = !_hideConfirm;
-//                         });
-//                       }),
+//                       suffixIcon: _passwordEye(
+//                         _hideConfirm,
+//                         () {
+//                           setState(() {
+//                             _hideConfirm = !_hideConfirm;
+//                           });
+//                         },
+//                       ),
 //                       validator: (v) {
 //                         if (v == null || v.isEmpty) {
 //                           return 'Konfirmasi password wajib diisi';
@@ -335,18 +375,24 @@
 //                       },
 //                     ),
 //                   ],
+
 //                   const SizedBox(height: 26),
+
 //                   CustomButton(
 //                     text: _isLogin ? 'Masuk' : 'Daftar',
 //                     loading: _loading,
 //                     onPressed: _submit,
 //                   ),
+
 //                   const SizedBox(height: 20),
+
 //                   Row(
 //                     mainAxisAlignment: MainAxisAlignment.center,
 //                     children: [
 //                       Text(
-//                         _isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? ',
+//                         _isLogin
+//                             ? 'Belum punya akun? '
+//                             : 'Sudah punya akun? ',
 //                         style: const TextStyle(
 //                           color: AppColors.grey,
 //                           fontSize: 12,

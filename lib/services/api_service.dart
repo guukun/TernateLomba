@@ -17,7 +17,8 @@ class ApiService {
   //
   // Cocok untuk Flutter Web pada laptop yang sama.
   static const String baseUrl =
-      'http://10.243.32.129:8000/api';
+      'http://10.243.32.67:8000/api';
+      // 
 
 
   // =====================================================

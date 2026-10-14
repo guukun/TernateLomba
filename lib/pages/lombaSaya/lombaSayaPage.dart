@@ -22,7 +22,7 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header halaman
+            // Header
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 22, 20, 22),
               child: Text(
@@ -35,7 +35,7 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
               ),
             ),
 
-            // Tab Lomba Diikuti dan Lomba Dibuat
+            // Tab
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.all(4),
@@ -51,9 +51,9 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-            // Konten tab dengan animasi fade dan scale
+            // Content
             Expanded(
               child: ClipRect(
                 child: AnimatedSwitcher(
@@ -62,15 +62,13 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
                   switchInCurve: Curves.easeOutCubic,
                   switchOutCurve: Curves.easeInCubic,
                   transitionBuilder: (child, animation) {
-                    final scaleAnimation = Tween<double>(
-                      begin: 0.96,
-                      end: 1.0,
-                    ).animate(
-                      CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOutCubic,
-                      ),
-                    );
+                    final scaleAnimation = Tween<double>(begin: 0.96, end: 1.0)
+                        .animate(
+                          CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutCubic,
+                          ),
+                        );
 
                     return FadeTransition(
                       opacity: animation,
@@ -80,6 +78,7 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
                       ),
                     );
                   },
+
                   child: KeyedSubtree(
                     key: ValueKey<int>(selectedTab),
                     child: selectedTab == 0
@@ -95,13 +94,14 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
     );
   }
 
-  // Tab dengan animasi perubahan warna
+  // TAB BUTTON
   Widget _buildTab(String title, int index) {
     final bool isSelected = selectedTab == index;
 
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
+
         onTap: () {
           if (selectedTab == index) return;
 
@@ -109,15 +109,18 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
             selectedTab = index;
           });
         },
+
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOutCubic,
-          padding: const EdgeInsets.symmetric(vertical: 12),
+
+          padding: const EdgeInsets.symmetric(vertical: 13),
+
           decoration: BoxDecoration(
-            color: isSelected
-                ? Colors.white
-                : Colors.transparent,
+            color: isSelected ? Colors.white : Colors.transparent,
+
             borderRadius: BorderRadius.circular(10),
+
             boxShadow: isSelected
                 ? [
                     BoxShadow(
@@ -128,107 +131,111 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
                   ]
                 : [],
           ),
+
           child: AnimatedDefaultTextStyle(
             duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
+
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: isSelected
-                  ? FontWeight.bold
-                  : FontWeight.w500,
-              color: isSelected
-                  ? textColor
-                  : mutedColor,
+              fontSize: 14,
+
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+
+              color: isSelected ? textColor : mutedColor,
             ),
-            child: Text(
-              title,
-              textAlign: TextAlign.center,
-            ),
+
+            child: Text(title, textAlign: TextAlign.center),
           ),
         ),
       ),
     );
   }
 
-  // Tab Lomba Diikuti
+  // LOMBA DIIKUTI
   Widget _buildLombaDiikuti() {
     return _buildEmptyState(
       icon: Icons.emoji_events_outlined,
+
       title: 'Belum mengikuti lomba',
+
       description:
-          'Kamu belum mengikuti lomba apa pun. '
+          'Kamu belum mengikuti lomba apa pun.\n'
           'Temukan lomba menarik di TernateLomba!',
     );
   }
 
-  // Tab Lomba Dibuat
+  // LOMBA DIBUAT
   Widget _buildLombaDibuat() {
     return _buildEmptyState(
       icon: Icons.add,
+
       title: 'Belum ada lomba yang dibuat',
+
       description:
-          'Anda belum pernah membuat lomba. '
-          'Mulai buat lomba dan bagikan kepada masyarakat '
-          'Ternate!',
+          'Anda belum pernah membuat lomba.\n'
+          'Mulai buat lomba dan bagikan kepada masyarakat Ternate!',
     );
   }
 
-  // Tampilan kosong tanpa tombol
+  // EMPTY STATE
   Widget _buildEmptyState({
     required IconData icon,
+
     required String title,
+
     required String description,
   }) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 35,
-          vertical: 20,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+
         child: Column(
           mainAxisSize: MainAxisSize.min,
+
           children: [
-            // Ikon lingkaran
             Container(
-              width: 76,
-              height: 76,
+              width: 82,
+
+              height: 82,
+
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
+
                 color: const Color(0xFFF7FAFD),
-                border: Border.all(
-                  color: const Color(0xFFD7E2EF),
-                  width: 2,
-                ),
+
+                border: Border.all(color: const Color(0xFFD7E2EF), width: 2),
               ),
-              child: Icon(
-                icon,
-                color: const Color(0xFF9DAFC4),
-                size: 34,
-              ),
+
+              child: Icon(icon, color: const Color(0xFF9DAFC4), size: 38),
             ),
 
-            const SizedBox(height: 22),
+            const SizedBox(height: 24),
 
-            // Judul kondisi kosong
             Text(
               title,
+
               textAlign: TextAlign.center,
+
               style: const TextStyle(
-                fontSize: 15,
+                fontSize: 17,
+
                 fontWeight: FontWeight.bold,
+
                 color: textColor,
               ),
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
-            // Deskripsi kondisi kosong
             Text(
               description,
+
               textAlign: TextAlign.center,
+
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 14,
+
                 height: 1.6,
+
                 color: mutedColor,
               ),
             ),

@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use Illuminate\Validation\Rule;
 
 // Tes koneksi Flutter ke Laravel.
 // GET /api/tes-koneksi
@@ -95,3 +96,93 @@ Route::post('/register', function (Request $request) {
         ],
     ], 201);
 });
+
+/*
+|--------------------------------------------------------------------------
+| UPDATE PROFIL
+|--------------------------------------------------------------------------
+| Endpoint:
+| PUT /api/profile
+|
+| Digunakan untuk:
+| - Mengganti username
+| - Mengganti password
+|
+| User harus login dan mengirim token Sanctum.
+|--------------------------------------------------------------------------
+*/
+
+// ======================================================
+// UPDATE PROFILE
+// ======================================================
+
+Route::put('/profile', function (Request $request) {
+
+    // Mengambil user berdasarkan token Sanctum
+    $user = $request->user();
+
+    if (!$user) {
+        return response()->json([
+            'pesan' => 'User tidak ditemukan',
+        ], 401);
+    }
+
+    // Validasi
+    $data = $request->validate([
+
+        'username' => [
+            'required',
+            'string',
+            'max:255',
+
+            Rule::unique('users', 'username')
+                ->ignore(
+                    $user->id_user,
+                    'id_user'
+                ),
+        ],
+
+        // Password tidak wajib diganti
+        'password' => [
+            'nullable',
+            'string',
+            'min:8',
+            'confirmed',
+        ],
+    ]);
+
+    // Update username
+    $user->username =
+        $data['username'];
+
+    // Update password jika diisi
+    if (!empty($data['password'])) {
+
+        $user->password =
+            Hash::make(
+                $data['password']
+            );
+    }
+
+    // Simpan ke database
+    $user->save();
+
+    return response()->json([
+
+        'pesan' =>
+            'Profil berhasil diperbarui',
+
+        'user' => [
+            'id_user' =>
+                $user->id_user,
+
+            'username' =>
+                $user->username,
+
+            'role' =>
+                $user->role,
+        ],
+
+    ], 200);
+
+})->middleware('auth:sanctum');

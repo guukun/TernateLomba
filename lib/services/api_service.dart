@@ -53,4 +53,69 @@ class ApiService {
     }
     return data;
   }
+
+// =====================================================
+// UPDATE PROFILE
+// =====================================================
+static Future<Map<String, dynamic>>
+    updateProfile({
+  required String token,
+  required String username,
+  required String password,
+  required String passwordConfirmation,
+}) async {
+  // Data yang akan dikirim
+  final Map<String, dynamic> body = {
+    'username': username,
+  };
+
+  // Password hanya dikirim apabila diisi
+  if (password.isNotEmpty) {
+    body['password'] =
+        password;
+
+    body['password_confirmation'] =
+        passwordConfirmation;
+  }
+
+  // Request PUT ke Laravel
+  final response =
+      await http.put(
+    Uri.parse(
+      '$baseUrl/profile',
+    ),
+    headers: {
+      'Content-Type':
+          'application/json',
+
+      'Accept':
+          'application/json',
+
+      // Token Sanctum
+      'Authorization':
+          'Bearer $token',
+    },
+    body:
+        jsonEncode(body),
+  );
+
+  // Membaca response Laravel
+  final data =
+      jsonDecode(
+        response.body,
+      ) as Map<String, dynamic>;
+
+  // Jika gagal
+  if (response.statusCode !=
+      200) {
+    throw Exception(
+      data['pesan'] ??
+          data['message'] ??
+          'Gagal memperbarui profil',
+    );
+  }
+
+  // Jika berhasil
+  return data;
+}
 }

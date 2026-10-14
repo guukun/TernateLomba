@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../profile/profilePage.dart';
+
+import 'notificationPage.dart';
 
 class HomePage extends StatefulWidget {
   final String username;
@@ -13,15 +14,51 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String kategoriAktif = "Semua";
 
-  final lomba = {
-    "kategori": "Pendidikan",
+  String keyword = "";
 
-    "judul": "Lomba Karya Tulis Ilmiah",
+  final TextEditingController searchController = TextEditingController();
 
-    "penyelenggara": "Universitas Khairun",
+  // DATA LOMBA SEMENTARA
+  // nanti bisa diganti dari API Laravel
 
-    "kuota": "67/100",
-  };
+  final List<Map<String, String>> daftarLomba = [
+    {
+      "kategori": "Pendidikan",
+      "judul": "Lomba Karya Tulis Ilmiah",
+      "penyelenggara": "Universitas Khairun",
+      "kuota": "67/100",
+    },
+
+    {
+      "kategori": "Seni",
+      "judul": "Festival Fotografi Ternate",
+      "penyelenggara": "Komunitas Seni Ternate",
+      "kuota": "50/100",
+    },
+
+    {
+      "kategori": "Teknologi",
+      "judul": "AI Innovation Competition",
+      "penyelenggara": "Tech Indonesia",
+      "kuota": "80/100",
+    },
+  ];
+
+  // FILTER DATA
+
+  List<Map<String, String>> get lombaFilter {
+    return daftarLomba.where((item) {
+      bool sesuaiKategori =
+          kategoriAktif == "Semua" || item["kategori"] == kategoriAktif;
+
+      bool sesuaiPencarian =
+          item["judul"]!.toLowerCase().contains(keyword.toLowerCase()) ||
+          item["kategori"]!.toLowerCase().contains(keyword.toLowerCase()) ||
+          item["penyelenggara"]!.toLowerCase().contains(keyword.toLowerCase());
+
+      return sesuaiKategori && sesuaiPencarian;
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,16 +82,18 @@ class _HomePageState extends State<HomePage> {
 
                     children: [
                       Text(
-                        'Halo, ${widget.username} 👋',
+                        "Halo, ${widget.username} 👋",
+
                         style: const TextStyle(
                           fontSize: 20,
+
                           fontWeight: FontWeight.bold,
                         ),
                       ),
 
                       const SizedBox(height: 6),
 
-                      Text(
+                      const Text(
                         "Temukan berbagai lomba menarik di Ternate",
 
                         style: TextStyle(fontSize: 13, color: Colors.grey),
@@ -62,18 +101,31 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
 
+                  // NOTIFICATION BUTTON
                   Container(
                     height: 45,
 
                     width: 45,
 
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: Colors.white,
 
                       shape: BoxShape.circle,
                     ),
 
-                    child: const Icon(Icons.notifications_none),
+                    child: IconButton(
+                      icon: const Icon(Icons.notifications_none),
+
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+
+                          MaterialPageRoute(
+                            builder: (context) => const NotificationPage(),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -91,8 +143,16 @@ class _HomePageState extends State<HomePage> {
                 borderRadius: BorderRadius.circular(30),
               ),
 
-              child: const TextField(
-                decoration: InputDecoration(
+              child: TextField(
+                controller: searchController,
+
+                onChanged: (value) {
+                  setState(() {
+                    keyword = value;
+                  });
+                },
+
+                decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.search),
 
                   hintText: "Cari lomba karya tulis, fotografi...",
@@ -128,187 +188,148 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 25),
 
             // TITLE
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 25),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 25),
 
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Align(
+                alignment: Alignment.centerLeft,
 
-                children: [
-                  const Text(
-                    "Lomba Terbaru",
+                child: Text(
+                  "Lomba Terbaru",
 
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-
-                  const Text(
-                    "Lihat Semua",
-
-                    style: TextStyle(
-                      color: Colors.blue,
-
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
 
             const SizedBox(height: 15),
 
-            // CARD LOMBA
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 25),
+            // CARD LIST
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 25),
 
-              height: 120,
+                itemCount: lombaFilter.length,
 
-              padding: const EdgeInsets.all(12),
+                itemBuilder: (context, index) {
+                  final lomba = lombaFilter[index];
 
-              decoration: BoxDecoration(
-                color: Colors.white,
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 15),
 
-                borderRadius: BorderRadius.circular(18),
+                    height: 120,
 
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-
-              child: Row(
-                children: [
-                  // TEMPAT GAMBAR
-
-                  Container(
-                    width: 75,
-
-                    height: 90,
+                    padding: const EdgeInsets.all(12),
 
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
+                      color: Colors.white,
 
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(18),
+
+                      border: Border.all(color: Colors.grey.shade200),
                     ),
 
-                    child: const Icon(Icons.image, color: Colors.grey),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-
+                    child: Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
+                          width: 75,
 
-                            vertical: 4,
-                          ),
+                          height: 90,
 
                           decoration: BoxDecoration(
-                            color: const Color(0xffE5F0FF),
+                            color: Colors.grey.shade200,
 
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(12),
                           ),
 
-                          child: Text(
-                            lomba["kategori"]!,
+                          child: const Icon(Icons.image, color: Colors.grey),
+                        ),
 
-                            style: const TextStyle(
-                              fontSize: 11,
+                        const SizedBox(width: 12),
 
-                              color: Colors.blue,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
 
-                              fontWeight: FontWeight.bold,
+                            children: [
+                              Text(
+                                lomba["kategori"]!,
+
+                                style: const TextStyle(
+                                  color: Colors.blue,
+
+                                  fontSize: 12,
+
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+
+                              const SizedBox(height: 6),
+
+                              Text(
+                                lomba["judul"]!,
+
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+
+                                  fontSize: 14,
+                                ),
+                              ),
+
+                              const SizedBox(height: 5),
+
+                              Text(
+                                lomba["penyelenggara"]!,
+
+                                style: TextStyle(
+                                  fontSize: 12,
+
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+
+                              Text(
+                                "Kuota : ${lomba["kuota"]}",
+
+                                style: const TextStyle(
+                                  fontSize: 12,
+
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        Container(
+                          height: 38,
+
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+
+                          decoration: BoxDecoration(
+                            color: const Color(0xff1769FF),
+
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+
+                          child: const Center(
+                            child: Text(
+                              "Lihat",
+
+                              style: TextStyle(
+                                color: Colors.white,
+
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 6),
-
-                        Text(
-                          lomba["judul"]!,
-
-                          maxLines: 1,
-
-                          overflow: TextOverflow.ellipsis,
-
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-
-                            fontSize: 14,
-                          ),
-                        ),
-
-                        const SizedBox(height: 5),
-
-                        Text(
-                          lomba["penyelenggara"]!,
-
-                          style: TextStyle(
-                            fontSize: 12,
-
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-
-                        Text(
-                          "Kuota : ${lomba["kuota"]}",
-
-                          style: const TextStyle(
-                            fontSize: 12,
-
-                            color: Colors.blue,
                           ),
                         ),
                       ],
                     ),
-                  ),
-
-                  // BUTTON
-                  Container(
-                    height: 38,
-
-                    decoration: BoxDecoration(
-                      color: const Color(0xff1769FF),
-
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-
-                      child: Row(
-                        children: [
-                          Text(
-                            "Lihat",
-
-                            style: TextStyle(
-                              color: Colors.white,
-
-                              fontSize: 12,
-
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-
-                          SizedBox(width: 5),
-
-                          Icon(
-                            Icons.arrow_forward_ios,
-
-                            size: 10,
-
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
-
-            const Spacer(),
           ],
         ),
       ),
@@ -342,11 +363,7 @@ class _HomePageState extends State<HomePage> {
           child: Text(
             text,
 
-            style: TextStyle(
-              color: aktif ? Colors.white : Colors.grey,
-
-              fontSize: 13,
-            ),
+            style: TextStyle(color: aktif ? Colors.white : Colors.grey),
           ),
         ),
       ),

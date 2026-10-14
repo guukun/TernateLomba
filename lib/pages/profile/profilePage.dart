@@ -188,13 +188,13 @@ class _ProfilePageState extends State<ProfilePage> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
 
-            border: Border.all(color: color.withOpacity(.2)),
+            border: Border.all(color: color.withValues(alpha: .2)),
           ),
 
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: color.withOpacity(.1),
+                backgroundColor: color.withValues(alpha: .1),
 
                 child: Icon(icon, color: color),
               ),

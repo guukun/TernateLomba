@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'config/appTheme.dart';
 import 'screens/splash/splashScreen.dart';
+import 'pages/ajukan/ajukanpage.dart';
 
 void main() {
   runApp(const TernateLombaApp());
@@ -14,12 +15,12 @@ class TernateLombaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'TernateLomba',
-
       debugShowCheckedModeBanner: false,
-
       theme: AppTheme.light,
-
       home: const SplashScreen(),
+      routes: {
+        '/ajukan': (context) => const AjukanPage(),
+      },
     );
   }
 }

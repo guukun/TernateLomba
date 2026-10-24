@@ -1,13 +1,164 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+
+import '../../services/api_service.dart';
 
 class FormulirPesertaPage extends StatefulWidget {
-  const FormulirPesertaPage({super.key});
+  final int idLomba;
+  final String token;
+
+  const FormulirPesertaPage({
+    super.key,
+    required this.idLomba,
+    required this.token,
+  });
 
   @override
   State<FormulirPesertaPage> createState() => _FormulirPesertaPageState();
 }
 
 class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
+  List<Map<String, dynamic>> _fields = [];
+  final Map<int, TextEditingController> _controllers = {};
+  final Map<int, XFile> _files = {};
+
+  bool _isLoading = true;
+  String? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFormFields();
+  }
+
+  Future<void> _loadFormFields() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+
+    try {
+      final fields = await ApiService.getFormFields(widget.idLomba);
+
+      if (!mounted) return;
+
+      for (final controller in _controllers.values) {
+        controller.dispose();
+      }
+      _controllers.clear();
+      _files.clear();
+
+      for (final field in fields) {
+        if (field['tipe_field'] == 'Text') {
+          final id = int.parse(field['id_field'].toString());
+          _controllers[id] = TextEditingController();
+        }
+      }
+
+      setState(() {
+        _fields = fields;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _loadError = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _pilihBerkas(int idField) async {
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      );
+
+      if (files.isEmpty) return;
+
+      final picked = files.single;
+      final bytes = await picked.readAsBytes();
+
+      if (bytes.length > 5 * 1024 * 1024) {
+        throw Exception('Ukuran berkas maksimal 5 MB.');
+      }
+
+      final file = XFile.fromData(bytes, name: picked.name);
+
+      if (!mounted) return;
+
+      setState(() {
+        _files[idField] = file;
+      });
+
+      _formKey.currentState?.validate();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memilih berkas: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Widget _buildDynamicField(Map<String, dynamic> field) {
+    final id = int.parse(field['id_field'].toString());
+    final nama = field['nama_field']?.toString() ?? 'Pertanyaan';
+    final tipe = field['tipe_field']?.toString() ?? 'Text';
+    final wajib =
+        field['wajib'] == true || field['wajib'] == 1 || field['wajib'] == '1';
+
+    if (tipe == 'File') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 17),
+        child: FormField<XFile>(
+          validator: (_) {
+            if (wajib && !_files.containsKey(id)) {
+              return '$nama wajib diunggah';
+            }
+            return null;
+          },
+          builder: (state) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _pilihBerkas(id),
+                  icon: const Icon(Icons.upload_file_outlined),
+                  label: Text(_files[id]?.name ?? nama),
+                ),
+                if (state.hasError)
+                  Text(
+                    state.errorText!,
+                    style: const TextStyle(color: Colors.red, fontSize: 12),
+                  ),
+              ],
+            );
+          },
+        ),
+      );
+    }
+
+    return _buildField(
+      label: wajib ? '$nama *' : nama,
+      hint: 'Masukkan $nama',
+      icon: Icons.edit_outlined,
+      controller: _controllers[id]!,
+      validator: (value) {
+        if (wajib && (value == null || value.trim().isEmpty)) {
+          return '$nama wajib diisi';
+        }
+        return null;
+      },
+    );
+  }
+
   static const Color _primary = Color(0xFF3478E5);
   static const Color _primaryLight = Color(0xFFEAF2FF);
   static const Color _background = Color(0xFFF5F7FB);
@@ -28,11 +179,19 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
 
   @override
   void dispose() {
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
+
+    _controllers.clear();
+    _files.clear();
+
     _namaController.dispose();
     _emailController.dispose();
     _teleponController.dispose();
     _asalController.dispose();
     _institusiController.dispose();
+
     super.dispose();
   }
 
@@ -118,33 +277,65 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
     );
   }
 
-  void _submitForm() {
-    if (_isSubmitting) return;
+  Future<void> _submitForm() async {
+    if (_isSubmitting || _isLoading || _loadError != null || _fields.isEmpty) {
+      return;
+    }
 
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
 
     setState(() {
       _isSubmitting = true;
     });
 
-    // Belum terhubung ke API Laravel.
-    // Jangan menampilkan pendaftaran berhasil sebelum
-    // data benar-benar tersimpan di server.
+    try {
+      final jawaban = <int, String>{};
 
-    setState(() {
-      _isSubmitting = false;
-    });
+      for (final entry in _controllers.entries) {
+        final value = entry.value.text.trim();
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
+        if (value.isNotEmpty) {
+          jawaban[entry.key] = value;
+        }
+      }
+
+      final response = await ApiService.kirimPendaftaran(
+        idLomba: widget.idLomba,
+        token: widget.token,
+        jawaban: jawaban,
+        berkas: _files,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
-            'Formulir valid. Pengiriman pendaftaran ke server belum diaktifkan.',
+            response['pesan']?.toString() ?? 'Pendaftaran berhasil dikirim.',
           ),
           backgroundColor: _primary,
         ),
       );
+
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengirim pendaftaran: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 
   @override
@@ -259,111 +450,27 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
 
                       const SizedBox(height: 25),
 
-                      _sectionTitle(
-                        'Data Peserta',
-                        'Masukkan identitas peserta lomba.',
-                      ),
-
-                      _buildField(
-                        label: 'Nama Lengkap',
-                        hint: 'Masukkan nama lengkap',
-                        icon: Icons.person_outline_rounded,
-                        controller: _namaController,
-                      ),
-
-                      _buildField(
-                        label: 'Email',
-                        hint: 'nama@email.com',
-                        icon: Icons.email_outlined,
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Email wajib diisi';
-                          }
-
-                          if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                              .hasMatch(value.trim())) {
-                            return 'Masukkan alamat email yang valid';
-                          }
-
-                          return null;
-                        },
-                      ),
-
-                      _buildField(
-                        label: 'Nomor Telepon',
-                        hint: 'Contoh: 081234567890',
-                        icon: Icons.phone_outlined,
-                        controller: _teleponController,
-                        keyboardType: TextInputType.phone,
-                      ),
-
-                      const SizedBox(height: 7),
-
-                      _sectionTitle(
-                        'Informasi Pendidikan',
-                        'Isi informasi asal peserta.',
-                      ),
-
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 17),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 15,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: _border),
-                        ),
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _jenisPeserta,
-                          decoration: const InputDecoration(
-                            labelText: 'Jenis Peserta',
-                            border: InputBorder.none,
-                            prefixIcon: Icon(
-                              Icons.school_outlined,
-                              color: _muted,
-                            ),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'Pelajar',
-                              child: Text('Pelajar'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Mahasiswa',
-                              child: Text('Mahasiswa'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Umum',
-                              child: Text('Umum'),
+                      if (_isLoading)
+                        const Center(
+                          child: CircularProgressIndicator(color: _primary),
+                        )
+                      else if (_loadError != null)
+                        Column(
+                          children: [
+                            const Text('Gagal mengambil formulir.'),
+                            const SizedBox(height: 10),
+                            ElevatedButton(
+                              onPressed: _loadFormFields,
+                              child: const Text('Coba Lagi'),
                             ),
                           ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _jenisPeserta = value;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-
-                      _buildField(
-                        label: 'Asal Kota/Kabupaten',
-                        hint: 'Contoh: Kota Ternate',
-                        icon: Icons.location_on_outlined,
-                        controller: _asalController,
-                      ),
-
-                      _buildField(
-                        label: 'Sekolah/Universitas/Instansi',
-                        hint: 'Masukkan nama institusi',
-                        icon: Icons.account_balance_outlined,
-                        controller: _institusiController,
-                      ),
+                        )
+                      else if (_fields.isEmpty)
+                        const Text(
+                          'Penyelenggara belum menyediakan pertanyaan pendaftaran.',
+                        )
+                      else
+                        ..._fields.map(_buildDynamicField),
 
                       const SizedBox(height: 8),
 
@@ -372,7 +479,13 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                         width: double.infinity,
                         height: 53,
                         child: ElevatedButton(
-                          onPressed: _isSubmitting ? null : _submitForm,
+                          onPressed:
+                              _isSubmitting ||
+                                  _isLoading ||
+                                  _loadError != null ||
+                                  _fields.isEmpty
+                              ? null
+                              : _submitForm,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _primary,
                             foregroundColor: Colors.white,

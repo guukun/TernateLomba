@@ -248,4 +248,165 @@ class ApiService {
       throw Exception(message);
     }
   }
+
+  // MENGAMBIL KATEGORI DARI MYSQL
+  static Future<List<Map<String, dynamic>>> getKategori() async {
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/kategori'),
+          headers: {'Accept': 'application/json'},
+        )
+        .timeout(const Duration(seconds: 20));
+
+    final data = _decodeResponse(response);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        data['pesan'] ?? data['message'] ?? 'Gagal mengambil kategori',
+      );
+    }
+
+    final items = data['data'];
+
+    if (items is! List) {
+      throw Exception('Format data kategori tidak valid.');
+    }
+
+    return items.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
+  // MENGAMBIL DAFTAR LOMBA AKTIF DARI MYSQL
+  static Future<List<Map<String, dynamic>>> getLomba({
+    String? search,
+    int? idKategori,
+  }) async {
+    final uri = Uri.parse('$baseUrl/lomba').replace(
+      queryParameters: {
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+        if (idKategori != null) 'id_kategori': idKategori.toString(),
+      },
+    );
+
+    final response = await http
+        .get(uri, headers: {'Accept': 'application/json'})
+        .timeout(const Duration(seconds: 20));
+
+    final data = _decodeResponse(response);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        data['pesan'] ?? data['message'] ?? 'Gagal mengambil lomba',
+      );
+    }
+
+    final items = data['data'];
+
+    if (items is! List) {
+      throw Exception('Format data lomba tidak valid.');
+    }
+
+    return items.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
+  // MENGAMBIL DETAIL LOMBA BERDASARKAN ID
+  static Future<Map<String, dynamic>> getDetailLomba(int idLomba) async {
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/lomba/$idLomba'),
+          headers: {'Accept': 'application/json'},
+        )
+        .timeout(const Duration(seconds: 20));
+
+    final data = _decodeResponse(response);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        data['pesan'] ?? data['message'] ?? 'Gagal mengambil detail lomba',
+      );
+    }
+
+    final item = data['data'];
+
+    if (item is! Map) {
+      throw Exception('Format detail lomba tidak valid.');
+    }
+
+    return Map<String, dynamic>.from(item);
+  }
+
+  // MENGAMBIL PERTANYAAN FORMULIR LOMBA
+  static Future<List<Map<String, dynamic>>> getFormFields(int idLomba) async {
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/lomba/$idLomba/form-fields'),
+          headers: {'Accept': 'application/json'},
+        )
+        .timeout(const Duration(seconds: 20));
+
+    final data = _decodeResponse(response);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        data['pesan'] ?? data['message'] ?? 'Gagal mengambil formulir',
+      );
+    }
+
+    final fields = data['data'];
+
+    if (fields is! List) {
+      throw Exception('Format pertanyaan formulir tidak valid.');
+    }
+
+    return fields
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+  }
+
+  // MENGIRIM PENDAFTARAN KE LARAVEL
+  static Future<Map<String, dynamic>> kirimPendaftaran({
+    required int idLomba,
+    required String token,
+    required Map<int, String> jawaban,
+    required Map<int, XFile> berkas,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/lomba/$idLomba/pendaftaran'),
+    );
+
+    request.headers.addAll({
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+    });
+
+    for (final entry in jawaban.entries) {
+      request.fields['jawaban[${entry.key}]'] = entry.value;
+    }
+
+    for (final entry in berkas.entries) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'files[${entry.key}]',
+          await entry.value.readAsBytes(),
+          filename: entry.value.name,
+        ),
+      );
+    }
+
+    final streamedResponse = await request.send().timeout(
+      const Duration(seconds: 60),
+    );
+
+    final response = await http.Response.fromStream(streamedResponse);
+
+    final data = _decodeResponse(response);
+
+    if (response.statusCode != 201) {
+      throw Exception(
+        data['pesan'] ?? data['message'] ?? 'Pendaftaran gagal dikirim',
+      );
+    }
+
+    return data;
+  }
 }

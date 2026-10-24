@@ -37,6 +37,92 @@ class _HomePageState extends State<HomePage> {
   String keyword = '';
   String kategoriAktif = 'Semua';
 
+  // DATA KATEGORI DAN LOMBA DARI API
+  List<Map<String, dynamic>> daftarKategoriApi = [];
+
+  List<Map<String, String>> daftarLomba = [];
+
+  bool isLoadingLomba = true;
+  String? errorLomba;
+
+  // Mengubah JSON Laravel menjadi format yang
+  // sudah digunakan oleh kartu dan halaman detail.
+  Map<String, String> _mapLomba(Map<String, dynamic> item) {
+    final kategori = item['kategori'];
+    final penyelenggara = item['penyelenggara'];
+
+    final kategoriMap = kategori is Map ? kategori : {};
+    final penyelenggaraMap = penyelenggara is Map ? penyelenggara : {};
+
+    final tanggalRaw = item['tanggal_pelaksanaan']?.toString() ?? '';
+    final tanggal = DateTime.tryParse(tanggalRaw);
+
+    final tanggalTampil = tanggal == null
+        ? tanggalRaw
+        : '${tanggal.day}/${tanggal.month}/${tanggal.year}';
+
+    final biaya = double.tryParse(item['biaya']?.toString() ?? '0') ?? 0;
+
+    final kuota = item['kuota_peserta']?.toString();
+
+    return {
+      'id_lomba': item['id_lomba']?.toString() ?? '',
+      'id_pengajuan': item['id_pengajuan']?.toString() ?? '',
+      'kategori': kategoriMap['nama_kategori']?.toString() ?? '',
+      'judul': item['nama_lomba']?.toString() ?? '',
+      'penyelenggara': penyelenggaraMap['username']?.toString() ?? '',
+      'kuota': kuota == null ? '-' : '$kuota peserta',
+      'poster': 'LOMBA',
+      'poster_lomba': item['poster_lomba']?.toString() ?? '',
+      'tanggal': tanggalTampil,
+      'tanggal_pelaksanaan': tanggalRaw,
+      'batas_pendaftaran': item['batas_pendaftaran']?.toString() ?? '',
+      'lokasi_pendaftaran': item['lokasi_pendaftaran']?.toString() ?? '',
+      'deskripsi': item['deskripsi']?.toString() ?? '',
+      'persyaratan': item['persyaratan']?.toString() ?? '',
+      'biaya': biaya == 0 ? 'Gratis' : 'Rp${biaya.toStringAsFixed(0)}',
+      'hadiah': item['hadiah']?.toString() ?? '',
+      'kontak_penyelenggara': item['kontak_penyelenggara']?.toString() ?? '',
+      'status_lomba': item['status_lomba']?.toString() ?? '',
+    };
+  }
+
+  Future<void> _loadDataLomba() async {
+    if (!mounted) return;
+
+    setState(() {
+      isLoadingLomba = true;
+      errorLomba = null;
+    });
+
+    try {
+      final results = await Future.wait([
+        ApiService.getKategori(),
+        ApiService.getLomba(),
+      ]);
+
+      if (!mounted) return;
+
+      final kategori = results[0];
+      final lomba = results[1];
+
+      setState(() {
+        daftarKategoriApi = kategori;
+        daftarLomba = lomba.map(_mapLomba).toList();
+        isLoadingLomba = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        errorLomba = e.toString();
+        isLoadingLomba = false;
+      });
+
+      debugPrint('Gagal mengambil data lomba: $e');
+    }
+  }
+
   // Popup notifikasi
   final LayerLink _notificationLink = LayerLink();
   OverlayEntry? _notificationOverlay;
@@ -68,46 +154,6 @@ class _HomePageState extends State<HomePage> {
     },
   ];
 
-  // Data lomba mengikuti struktur dari proyek sebelumnya.
-  final List<Map<String, String>> daftarLomba = [
-    {
-      'kategori': 'Pendidikan',
-      'judul': 'Lomba Karya Tulis Ilmiah Nasional 2026',
-      'penyelenggara': 'Universitas Khairun',
-      'kuota': '67/100',
-      'poster': 'LKTI',
-      'tanggal': 'Nov 2026',
-      'deskripsi': 'Kompetisi karya tulis ilmiah tingkat nasional untuk mahasiswa dan pelajar.',
-      'persyaratan': 'Peserta aktif mahasiswa atau pelajar.\nKarya belum pernah dipublikasikan.',
-      'biaya': 'Gratis',
-      'hadiah': 'Sertifikat dan uang pembinaan',
-    },
-    {
-      'kategori': 'Seni',
-      'judul': 'Festival Fotografi Pesona Ternate 2026',
-      'penyelenggara': 'Dispar Kota Ternate',
-      'kuota': '50/100',
-      'poster': 'FOTO',
-      'tanggal': 'Des 2026',
-      'deskripsi': 'Kompetisi fotografi budaya dan alam Ternate.',
-      'persyaratan': 'Foto merupakan karya sendiri.',
-      'biaya': 'Rp25.000',
-      'hadiah': 'Trofi dan sertifikat',
-    },
-    {
-      'kategori': 'Teknologi',
-      'judul': 'AI Innovation Competition 2026',
-      'penyelenggara': 'Tech Indonesia',
-      'kuota': '80/100',
-      'poster': 'AI',
-      'tanggal': 'Des 2026',
-      'deskripsi': 'Kompetisi inovasi teknologi dan digital.',
-      'persyaratan': 'Proposal inovasi teknologi.',
-      'biaya': 'Gratis',
-      'hadiah': 'Uang pembinaan',
-    },
-  ];
-
   List<Map<String, String>> get lombaTampil {
     return daftarLomba.where((lomba) {
       final cocokKategori =
@@ -129,6 +175,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadProfilePhoto();
+    _loadDataLomba();
   }
 
   Future<void> _loadProfilePhoto() async {
@@ -551,7 +598,7 @@ class _HomePageState extends State<HomePage> {
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: _showAllNotifications, 
+                          onPressed: _logoutFromHome,
                           icon: const Icon(Icons.logout_rounded, size: 19),
                           label: const Text('Keluar'),
                           style: OutlinedButton.styleFrom(
@@ -917,9 +964,11 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 22),
                 children: [
                   kategoriButton('Semua'),
-                  kategoriButton('Pendidikan'),
-                  kategoriButton('Seni'),
-                  kategoriButton('Teknologi'),
+                  ...daftarKategoriApi.map((kategori) {
+                    final nama = kategori['nama_kategori']?.toString() ?? '';
+
+                    return kategoriButton(nama);
+                  }),
                 ],
               ),
             ),
@@ -953,19 +1002,55 @@ class _HomePageState extends State<HomePage> {
 
             // DAFTAR KARTU LOMBA
             Expanded(
-              child: lombaTampil.isEmpty
+              child: isLoadingLomba
+                  ? const Center(
+                      child: CircularProgressIndicator(color: _primary),
+                    )
+                  : errorLomba != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.wifi_off_rounded,
+                              color: _muted,
+                              size: 40,
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Gagal memuat daftar lomba.',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: _text,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: _loadDataLomba,
+                              child: const Text('Coba Lagi'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : lombaTampil.isEmpty
                   ? const Center(
                       child: Text(
                         'Lomba tidak ditemukan.',
                         style: TextStyle(color: _muted, fontSize: 14),
                       ),
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(22, 0, 22, 125),
-                      itemCount: lombaTampil.length,
-                      itemBuilder: (context, index) {
-                        return cardLomba(context, lombaTampil[index]);
-                      },
+                  : RefreshIndicator(
+                      onRefresh: _loadDataLomba,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(22, 0, 22, 125),
+                        itemCount: lombaTampil.length,
+                        itemBuilder: (context, index) {
+                          return cardLomba(context, lombaTampil[index]);
+                        },
+                      ),
                     ),
             ),
           ],
@@ -1097,7 +1182,10 @@ class _HomePageState extends State<HomePage> {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => DetailLombaPage(lomba: lomba)),
+            MaterialPageRoute(
+              builder: (_) =>
+                  DetailLombaPage(lomba: lomba, token: widget.token),
+            ),
           );
         },
         child: Padding(

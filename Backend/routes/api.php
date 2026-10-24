@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PendaftaranController;
 use App\Http\Controllers\LombaController;
 use App\Http\Middleware\AuthenticateApiToken;
 use Illuminate\Support\Str;
@@ -267,3 +268,14 @@ Route::get('/lomba/{id}', [
     LombaController::class,
     'show',
 ])->whereNumber('id');
+
+Route::get(
+    '/lomba/{id}/form-fields',
+    [PendaftaranController::class, 'formFields']
+)->whereNumber('id');
+
+Route::post(
+    '/lomba/{id}/pendaftaran',
+    [PendaftaranController::class, 'store']
+)->whereNumber('id')
+ ->middleware(AuthenticateApiToken::class);

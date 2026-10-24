@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'config/appTheme.dart';
 import 'screens/splash/splashScreen.dart';
-import 'pages/ajukan/ajukanpage.dart';
+import 'pages/ajukan/ajukanPage.dart';
 
 void main() {
   runApp(const TernateLombaApp());

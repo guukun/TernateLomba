@@ -5,8 +5,8 @@ import 'package:image_picker/image_picker.dart';
 
 class ApiService {
   // Alamat Laravel.
-  static const String baseUrl = 'http://127.0.0.1:8000/api';
-  // static const String baseUrl = 'http://10.245.39.67:8000/api';
+  // static const String baseUrl = 'http://127.0.0.1:8000/api';
+  static const String baseUrl = 'http://10.245.39.67:8000/api';
 
   // MEMBACA RESPONSE JSON
   // Fungsi ini mencegah error ketika Laravel
@@ -61,7 +61,6 @@ class ApiService {
 
     final data = _decodeResponse(response);
 
-    // Laravel mengembalikan 200 jika login berhasil.
     if (response.statusCode != 200) {
       throw Exception(data['pesan'] ?? data['message'] ?? 'Login gagal');
     }

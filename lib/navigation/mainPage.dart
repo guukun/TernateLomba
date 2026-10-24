@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../config/appTheme.dart';
 import '../pages/beranda/homePage.dart';
-import '../pages/profile/profilePage.dart';
 import '../pages/lombaSaya/lombaSayaPage.dart';
 import '../pages/ajukan/ajukanPage.dart';
+import '../pages/profile/profilePage.dart';
+import '../widgets/floatingNavigationBar.dart';
 
 class MainPage extends StatefulWidget {
-  // Data yang diterima setelah login
   final String username;
   final String role;
   final String token;
@@ -19,110 +20,99 @@ class MainPage extends StatefulWidget {
   });
 
   @override
-  State<MainPage> createState() =>
-      _MainPageState();
+  State<MainPage> createState() => _MainPageState();
 }
 
-class _MainPageState
-    extends State<MainPage> {
-  // Index bottom navigation
+class _MainPageState extends State<MainPage> {
   int selectedIndex = 0;
-
-  // Username aktif
   late String currentUsername;
+
+  int profileRefreshVersion = 0;
 
   @override
   void initState() {
     super.initState();
+    currentUsername = widget.username;
+  }
 
-    // Simpan username awal
-    currentUsername =
-        widget.username;
+  void _onProfileChanged() {
+    if (!mounted) return;
+
+    setState(() {
+      profileRefreshVersion++;
+    });
+  }
+
+  void _onNavigationTap(int index) {
+    if (index < 0 || index > 3 || index == selectedIndex) {
+      return;
+    }
+
+    setState(() {
+      selectedIndex = index;
+    });
+  }
+
+  void _onUsernameChanged(String usernameBaru) {
+    if (!mounted) return;
+
+    setState(() {
+      currentUsername = usernameBaru;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      // BERANDA
-      HomePage(
-        username: currentUsername,
-      ),
-
-      // LOMBA SAYA
-      const LombaSayaPage(),
-
-      // AJUKAN
-      const AjukanPage(),
-
-      // PROFILE
-      ProfilePage(
-        username: currentUsername,
-        role: widget.role,
-        token: widget.token,
-
-        // Jika username diubah,
-        // MainPage ikut diperbarui.
-        onUsernameChanged: (usernameBaru) {
-          setState(() {
-            currentUsername =
-                usernameBaru;
-          });
-        },
-      ),
-    ];
-
     return Scaffold(
-      body: pages[selectedIndex],
+      backgroundColor: AppColors.background,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          IndexedStack(
+            index: selectedIndex,
+            children: [
+              // 0. Beranda
+              HomePage(
+                key: const PageStorageKey('homePage'),
+                username: currentUsername,
+                role: widget.role,
+                token: widget.token,
+                profileRefreshVersion: profileRefreshVersion,
+              ),
 
-      bottomNavigationBar:
-          BottomNavigationBar(
-        currentIndex:
-            selectedIndex,
+              // 1. Lomba Saya
+              LombaSayaPage(
+                key: const PageStorageKey('lombaSayaPage'),
+                onJelajahiLomba: () {
+                  _onNavigationTap(0);
+                },
+              ),
 
-        type:
-            BottomNavigationBarType.fixed,
+              // 2. Ajukan
+              const AjukanPage(
+                key: PageStorageKey('ajukanPage'),
+              ),
 
-        selectedItemColor:
-            Colors.blue,
-
-        unselectedItemColor:
-            Colors.grey,
-
-        onTap: (index) {
-          setState(() {
-            selectedIndex =
-                index;
-          });
-        },
-
-        items: const [
-          BottomNavigationBarItem(
-            icon:
-                Icon(Icons.home),
-            label:
-                'Beranda',
+              // 3. Profil
+              ProfilePage(
+                key: const PageStorageKey('profilePage'),
+                username: currentUsername,
+                role: widget.role,
+                token: widget.token,
+                onUsernameChanged: _onUsernameChanged,
+                onProfileChanged: _onProfileChanged,
+              ),
+            ],
           ),
 
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.card_giftcard,
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: FloatingNavigationBar(
+              currentIndex: selectedIndex,
+              onTap: _onNavigationTap,
             ),
-            label:
-                'Lomba Saya',
-          ),
-
-          BottomNavigationBarItem(
-            icon:
-                Icon(Icons.explore),
-            label:
-                'Ajukan',
-          ),
-
-          BottomNavigationBarItem(
-            icon:
-                Icon(Icons.person),
-            label:
-                'Profile',
           ),
         ],
       ),

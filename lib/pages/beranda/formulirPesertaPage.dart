@@ -1,19 +1,5 @@
-// Package untuk membuat garis border putus-putus
-// pada kotak upload file.
-import 'package:dotted_border/dotted_border.dart';
-
-// Package untuk memilih file dari perangkat.
-// Pada halaman ini digunakan untuk memilih file PDF.
-import 'package:file_picker/file_picker.dart';
-
-// Package utama Flutter Material Design.
 import 'package:flutter/material.dart';
 
-// ======================================================
-// HALAMAN FORMULIR PESERTA
-// ======================================================
-// StatefulWidget digunakan karena terdapat data yang
-// dapat berubah, misalnya nama file PDF yang dipilih.
 class FormulirPesertaPage extends StatefulWidget {
   const FormulirPesertaPage({super.key});
 
@@ -21,660 +7,424 @@ class FormulirPesertaPage extends StatefulWidget {
   State<FormulirPesertaPage> createState() => _FormulirPesertaPageState();
 }
 
-// ======================================================
-// STATE HALAMAN FORMULIR PESERTA
-// ======================================================
 class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
-  // GlobalKey digunakan untuk mengontrol dan
-  // melakukan validasi seluruh form.
+  static const Color _primary = Color(0xFF3478E5);
+  static const Color _primaryLight = Color(0xFFEAF2FF);
+  static const Color _background = Color(0xFFF5F7FB);
+  static const Color _text = Color(0xFF202938);
+  static const Color _muted = Color(0xFF667085);
+  static const Color _border = Color(0xFFE5EAF2);
+
   final _formKey = GlobalKey<FormState>();
 
-  // Controller untuk membaca isi nama lengkap.
-  // Nama dibuat otomatis sebagai contoh data pengguna.
-  final _namaController = TextEditingController(text: 'Ahmad Fauzan');
-
-  // Controller untuk input asal instansi/sekolah.
+  final _namaController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _teleponController = TextEditingController();
   final _asalController = TextEditingController();
+  final _institusiController = TextEditingController();
 
-  // Controller untuk input motivasi mengikuti lomba.
-  final _motivasiController = TextEditingController();
+  String _jenisPeserta = 'Mahasiswa';
+  bool _isSubmitting = false;
 
-  // Menyimpan nama file PDF yang dipilih.
-  // Nilainya null apabila belum ada file yang dipilih.
-  String? _selectedFileName;
-
-  // ======================================================
-  // DISPOSE
-  // ======================================================
-  // Dipanggil saat halaman ditutup.
-  // Controller perlu di-dispose agar tidak
-  // menyebabkan penggunaan memori yang tidak perlu.
   @override
   void dispose() {
     _namaController.dispose();
+    _emailController.dispose();
+    _teleponController.dispose();
     _asalController.dispose();
-    _motivasiController.dispose();
-
+    _institusiController.dispose();
     super.dispose();
   }
 
-  // ======================================================
-  // MEMILIH FILE PDF
-  // ======================================================
-  Future<void> _pickPdf() async {
-    // Membuka file picker dari perangkat pengguna.
-    final result = await FilePicker.platform.pickFiles(
-      // FileType.custom berarti kita menentukan sendiri
-      // jenis ekstensi file yang boleh dipilih.
-      type: FileType.custom,
-
-      // Hanya file berekstensi PDF yang diperbolehkan.
-      allowedExtensions: ['pdf'],
-    );
-
-    // Memastikan pengguna benar-benar memilih file.
-    if (result != null && result.files.isNotEmpty) {
-      // setState digunakan agar tampilan diperbarui
-      // setelah nama file berhasil didapatkan.
-      setState(() {
-        // Mengambil nama file PDF yang dipilih.
-        _selectedFileName = result.files.single.name;
-      });
-    }
-  }
-
-  // ======================================================
-  // KIRIM FORMULIR
-  // ======================================================
-  void _submit() {
-    // Menjalankan seluruh validator pada TextFormField.
-    // Jika ada data tidak valid, proses dihentikan.
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    // Memastikan peserta sudah memilih file PDF.
-    if (_selectedFileName == null) {
-      // Menampilkan pesan jika file belum dipilih.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Silakan pilih file PDF terlebih dahulu')),
-      );
-
-      return;
-    }
-
-    // Jika seluruh data valid dan file PDF sudah dipilih,
-    // tampilkan pesan berhasil.
-    //
-    // Nanti bagian ini dapat diganti dengan request
-    // ke API Laravel.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Pendaftaran berhasil dikirim')),
-    );
-  }
-
-  // ======================================================
-  // WIDGET JUDUL BAGIAN
-  // ======================================================
-  // Fungsi ini digunakan agar desain judul bagian
-  // dapat dipakai berkali-kali tanpa menulis ulang kode.
-  Widget _sectionTitle(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w800,
-          color: Color(0xFF7B879C),
-        ),
-      ),
-    );
-  }
-
-  // ======================================================
-  // WIDGET LABEL INPUT
-  // ======================================================
-  // Parameter required digunakan untuk menentukan
-  // apakah label perlu menampilkan tanda * merah.
-  Widget _label(String text, {bool required = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(
-            fontSize: 14,
-            color: Color(0xFF6E7B91),
-            fontWeight: FontWeight.w600,
-          ),
-          children: [
-            // Menampilkan nama label.
-            TextSpan(text: text),
-
-            // Jika required = true,
-            // tampilkan tanda * berwarna merah.
-            if (required)
-              const TextSpan(
-                text: ' *',
-                style: TextStyle(color: Colors.red),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ======================================================
-  // DESAIN INPUT FIELD
-  // ======================================================
-  // Fungsi ini digunakan agar semua input mempunyai
-  // tampilan yang konsisten.
-  InputDecoration _inputDecoration({required String hint, Widget? suffixIcon}) {
+  InputDecoration _inputDecoration({
+    required String label,
+    required String hint,
+    required IconData icon,
+  }) {
     return InputDecoration(
-      // Tulisan petunjuk di dalam input.
+      labelText: label,
       hintText: hint,
-
-      hintStyle: const TextStyle(color: Color(0xFFA3AEC2), fontSize: 14),
-
-      // Icon di sebelah kanan input jika diperlukan.
-      suffixIcon: suffixIcon,
-
-      // Mengaktifkan warna background input.
+      prefixIcon: Icon(icon, color: _muted, size: 20),
       filled: true,
-
-      fillColor: const Color(0xFFF7F9FC),
-
-      // Jarak isi input terhadap border.
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-
-      // Border default.
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFE3E8F0)),
+        borderSide: const BorderSide(color: _border),
       ),
-
-      // Border saat input tidak aktif.
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFE3E8F0)),
+        borderSide: const BorderSide(color: _border),
       ),
-
-      // Border saat input sedang dipilih.
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF2F6FED), width: 1.4),
+        borderSide: const BorderSide(color: _primary, width: 1.5),
       ),
-
-      // Border jika terjadi kesalahan validasi.
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: Colors.red),
       ),
+    );
+  }
 
-      // Border saat input error dan sedang dipilih.
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.red),
+  Widget _buildField({
+    required String label,
+    required String hint,
+    required IconData icon,
+    required TextEditingController controller,
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 17),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        textCapitalization: TextCapitalization.words,
+        decoration: _inputDecoration(label: label, hint: hint, icon: icon),
+        validator:
+            validator ??
+            (value) {
+              if (value == null || value.trim().isEmpty) {
+                return '$label wajib diisi';
+              }
+              return null;
+            },
       ),
     );
   }
 
-  // ======================================================
-  // TAMPILAN UTAMA
-  // ======================================================
+  Widget _sectionTitle(String title, String subtitle) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: _text,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            subtitle,
+            style: const TextStyle(color: _muted, fontSize: 12, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _submitForm() {
+    if (_isSubmitting) return;
+
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    // Belum terhubung ke API Laravel.
+    // Jangan menampilkan pendaftaran berhasil sebelum
+    // data benar-benar tersimpan di server.
+
+    setState(() {
+      _isSubmitting = false;
+    });
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Formulir valid. Pengiriman pendaftaran ke server belum diaktifkan.',
+          ),
+          backgroundColor: _primary,
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Warna background halaman.
-      backgroundColor: const Color(0xFFF9FBFD),
-
-      // ==================================================
-      // APP BAR
-      // ==================================================
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-
-        // Menghilangkan bayangan AppBar.
-        elevation: 0,
-
-        // Tombol kembali.
-        leading: IconButton(
-          onPressed: () {
-            // Kembali ke halaman sebelumnya.
-            Navigator.pop(context);
-          },
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: Color(0xFF2B3140),
-            size: 20,
-          ),
-        ),
-
-        // Judul halaman.
-        title: const Text(
-          'Formulir Peserta',
-          style: TextStyle(
-            color: Color(0xFF2B3140),
-            fontWeight: FontWeight.w800,
-            fontSize: 22,
-          ),
-        ),
-      ),
-
-      // ==================================================
-      // BODY
-      // ==================================================
+      backgroundColor: _background,
       body: SafeArea(
-        // Form digunakan agar semua TextFormField
-        // dapat divalidasi menggunakan _formKey.
-        child: Form(
-          key: _formKey,
-
-          // Membuat halaman dapat di-scroll.
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-
-              children: [
-                // ==================================================
-                // CARD INFORMASI LOMBA
-                // ==================================================
-                Container(
-                  padding: const EdgeInsets.all(14),
-
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF7F9FC),
-
-                    borderRadius: BorderRadius.circular(18),
-
-                    border: Border.all(color: const Color(0xFFE4E9F1)),
-                  ),
-
-                  child: Row(
-                    children: [
-                      // Kotak logo lomba.
-                      Container(
-                        width: 62,
-                        height: 62,
-
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF202B3D),
-
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-
-                        child: const Center(
-                          child: Text(
-                            'LKTI\n2024',
-
-                            textAlign: TextAlign.center,
-
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              height: 1.2,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 14),
-
-                      // Informasi nama lomba dan penyelenggara.
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-
-                          children: [
-                            // Nama lomba.
-                            Text(
-                              'LKTI Ternate 2024',
-
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF2B3140),
-                              ),
-                            ),
-
-                            SizedBox(height: 6),
-
-                            // Nama penyelenggara.
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.location_city_outlined,
-                                  size: 16,
-                                  color: Color(0xFF9AA7BC),
-                                ),
-
-                                SizedBox(width: 5),
-
-                                Text(
-                                  'Universitas Khairun',
-
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF9AA7BC),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+        bottom: false,
+        child: Column(
+          children: [
+            // HEADER
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 15, 20, 22),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFEAF2FF),
+                    Color(0xFFD9E8FF),
+                    Color(0xFFF5F7FB),
+                  ],
+                  stops: [0, 0.65, 1],
                 ),
-
-                const SizedBox(height: 24),
-
-                // ==================================================
-                // DATA PENGGUNA
-                // ==================================================
-                _sectionTitle('DATA PENGGUNA (OTOMATIS)'),
-
-                // ==================================================
-                // NAMA LENGKAP
-                // ==================================================
-                _label('Nama Lengkap'),
-
-                TextFormField(
-                  // Menggunakan nama dari controller.
-                  controller: _namaController,
-
-                  // Nama tidak boleh diedit pengguna.
-                  readOnly: true,
-
-                  decoration: _inputDecoration(
-                    hint: 'Nama Lengkap',
-
-                    // Icon kunci menandakan data otomatis
-                    // dan tidak dapat diubah.
-                    suffixIcon: const Padding(
-                      padding: EdgeInsets.only(right: 10),
-
-                      child: Icon(Icons.lock_outline, color: Color(0xFF9AA7BC)),
-                    ),
-                  ),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(28),
+                  bottomRight: Radius.circular(28),
                 ),
-
-                const SizedBox(height: 16),
-
-                // ==================================================
-                // ASAL INSTANSI / SEKOLAH
-                // ==================================================
-                _label('Asal Instansi / Sekolah'),
-
-                TextFormField(
-                  controller: _asalController,
-
-                  // Validasi input.
-                  validator: (value) {
-                    // Tidak boleh kosong.
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Asal instansi / sekolah wajib diisi';
-                    }
-
-                    return null;
-                  },
-
-                  decoration: _inputDecoration(
-                    hint: 'Masukkan asal instansi / sekolah',
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // ==================================================
-                // PERSYARATAN KHUSUS
-                // ==================================================
-                _sectionTitle('PERSYARATAN KHUSUS LOMBA'),
-
-                // ==================================================
-                // MOTIVASI
-                // ==================================================
-                _label('Motivasi Mengikuti Lomba', required: true),
-
-                TextFormField(
-                  controller: _motivasiController,
-
-                  // Membuat input lebih tinggi
-                  // agar cocok untuk teks panjang.
-                  maxLines: 5,
-
-                  validator: (value) {
-                    // Motivasi tidak boleh kosong.
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Motivasi wajib diisi';
-                    }
-
-                    return null;
-                  },
-
-                  decoration: _inputDecoration(
-                    hint: 'Tuliskan motivasi Anda...',
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // ==================================================
-                // UPLOAD PDF
-                // ==================================================
-                _label('Upload Naskah Karya (PDF)', required: true),
-
-                GestureDetector(
-                  // Saat area upload ditekan,
-                  // buka file picker.
-                  onTap: _pickPdf,
-
-                  child: DottedBorder(
-                    // Warna border putus-putus.
-                    color: const Color(0xFFB6D2FF),
-
-                    strokeWidth: 1.5,
-
-                    // Pola garis putus-putus.
-                    dashPattern: const [6, 4],
-
-                    // Bentuk border mengikuti rounded rectangle.
-                    borderType: BorderType.RRect,
-
-                    radius: const Radius.circular(16),
-
-                    child: Container(
-                      width: double.infinity,
-
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 26,
-                        horizontal: 16,
-                      ),
-
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF9FBFF),
-
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-
-                      child: Column(
-                        children: [
-                          // Lingkaran icon upload.
-                          Container(
-                            width: 54,
-                            height: 54,
-
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFE8F0FF),
-
-                              shape: BoxShape.circle,
-                            ),
-
-                            child: const Icon(
-                              Icons.file_upload_outlined,
-
-                              color: Color(0xFF3D7AF5),
-
-                              size: 28,
-                            ),
-                          ),
-
-                          const SizedBox(height: 14),
-
-                          // Tulisan pilih file.
-                          const Text(
-                            'Pilih File Naskah',
-
-                            style: TextStyle(
-                              color: Color(0xFF2F6FED),
-
-                              fontSize: 20,
-
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-
-                          const SizedBox(height: 6),
-
-                          // Jika file belum dipilih,
-                          // tampilkan informasi maksimal ukuran.
-                          //
-                          // Jika file sudah dipilih,
-                          // tampilkan nama file tersebut.
-                          Text(
-                            _selectedFileName ?? 'PDF maksimal ukuran 10MB',
-
-                            textAlign: TextAlign.center,
-
-                            style: TextStyle(
-                              // Warna berubah setelah
-                              // file berhasil dipilih.
-                              color: _selectedFileName == null
-                                  ? const Color(0xFFA4AEC1)
-                                  : const Color(0xFF5E6B82),
-
-                              fontSize: 13,
-
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // ==================================================
-                // INFORMASI PENDAFTARAN
-                // ==================================================
-                Container(
-                  padding: const EdgeInsets.all(16),
-
-                  decoration: BoxDecoration(
-                    // Background hijau muda.
-                    color: const Color(0xFFEAF9F1),
-
+              ),
+              child: Row(
+                children: [
+                  Material(
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
-
-                    border: Border.all(color: const Color(0xFFBEE8CD)),
-                  ),
-
-                  child: const Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                    children: [
-                      // Icon centang.
-                      Icon(
-                        Icons.check_circle,
-                        color: Color(0xFF20B46A),
-                        size: 24,
+                    child: InkWell(
+                      onTap: () => Navigator.pop(context),
+                      borderRadius: BorderRadius.circular(14),
+                      child: const SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Icon(Icons.arrow_back_rounded, color: _text),
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Formulir Pendaftaran',
+                          style: TextStyle(
+                            color: _text,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Lengkapi data untuk mengikuti lomba',
+                          style: TextStyle(color: _muted, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
-                      SizedBox(width: 10),
-
-                      Expanded(
-                        child: Column(
+            // FORM
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(17),
+                        decoration: BoxDecoration(
+                          color: _primaryLight,
+                          borderRadius: BorderRadius.circular(17),
+                          border: Border.all(
+                            color: _primary.withValues(alpha: 0.12),
+                          ),
+                        ),
+                        child: const Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
-
                           children: [
-                            // Judul informasi.
-                            Text(
-                              'Pendaftaran Praktis',
-
-                              style: TextStyle(
-                                color: Color(0xFF3A495F),
-
-                                fontSize: 16,
-
-                                fontWeight: FontWeight.w700,
-                              ),
+                            Icon(
+                              Icons.info_outline_rounded,
+                              color: _primary,
+                              size: 21,
                             ),
-
-                            SizedBox(height: 4),
-
-                            // Penjelasan informasi.
-                            Text(
-                              'Status pendaftaran otomatis dapat dipantau di menu Lomba Saya.',
-
-                              style: TextStyle(
-                                color: Color(0xFF6B7A90),
-
-                                fontSize: 13,
-
-                                height: 1.4,
+                            SizedBox(width: 11),
+                            Expanded(
+                              child: Text(
+                                'Pastikan data yang Anda masukkan benar sebelum mengirim pendaftaran.',
+                                style: TextStyle(
+                                  color: _text,
+                                  fontSize: 12,
+                                  height: 1.6,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
+
+                      const SizedBox(height: 25),
+
+                      _sectionTitle(
+                        'Data Peserta',
+                        'Masukkan identitas peserta lomba.',
+                      ),
+
+                      _buildField(
+                        label: 'Nama Lengkap',
+                        hint: 'Masukkan nama lengkap',
+                        icon: Icons.person_outline_rounded,
+                        controller: _namaController,
+                      ),
+
+                      _buildField(
+                        label: 'Email',
+                        hint: 'nama@email.com',
+                        icon: Icons.email_outlined,
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Email wajib diisi';
+                          }
+
+                          if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                              .hasMatch(value.trim())) {
+                            return 'Masukkan alamat email yang valid';
+                          }
+
+                          return null;
+                        },
+                      ),
+
+                      _buildField(
+                        label: 'Nomor Telepon',
+                        hint: 'Contoh: 081234567890',
+                        icon: Icons.phone_outlined,
+                        controller: _teleponController,
+                        keyboardType: TextInputType.phone,
+                      ),
+
+                      const SizedBox(height: 7),
+
+                      _sectionTitle(
+                        'Informasi Pendidikan',
+                        'Isi informasi asal peserta.',
+                      ),
+
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 17),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 15,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: _border),
+                        ),
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _jenisPeserta,
+                          decoration: const InputDecoration(
+                            labelText: 'Jenis Peserta',
+                            border: InputBorder.none,
+                            prefixIcon: Icon(
+                              Icons.school_outlined,
+                              color: _muted,
+                            ),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'Pelajar',
+                              child: Text('Pelajar'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Mahasiswa',
+                              child: Text('Mahasiswa'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Umum',
+                              child: Text('Umum'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _jenisPeserta = value;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+
+                      _buildField(
+                        label: 'Asal Kota/Kabupaten',
+                        hint: 'Contoh: Kota Ternate',
+                        icon: Icons.location_on_outlined,
+                        controller: _asalController,
+                      ),
+
+                      _buildField(
+                        label: 'Sekolah/Universitas/Instansi',
+                        hint: 'Masukkan nama institusi',
+                        icon: Icons.account_balance_outlined,
+                        controller: _institusiController,
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // TOMBOL KIRIM
+                      SizedBox(
+                        width: double.infinity,
+                        height: 53,
+                        child: ElevatedButton(
+                          onPressed: _isSubmitting ? null : _submitForm,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primary,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: _primary.withValues(
+                              alpha: 0.6,
+                            ),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  width: 21,
+                                  height: 21,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Kirim Pendaftaran',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    SizedBox(width: 9),
+                                    Icon(Icons.arrow_forward_rounded, size: 19),
+                                  ],
+                                ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      const Center(
+                        child: Text(
+                          'Pastikan semua informasi telah sesuai.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: _muted, fontSize: 11),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 28),
-
-                // ==================================================
-                // TOMBOL KIRIM PENDAFTARAN
-                // ==================================================
-                SizedBox(
-                  height: 54,
-
-                  child: ElevatedButton(
-                    // Menjalankan fungsi _submit
-                    // ketika tombol ditekan.
-                    onPressed: _submit,
-
-                    style: ElevatedButton.styleFrom(
-                      // Warna tombol.
-                      backgroundColor: const Color(0xFF2F6FED),
-
-                      elevation: 2,
-
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-
-                    child: const Text(
-                      'Kirim Pendaftaran',
-
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

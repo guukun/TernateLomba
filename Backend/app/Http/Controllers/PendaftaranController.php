@@ -42,6 +42,15 @@ class PendaftaranController extends Controller
                 'urutan',
             ]);
 
+            foreach ($fields as $field) {
+                if (!in_array($field->tipe_field, ['Text', 'File'], true)) {
+                    return response()->json([
+                        'pesan' => 'Tipe field formulir tidak didukung.',
+                        'id_field' => $field->id_field,
+                    ], 422);
+                }
+            }
+
         return response()->json([
             'pesan' => 'Formulir berhasil diambil',
             'id_lomba' => $lomba->id_lomba,
@@ -294,4 +303,89 @@ class PendaftaranController extends Controller
             throw $e;
         }
     }
+
+    
+
+public function riwayat(Request $request)
+{
+    $user = $request->user();
+
+    $pendaftaran = Pendaftaran::query()
+        ->with(['lomba.pengajuan'])
+        ->where('id_user', $user->getKey())
+        ->orderByDesc('tanggal_pendaftaran')
+        ->get();
+
+    return response()->json([
+        'pesan' => 'Riwayat pendaftaran berhasil diambil.',
+        'data' => $pendaftaran->map(function ($item) {
+            return [
+                'id_pendaftaran' => $item->id_pendaftaran,
+                'id_lomba' => $item->id_lomba,
+                'nama_lomba' => $item->lomba?->pengajuan?->nama_lomba,
+                'tanggal_pendaftaran' => $item->tanggal_pendaftaran,
+                'status_pendaftaran' => $item->status_pendaftaran,
+            ];
+        }),
+    ], 200);
+}
+
+
+
+public function unduhJawabanFile(Request $request, int $id, int $idJawaban)
+{
+    $user = $request->user();
+
+    $jawaban = JawabanPendaftaran::query()
+        ->with('pendaftaran')
+        ->where('id_jawaban', $idJawaban)
+        ->whereHas('pendaftaran', function ($query) use ($id, $user) {
+            $query->where('id_pendaftaran', $id)
+                ->where('id_user', $user->getKey());
+        })
+        ->first();
+
+    if (!$jawaban || !$jawaban->pendaftaran) {
+        return response()->json([
+            'pesan' => 'Dokumen tidak ditemukan atau Anda tidak memiliki akses.',
+        ], 404);
+    }
+
+    $field = FormField::query()
+        ->where('id_field', $jawaban->id_field)
+        ->where(
+            'id_pengajuan',
+            $jawaban->pendaftaran->lomba->id_pengajuan
+        )
+        ->first();
+
+    if (!$field || $field->tipe_field !== 'File') {
+        return response()->json([
+            'pesan' => 'Jawaban tersebut bukan dokumen yang dapat diunduh.',
+        ], 404);
+    }
+
+    $path = $jawaban->jawaban;
+    $disk = Storage::disk('local');
+
+    if (
+        !is_string($path) ||
+        !str_starts_with(
+            $path,
+            'pendaftaran/' . $id . '/'
+        ) ||
+        !$disk->exists($path)
+    ) {
+        return response()->json([
+            'pesan' => 'File tidak ditemukan.',
+        ], 404);
+    }
+
+    return $disk->download(
+        $path,
+        basename($path),
+        ['Cache-Control' => 'private, no-store']
+    );
+}
+
 }

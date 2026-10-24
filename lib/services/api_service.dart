@@ -362,6 +362,37 @@ class ApiService {
         .toList();
   }
 
+  // MENGAMBIL RIWAYAT PENDAFTARAN PENGGUNA
+  static Future<Map<String, dynamic>> getRiwayatPendaftaran({
+    required String token,
+  }) async {
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/pendaftaran/riwayat'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 20));
+
+    final data = _decodeResponse(response);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        data['pesan'] ??
+            data['message'] ??
+            'Gagal mengambil riwayat pendaftaran',
+      );
+    }
+
+    if (data['data'] is! List) {
+      throw Exception('Format riwayat pendaftaran tidak valid.');
+    }
+
+    return data;
+  }
+
   // MENGIRIM PENDAFTARAN KE LARAVEL
   static Future<Map<String, dynamic>> kirimPendaftaran({
     required int idLomba,

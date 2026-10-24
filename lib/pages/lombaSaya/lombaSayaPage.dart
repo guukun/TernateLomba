@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../services/api_service.dart';
+
 class LombaSayaPage extends StatefulWidget {
   final VoidCallback? onJelajahiLomba;
+  final String token;
 
-  const LombaSayaPage({super.key, this.onJelajahiLomba});
+  const LombaSayaPage({super.key, this.onJelajahiLomba, required this.token});
 
   @override
   State<LombaSayaPage> createState() => _LombaSayaPageState();
@@ -12,12 +15,70 @@ class LombaSayaPage extends StatefulWidget {
 class _LombaSayaPageState extends State<LombaSayaPage> {
   int selectedTab = 0;
 
+  List<Map<String, dynamic>> _riwayatPendaftaran = [];
+  bool _isLoadingRiwayat = false;
+  String? _errorRiwayat;
+  bool _riwayatSudahDimuat = false;
+
   static const Color primaryBlue = Color(0xFF3478E5);
   static const Color lightBlue = Color(0xFFEAF2FF);
   static const Color backgroundColor = Color(0xFFF5F7FB);
   static const Color textColor = Color(0xFF202938);
   static const Color mutedColor = Color(0xFF8995A7);
   static const Color borderColor = Color(0xFFE8EDF4);
+
+  Future<void> _loadRiwayatPendaftaran() async {
+    if (_isLoadingRiwayat) return;
+
+    setState(() {
+      _isLoadingRiwayat = true;
+      _errorRiwayat = null;
+    });
+
+    try {
+      final response = await ApiService.getRiwayatPendaftaran(
+        token: widget.token,
+      );
+
+      if (!mounted) return;
+
+      final data = response['data'];
+
+      if (data is! List) {
+        throw const FormatException(
+          'Format data riwayat pendaftaran tidak sesuai.',
+        );
+      }
+
+      setState(() {
+        _riwayatPendaftaran = data
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
+        _riwayatSudahDimuat = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _errorRiwayat = 'Riwayat pendaftaran gagal dimuat.';
+      });
+
+      debugPrint('Gagal memuat riwayat pendaftaran: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingRiwayat = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRiwayatPendaftaran();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -128,15 +189,7 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
                 child: KeyedSubtree(
                   key: ValueKey<int>(selectedTab),
                   child: selectedTab == 0
-                      ? _buildEmptyState(
-                          icon: Icons.emoji_events_outlined,
-                          title: 'Belum mengikuti lomba',
-                          description:
-                              'Lomba yang kamu ikuti akan muncul di sini. '
-                              'Temukan lomba yang sesuai dengan minatmu '
-                              'melalui halaman Beranda.',
-                          tabIndex: 0,
-                        )
+                      ? _buildRiwayatContent()
                       : _buildEmptyState(
                           icon: Icons.add_circle_outline_rounded,
                           title: 'Belum ada lomba yang dibuat',
@@ -217,6 +270,162 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildRiwayatContent() {
+    if (_isLoadingRiwayat) {
+      return const Center(child: CircularProgressIndicator(color: primaryBlue));
+    }
+
+    if (_errorRiwayat != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_rounded, size: 48, color: mutedColor),
+              const SizedBox(height: 12),
+              Text(
+                _errorRiwayat!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: textColor, fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _loadRiwayatPendaftaran,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Coba Lagi'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_riwayatSudahDimuat && _riwayatPendaftaran.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.emoji_events_outlined,
+        title: 'Belum mengikuti lomba',
+        description:
+            'Lomba yang kamu ikuti akan muncul di sini. '
+            'Temukan lomba yang sesuai dengan minatmu '
+            'melalui halaman Beranda.',
+        tabIndex: 0,
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 28),
+      itemCount: _riwayatPendaftaran.length,
+      itemBuilder: (context, index) {
+        final item = _riwayatPendaftaran[index];
+
+        final namaLomba = item['nama_lomba']?.toString() ?? 'Lomba tanpa nama';
+        final status =
+            item['status_pendaftaran']?.toString() ?? 'Tidak diketahui';
+        final tanggal = item['tanggal_pendaftaran']?.toString() ?? '';
+
+        Color warnaStatus;
+        switch (status.toLowerCase()) {
+          case 'diterima':
+            warnaStatus = const Color(0xFF21866D);
+            break;
+          case 'ditolak':
+            warnaStatus = const Color(0xFFD92D20);
+            break;
+          default:
+            warnaStatus = const Color(0xFFE5A000);
+        }
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.all(17),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF344054).withValues(alpha: 0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: lightBlue,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: const Icon(
+                      Icons.emoji_events_rounded,
+                      color: primaryBlue,
+                      size: 25,
+                    ),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Text(
+                      namaLomba,
+                      style: const TextStyle(
+                        color: textColor,
+                        fontSize: 14,
+                        height: 1.4,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today_rounded,
+                    size: 14,
+                    color: mutedColor,
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      tanggal.isEmpty ? 'Tanggal tidak tersedia' : tanggal,
+                      style: const TextStyle(color: mutedColor, fontSize: 11),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: warnaStatus.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      status,
+                      style: TextStyle(
+                        color: warnaStatus,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

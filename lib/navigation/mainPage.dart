@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../config/appTheme.dart';
@@ -84,15 +83,14 @@ class _MainPageState extends State<MainPage> {
               // 1. Lomba Saya
               LombaSayaPage(
                 key: const PageStorageKey('lombaSayaPage'),
+                token: widget.token,
                 onJelajahiLomba: () {
                   _onNavigationTap(0);
                 },
               ),
 
               // 2. Ajukan
-              const AjukanPage(
-                key: PageStorageKey('ajukanPage'),
-              ),
+              const AjukanPage(key: PageStorageKey('ajukanPage')),
 
               // 3. Profil
               ProfilePage(

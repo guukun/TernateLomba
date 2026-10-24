@@ -279,3 +279,25 @@ Route::post(
     [PendaftaranController::class, 'store']
 )->whereNumber('id')
  ->middleware(AuthenticateApiToken::class);
+
+
+Route::get(
+    '/pendaftaran/riwayat',
+    [PendaftaranController::class, 'riwayat']
+)->middleware(AuthenticateApiToken::class);
+
+
+Route::get(
+    '/pendaftaran/{id}',
+    [PendaftaranController::class, 'detail']
+)->whereNumber('id')
+ ->middleware(AuthenticateApiToken::class);
+
+
+Route::get(
+    '/pendaftaran/{id}/jawaban/{idJawaban}/file',
+    [PendaftaranController::class, 'unduhJawabanFile']
+)
+    ->whereNumber('id')
+    ->whereNumber('idJawaban')
+    ->middleware(AuthenticateApiToken::class);

@@ -2,28 +2,42 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        $request->validate([
-            'username' => 'required|unique:users',
-            'password' => 'required|min:6',
+        $data = $request->validate([
+            'username' => [
+                'required',
+                'string',
+                'max:255',
+                'unique:users,username',
+            ],
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed',
+            ],
         ]);
 
         $user = User::create([
-            'username' => $request->username,
-            'password' => Hash::make($request->password),
+            'username' => $data['username'],
+            'password' => Hash::make($data['password']),
             'role' => 'User',
         ]);
 
         return response()->json([
-            'message' => 'Registrasi berhasil',
-            'data' => $user
-        ]);
+            'pesan' => 'Akun berhasil dibuat. Silakan masuk.',
+            'user' => [
+                'id_user' => $user->id_user,
+                'username' => $user->username,
+                'role' => $user->role,
+            ],
+        ], 201);
     }
 }

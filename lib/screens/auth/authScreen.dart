@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../widgets/appNotification.dart';
 import '../../config/appTheme.dart';
 import '../../services/api_service.dart';
 import '../../widgets/customTextfield.dart';
@@ -16,122 +17,66 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  // =====================================================
-  // FORM
-  // =====================================================
-
-  // Key untuk melakukan validasi seluruh form.
   final _formKey = GlobalKey<FormState>();
 
-  // Controller username.
   final _username = TextEditingController();
-
-  // Controller password.
   final _password = TextEditingController();
-
-  // Controller konfirmasi password.
   final _confirm = TextEditingController();
 
-  // 0 = Login
-  // 1 = Register
   int _tab = 0;
-
-  // Password disembunyikan secara default.
   bool _hidePassword = true;
-
-  // Konfirmasi password disembunyikan secara default.
   bool _hideConfirm = true;
-
-  // Menandakan proses login/register sedang berlangsung.
   bool _loading = false;
 
-  // Jika tab = 0 berarti sedang berada di halaman login.
   bool get _isLogin => _tab == 0;
-
-  // =====================================================
-  // DISPOSE
-  // =====================================================
 
   @override
   void dispose() {
     _username.dispose();
     _password.dispose();
     _confirm.dispose();
-
     super.dispose();
   }
 
-  // =====================================================
-  // PINDAH TAB LOGIN / REGISTER
-  // =====================================================
-
   void _changeTab(int value) {
-    // Tidak boleh pindah tab ketika loading.
-    if (_loading) return;
+    if (_loading || _tab == value) return;
 
-    // Jika tab yang dipilih sama dengan tab sekarang.
-    if (_tab == value) return;
-
-    // Reset pesan validasi.
     _formKey.currentState?.reset();
 
     setState(() {
       _tab = value;
-
-      // Password kembali disembunyikan.
       _hidePassword = true;
       _hideConfirm = true;
     });
   }
 
-  // =====================================================
-  // MENAMPILKAN PESAN
-  // =====================================================
-
-  void _showMessage(
-    String message, {
-    bool success = false,
-  }) {
+  void _showMessage(String message, {bool success = false}) {
     if (!mounted) return;
 
-    // Menghilangkan SnackBar sebelumnya.
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-    // Menampilkan pesan.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor:
-            success ? AppColors.green : Colors.red,
-        content: Text(message),
-      ),
+    AppNotification.show(
+      context: context,
+      title: success ? 'Berhasil!' : 'Login Gagal',
+      message: message,
+      type: success
+          ? NotificationType.success
+          : NotificationType.error,
     );
   }
 
-  // =====================================================
-  // LOGIN / REGISTER
-  // =====================================================
-
   Future<void> _submit() async {
-    // Jangan kirim request berkali-kali.
     if (_loading) return;
 
-    // Validasi seluruh field.
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
 
-    // Mengetahui apakah sedang login atau register.
     final isLogin = _isLogin;
-
-    // Ambil input pengguna.
     final username = _username.text.trim();
     final password = _password.text;
     final confirmation = _confirm.text;
 
-    // Menutup keyboard.
     FocusScope.of(context).unfocus();
 
-    // Aktifkan loading.
     setState(() {
       _loading = true;
     });
@@ -139,189 +84,105 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       final Map<String, dynamic> data;
 
-      // =================================================
-      // LOGIN KE LARAVEL + MYSQL
-      // =================================================
-
       if (isLogin) {
+        // Login tanpa mengirim role.
         data = await ApiService.login(
           username,
           password,
-        ).timeout(
-          const Duration(seconds: 20),
-        );
-      }
-
-      // =================================================
-      // REGISTER KE LARAVEL + MYSQL
-      // =================================================
-
-      else {
+        ).timeout(const Duration(seconds: 20));
+      } else {
+        // Registrasi selalu menggunakan role user.
         data = await ApiService.register(
           username,
           password,
           confirmation,
-        ).timeout(
-          const Duration(seconds: 20),
-        );
+          'user',
+        ).timeout(const Duration(seconds: 20));
       }
 
-      // Pastikan widget masih aktif.
       if (!mounted) return;
 
-      // =================================================
-      // JIKA LOGIN BERHASIL
-      // =================================================
-
       if (isLogin) {
-        // Mengambil token Sanctum dari Laravel.
         final token = data['token'];
-
-        // Mengambil data user dari Laravel.
         final user = data['user'];
 
-        // Pastikan token tersedia.
         if (token is! String || token.isEmpty) {
           _showMessage(
             'Token login dari Laravel tidak ditemukan.',
           );
-
           return;
         }
 
-        // Pastikan data user tersedia.
         if (user is! Map) {
           _showMessage(
             'Data pengguna dari Laravel tidak ditemukan.',
           );
-
           return;
         }
 
-        // Username berasal dari database.
         final usernameLogin =
             user['username']?.toString() ?? '';
 
-        // Role berasal dari database.
         final roleLogin =
-            user['role']?.toString() ?? '';
+            user['role']?.toString().toLowerCase() ?? '';
 
-        // Pastikan username valid.
         if (usernameLogin.trim().isEmpty) {
           _showMessage(
             'Username dari database tidak valid.',
           );
-
           return;
         }
 
-        // Pastikan role valid.
-        if (roleLogin.trim().isEmpty) {
+        if (roleLogin != 'admin' && roleLogin != 'user') {
           _showMessage(
-            'Role dari database tidak valid.',
+            'Role akun tidak valid. Hubungi administrator.',
           );
-
           return;
         }
 
-        // Tampilkan pesan berhasil.
-        _showMessage(
-          (data['pesan'] ?? 'Login berhasil').toString(),
-          success: true,
-        );
-
-        // =================================================
-        // PINDAH KE MAIN PAGE
-        // =================================================
-
+        // Role diambil dari database melalui respons Laravel.
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => MainPage(
+            builder: (_) => MainPage(
               username: usernameLogin,
               role: roleLogin,
               token: token,
             ),
           ),
         );
-      }
-
-      // =================================================
-      // JIKA REGISTER BERHASIL
-      // =================================================
-
-      else {
-        // Tampilkan pesan sukses.
+      } else {
         _showMessage(
-          (
-            data['pesan'] ??
-                'Akun berhasil dibuat. Silakan masuk.'
-          ).toString(),
+          (data['pesan'] ??
+                  'Akun berhasil dibuat. Silakan masuk.')
+              .toString(),
           success: true,
         );
 
-        // Reset validasi form.
         _formKey.currentState?.reset();
-
-        // Username tetap disimpan agar tidak perlu
-        // diketik ulang setelah registrasi.
         _username.text = username;
-
-        // Kosongkan password.
         _password.clear();
-
-        // Kosongkan konfirmasi password.
         _confirm.clear();
 
-        // Kembali ke tab login.
         setState(() {
           _tab = 0;
           _hidePassword = true;
           _hideConfirm = true;
         });
       }
-    }
-
-    // =====================================================
-    // SERVER TIMEOUT
-    // =====================================================
-
-    on TimeoutException {
+    } on TimeoutException {
       _showMessage(
         'Server tidak merespons. '
-        'Pastikan Laravel dan MySQL sedang berjalan.',
+        'Pastikan Laravel dan MySQL berjalan.',
       );
-    }
-
-    // =====================================================
-    // RESPONSE BUKAN JSON
-    // =====================================================
-
-    on FormatException {
+    } on FormatException {
       _showMessage(
         'Respons Laravel bukan JSON yang sesuai.',
       );
-    }
-
-    // =====================================================
-    // ERROR LAIN
-    // =====================================================
-
-    catch (e) {
-      final message = e
-          .toString()
-          .replaceFirst(
-            'Exception: ',
-            '',
-          );
-
-      _showMessage(message);
-    }
-
-    // =====================================================
-    // SELESAI
-    // =====================================================
-
-    finally {
+    } catch (e) {
+      _showMessage(
+        e.toString().replaceFirst('Exception: ', ''),
+      );
+    } finally {
       if (mounted) {
         setState(() {
           _loading = false;
@@ -330,15 +191,9 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  // =====================================================
-  // LABEL
-  // =====================================================
-
   Widget _label(String text) {
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 6,
-      ),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
         style: const TextStyle(
@@ -350,61 +205,44 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // =====================================================
-  // TAB LOGIN / REGISTER
-  // =====================================================
-
-  Widget _tabButton(
-    String text,
-    int index,
-  ) {
-    // Mengecek tab aktif.
+  Widget _tabButton(String text, int index) {
     final active = _tab == index;
 
     return Expanded(
-      child: GestureDetector(
-        // Tidak bisa pindah tab saat loading.
-        onTap:
-            _loading ? null : () => _changeTab(index),
-
-        child: AnimatedContainer(
-          duration:
-              const Duration(milliseconds: 200),
-
-          padding:
-              const EdgeInsets.symmetric(
-            vertical: 12,
-          ),
-
-          decoration: BoxDecoration(
-            color:
-                active ? Colors.white : Colors.transparent,
-
-            borderRadius:
-                BorderRadius.circular(10),
-
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color:
-                          Colors.black.withAlpha(20),
-                      blurRadius: 6,
-                    ),
-                  ]
-                : null,
-          ),
-
-          child: Center(
-            child: Text(
-              text,
-
-              style: TextStyle(
-                fontWeight:
-                    FontWeight.w700,
-
-                color: active
-                    ? AppColors.navy
-                    : AppColors.grey,
+      child: Semantics(
+        button: true,
+        selected: active,
+        child: InkWell(
+          onTap: _loading ? null : () => _changeTab(index),
+          borderRadius: BorderRadius.circular(13),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            decoration: BoxDecoration(
+              color: active ? Colors.white : Colors.transparent,
+              borderRadius: BorderRadius.circular(13),
+              boxShadow: active
+                  ? [
+                      BoxShadow(
+                        color: AppColors.navy.withValues(alpha: 0.06),
+                        blurRadius: 9,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Center(
+              child: Text(
+                text,
+                style: TextStyle(
+                  color: active
+                      ? AppColors.primary
+                      : AppColors.grey,
+                  fontSize: 13,
+                  fontWeight: active
+                      ? FontWeight.w800
+                      : FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -413,334 +251,295 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // =====================================================
-  // SHOW / HIDE PASSWORD
-  // =====================================================
-
-  Widget _passwordEye(
-    bool hidden,
-    VoidCallback tap,
-  ) {
+  Widget _passwordEye(bool hidden, VoidCallback onTap) {
     return IconButton(
-      onPressed: tap,
-
+      tooltip: hidden
+          ? 'Tampilkan password'
+          : 'Sembunyikan password',
+      onPressed: _loading ? null : onTap,
       icon: Icon(
         hidden
             ? Icons.visibility_outlined
             : Icons.visibility_off_outlined,
-
         color: AppColors.grey,
+        size: 21,
       ),
     );
   }
 
-  // =====================================================
-  // TAMPILAN
-  // =====================================================
+  Widget _buildLogo() {
+    return Container(
+      width: 88,
+      height: 88,
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: AppColors.fieldBorder),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.09),
+            blurRadius: 22,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Image.asset(
+          'assets/logo/logo.png',
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding:
-                const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 24,
-            ),
-
-            child: Form(
-              key: _formKey,
-
+            padding: const EdgeInsets.fromLTRB(22, 25, 22, 30),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.stretch,
-
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // =================================================
-                  // LOGO
-                  // =================================================
+                  // LOGO DAN PENGANTAR
+                  Center(child: _buildLogo()),
+                  const SizedBox(height: 19),
 
-                  Center(
-                    child: ClipRRect(
-                      borderRadius:
-                          BorderRadius.circular(20),
-
-                      child: Image.asset(
-                        'assets/logo/logo.png',
-
-                        width: 90,
-                        height: 90,
-
-                        fit: BoxFit.cover,
-                      ),
+                  const Text(
+                    'TernateLomba',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.navy,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.6,
                     ),
                   ),
-
-                  const SizedBox(height: 20),
-
-                  // =================================================
-                  // TAGLINE
-                  // =================================================
+                  const SizedBox(height: 7),
 
                   const Text(
                     'Cari lomba? Gas!',
-
-                    textAlign:
-                        TextAlign.center,
-
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       color: AppColors.grey,
-                      fontSize: 12,
+                      fontSize: 13,
                     ),
                   ),
 
                   const SizedBox(height: 28),
 
-                  // =================================================
-                  // TAB LOGIN / REGISTER
-                  // =================================================
-
+                  // KARTU AUTENTIKASI
                   Container(
-                    padding:
-                        const EdgeInsets.all(4),
-
+                    padding: const EdgeInsets.all(21),
                     decoration: BoxDecoration(
-                      color: AppColors.tabBg,
-
-                      borderRadius:
-                          BorderRadius.circular(12),
-                    ),
-
-                    child: Row(
-                      children: [
-                        _tabButton(
-                          'Masuk',
-                          0,
-                        ),
-
-                        _tabButton(
-                          'Daftar',
-                          1,
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(
+                        color: AppColors.fieldBorder,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.navy.withValues(alpha: 0.035),
+                          blurRadius: 22,
+                          offset: const Offset(0, 7),
                         ),
                       ],
                     ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // =================================================
-                  // USERNAME
-                  // =================================================
-
-                  _label(
-                    'Nama Pengguna',
-                  ),
-
-                  CustomTextField(
-                    controller:
-                        _username,
-
-                    hintText:
-                        'Masukkan nama pengguna',
-
-                    icon:
-                        Icons.person_outline,
-
-                    validator: (value) {
-                      // Username wajib diisi.
-                      if (value == null ||
-                          value.trim().isEmpty) {
-                        return 'Nama pengguna wajib diisi';
-                      }
-
-                      // Maksimal 255 karakter saat register.
-                      if (!_isLogin &&
-                          value.trim().length > 255) {
-                        return 'Nama pengguna maksimal 255 karakter';
-                      }
-
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // =================================================
-                  // PASSWORD
-                  // =================================================
-
-                  _label(
-                    'Password',
-                  ),
-
-                  CustomTextField(
-                    controller:
-                        _password,
-
-                    hintText:
-                        'Masukkan password',
-
-                    icon:
-                        Icons.lock_outline,
-
-                    obscureText:
-                        _hidePassword,
-
-                    suffixIcon:
-                        _passwordEye(
-                      _hidePassword,
-                      () {
-                        setState(() {
-                          _hidePassword =
-                              !_hidePassword;
-                        });
-                      },
-                    ),
-
-                    validator: (value) {
-                      // Password wajib diisi.
-                      if (value == null ||
-                          value.isEmpty) {
-                        return 'Password wajib diisi';
-                      }
-
-                      // Saat register minimal 8 karakter.
-                      if (!_isLogin &&
-                          value.length < 8) {
-                        return 'Password minimal 8 karakter';
-                      }
-
-                      return null;
-                    },
-                  ),
-
-                  // =================================================
-                  // KONFIRMASI PASSWORD
-                  // HANYA REGISTER
-                  // =================================================
-
-                  if (!_isLogin) ...[
-                    const SizedBox(height: 16),
-
-                    _label(
-                      'Konfirmasi Password',
-                    ),
-
-                    CustomTextField(
-                      controller:
-                          _confirm,
-
-                      hintText:
-                          'Ulangi password',
-
-                      icon:
-                          Icons.lock_outline,
-
-                      obscureText:
-                          _hideConfirm,
-
-                      suffixIcon:
-                          _passwordEye(
-                        _hideConfirm,
-                        () {
-                          setState(() {
-                            _hideConfirm =
-                                !_hideConfirm;
-                          });
-                        },
-                      ),
-
-                      validator: (value) {
-                        // Konfirmasi wajib diisi.
-                        if (value == null ||
-                            value.isEmpty) {
-                          return 'Konfirmasi password wajib diisi';
-                        }
-
-                        // Harus sama dengan password.
-                        if (value !=
-                            _password.text) {
-                          return 'Password tidak sama';
-                        }
-
-                        return null;
-                      },
-                    ),
-                  ],
-
-                  const SizedBox(height: 26),
-
-                  // =================================================
-                  // TOMBOL LOGIN / REGISTER
-                  // =================================================
-
-                  CustomButton(
-                    text:
-                        _isLogin ? 'Masuk' : 'Daftar',
-
-                    loading:
-                        _loading,
-
-                    onPressed:
-                        _submit,
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // =================================================
-                  // LINK PINDAH LOGIN / REGISTER
-                  // =================================================
-
-                  Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.center,
-
-                    children: [
-                      Text(
-                        _isLogin
-                            ? 'Belum punya akun? '
-                            : 'Sudah punya akun? ',
-
-                        style:
-                            const TextStyle(
-                          color:
-                              AppColors.grey,
-
-                          fontSize:
-                              12,
-                        ),
-                      ),
-
-                      GestureDetector(
-                        onTap: _loading
-                            ? null
-                            : () => _changeTab(
-                                  _isLogin
-                                      ? 1
-                                      : 0,
-                                ),
-
-                        child: Text(
-                          _isLogin
-                              ? 'Registrasi'
-                              : 'Masuk',
-
-                          style:
-                              const TextStyle(
-                            color:
-                                AppColors.primary,
-
-                            fontWeight:
-                                FontWeight.bold,
-
-                            fontSize:
-                                12,
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            _isLogin
+                                ? 'Selamat datang!'
+                                : 'Buat akun baru',
+                            style: const TextStyle(
+                              color: AppColors.navy,
+                              fontSize: 21,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 7),
+
+                          Text(
+                            _isLogin
+                                ? 'Masuk untuk menemukan peluang lomba.'
+                                : 'Daftar untuk mulai menjelajahi TernateLomba.',
+                            style: const TextStyle(
+                              color: AppColors.grey,
+                              fontSize: 12,
+                              height: 1.6,
+                            ),
+                          ),
+
+                          const SizedBox(height: 23),
+
+                          // TAB MASUK / DAFTAR
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: AppColors.tabBg,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              children: [
+                                _tabButton('Masuk', 0),
+                                _tabButton('Daftar', 1),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 23),
+
+                          // USERNAME
+                          _label('Nama Pengguna'),
+                          CustomTextField(
+                            controller: _username,
+                            hintText: 'Masukkan nama pengguna',
+                            icon: Icons.person_outline_rounded,
+                            validator: (value) {
+                              if (value == null ||
+                                  value.trim().isEmpty) {
+                                return 'Nama pengguna wajib diisi';
+                              }
+
+                              if (!_isLogin &&
+                                  value.trim().length > 255) {
+                                return 'Nama pengguna maksimal 255 karakter';
+                              }
+
+                              return null;
+                            },
+                          ),
+
+                          const SizedBox(height: 17),
+
+                          // PASSWORD
+                          _label('Password'),
+                          CustomTextField(
+                            controller: _password,
+                            hintText: 'Masukkan password',
+                            icon: Icons.lock_outline_rounded,
+                            obscureText: _hidePassword,
+                            suffixIcon: _passwordEye(
+                              _hidePassword,
+                              () {
+                                setState(() {
+                                  _hidePassword = !_hidePassword;
+                                });
+                              },
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Password wajib diisi';
+                              }
+
+                              if (!_isLogin && value.length < 8) {
+                                return 'Password minimal 8 karakter';
+                              }
+
+                              return null;
+                            },
+                          ),
+
+                          // KONFIRMASI PASSWORD
+                          if (!_isLogin) ...[
+                            const SizedBox(height: 17),
+                            _label('Konfirmasi Password'),
+                            CustomTextField(
+                              controller: _confirm,
+                              hintText: 'Ulangi password',
+                              icon: Icons.lock_outline_rounded,
+                              obscureText: _hideConfirm,
+                              suffixIcon: _passwordEye(
+                                _hideConfirm,
+                                () {
+                                  setState(() {
+                                    _hideConfirm = !_hideConfirm;
+                                  });
+                                },
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Konfirmasi password wajib diisi';
+                                }
+
+                                if (value != _password.text) {
+                                  return 'Password tidak sama';
+                                }
+
+                                return null;
+                              },
+                            ),
+                          ],
+
+                          const SizedBox(height: 25),
+
+                          // TOMBOL SUBMIT
+                          CustomButton(
+                            text: _isLogin ? 'Masuk' : 'Daftar',
+                            loading: _loading,
+                            onPressed: _submit,
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // PINDAH TAB
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                _isLogin
+                                    ? 'Belum punya akun? '
+                                    : 'Sudah punya akun? ',
+                                style: const TextStyle(
+                                  color: AppColors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: _loading
+                                    ? null
+                                    : () => _changeTab(
+                                          _isLogin ? 1 : 0,
+                                        ),
+                                child: Text(
+                                  _isLogin
+                                      ? 'Daftar sekarang'
+                                      : 'Masuk',
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 22),
+
+                  const Text(
+                    'PUSAT INFO LOMBA & PRESTASI MALUKU UTARA',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 9,
+                      letterSpacing: 1.1,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),

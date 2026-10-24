@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\LombaController;
 use App\Http\Middleware\AuthenticateApiToken;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
@@ -249,3 +250,20 @@ Route::post('/profile/foto', function (Request $request) {
         ],
     ], 200);
 })->middleware(AuthenticateApiToken::class);
+
+// KATALOG LOMBA PUBLIK
+
+Route::get('/kategori', [
+    LombaController::class,
+    'kategori',
+]);
+
+Route::get('/lomba', [
+    LombaController::class,
+    'index',
+]);
+
+Route::get('/lomba/{id}', [
+    LombaController::class,
+    'show',
+])->whereNumber('id');

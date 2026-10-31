@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 
+import 'formAjukanLombaPage.dart';
+
 class AjukanPage extends StatelessWidget {
-  const AjukanPage({super.key});
+  final String? token;
+  final VoidCallback? onLombaDiajukan;
+
+  const AjukanPage({
+    super.key,
+    this.token,
+    this.onLombaDiajukan,
+  });
 
   static const Color primaryBlue = Color(0xFF3478E5);
   static const Color lightBlue = Color(0xFFEAF2FF);
@@ -189,7 +198,28 @@ class AjukanPage extends StatelessWidget {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () async {
+                    final apiToken = token?.trim();
+                    if (apiToken == null || apiToken.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Silakan login terlebih dahulu untuk mengajukan lomba.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final berhasil = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => FormAjukanLombaPage(token: apiToken),
+                      ),
+                    );
+
+                    if (!context.mounted) return;
+                    if (berhasil == true) {
+                      onLombaDiajukan?.call();
+                    }
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryBlue,
                     foregroundColor: Colors.white,

@@ -4,40 +4,77 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 class ApiService {
-  // Alamat Laravel.
-  // static const String baseUrl = 'http://127.0.0.1:8000/api';
-  static const String baseUrl = 'http://10.245.39.67:8000/api';
+  // URL API dapat diganti tanpa mengedit kode:
+  // flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api
+  // Untuk HP fisik, gunakan IP LAN komputer yang menjalankan Laravel.
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://127.0.0.1:8000/api',
+  );
 
   // MEMBACA RESPONSE JSON
   // Fungsi ini mencegah error ketika Laravel
   // mengembalikan response yang bukan JSON.
   static Map<String, dynamic> _decodeResponse(http.Response response) {
+    final body = response.body.trim();
+    if (body.isEmpty) return <String, dynamic>{};
+
     try {
-      return jsonDecode(response.body) as Map<String, dynamic>;
+      final decoded = jsonDecode(body);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
     } catch (_) {
-      throw Exception(
-        'Server mengembalikan respons yang tidak valid '
-        '(HTTP ${response.statusCode}). '
-        'Periksa terminal Laravel.',
-      );
+      // Ditangani dengan pesan yang menyertakan status HTTP di bawah.
     }
+
+    throw Exception(
+      'Respons server bukan JSON yang valid (HTTP ${response.statusCode}). '
+      'Periksa URL API, konfigurasi Laravel, dan log server.',
+    );
+  }
+
+  static Exception _responseError(
+    http.Response response,
+    Map<String, dynamic> data,
+    String fallback,
+  ) {
+    String? detail;
+    final errors = data['errors'];
+    if (errors is Map) {
+      for (final value in errors.values) {
+        if (value is List && value.isNotEmpty) {
+          detail = value.first.toString();
+          break;
+        }
+        if (value != null && value.toString().trim().isNotEmpty) {
+          detail = value.toString();
+          break;
+        }
+      }
+    }
+
+    final message = (data['pesan'] ?? data['message'])?.toString().trim();
+    final reason = (detail != null && detail.isNotEmpty)
+        ? detail
+        : (message != null && message.isNotEmpty ? message : fallback);
+
+    return Exception('HTTP ${response.statusCode}: $reason');
   }
 
   // TES KONEKSI
   static Future<String> tesKoneksi() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/tes-koneksi'),
-      headers: {'Accept': 'application/json'},
-    );
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/tes-koneksi'),
+          headers: {'Accept': 'application/json'},
+        )
+        .timeout(const Duration(seconds: 20));
 
     final data = _decodeResponse(response);
 
     if (response.statusCode != 200) {
-      throw Exception(
-        data['pesan'] ??
-            data['message'] ??
-            'Server merespons ${response.statusCode}',
-      );
+      throw _responseError(response, data, 'Koneksi ke server gagal.');
     }
 
     return data['pesan']?.toString() ?? 'Koneksi berhasil';
@@ -48,22 +85,22 @@ class ApiService {
     String username,
     String password,
   ) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/login'),
-
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-
-      body: jsonEncode({'username': username, 'password': password}),
-    );
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/login'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode({'username': username, 'password': password}),
+        )
+        .timeout(const Duration(seconds: 20));
 
     final data = _decodeResponse(response);
 
     // Laravel mengembalikan 200 jika login berhasil.
     if (response.statusCode != 200) {
-      throw Exception(data['pesan'] ?? data['message'] ?? 'Login gagal');
+      throw _responseError(response, data, 'Login gagal.');
     }
 
     return data;
@@ -75,30 +112,28 @@ class ApiService {
     String password,
     String confirmation,
   ) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/register'),
-
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-
-      body: jsonEncode({
-        'username': username,
-        'password': password,
-
-        // Laravel membutuhkan field ini
-        // karena menggunakan validator "confirmed".
-        'password_confirmation': confirmation,
-      }),
-    );
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/register'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode({
+            'username': username,
+            'password': password,
+            // Laravel menggunakan validator "confirmed".
+            'password_confirmation': confirmation,
+          }),
+        )
+        .timeout(const Duration(seconds: 20));
 
     final data = _decodeResponse(response);
 
     // Laravel mengembalikan 201
     // ketika akun berhasil dibuat.
     if (response.statusCode != 201) {
-      throw Exception(data['pesan'] ?? data['message'] ?? 'Pendaftaran gagal');
+      throw _responseError(response, data, 'Pendaftaran akun gagal.');
     }
 
     return data;
@@ -122,28 +157,24 @@ class ApiService {
       body['password_confirmation'] = passwordConfirmation;
     }
 
-    final response = await http.put(
-      Uri.parse('$baseUrl/profile'),
-
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-
-        // Token Sanctum dari hasil login.
-        'Authorization': 'Bearer $token',
-      },
-
-      body: jsonEncode(body),
-    );
+    final response = await http
+        .put(
+          Uri.parse('$baseUrl/profile'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 20));
 
     final data = _decodeResponse(response);
 
     // Laravel mengembalikan 200
     // ketika profil berhasil diperbarui.
     if (response.statusCode != 200) {
-      throw Exception(
-        data['pesan'] ?? data['message'] ?? 'Gagal memperbarui profil',
-      );
+      throw _responseError(response, data, 'Gagal memperbarui profil.');
     }
 
     return data;
@@ -182,9 +213,7 @@ class ApiService {
     final data = _decodeResponse(response);
 
     if (response.statusCode != 200) {
-      throw Exception(
-        data['pesan'] ?? data['message'] ?? 'Gagal mengunggah foto profil',
-      );
+      throw _responseError(response, data, 'Gagal mengunggah foto profil.');
     }
 
     return data;
@@ -207,9 +236,7 @@ class ApiService {
     final data = _decodeResponse(response);
 
     if (response.statusCode != 200) {
-      throw Exception(
-        data['pesan'] ?? data['message'] ?? 'Gagal mengambil profil pengguna',
-      );
+      throw _responseError(response, data, 'Gagal mengambil profil pengguna.');
     }
 
     final user = data['user'];
@@ -261,9 +288,7 @@ class ApiService {
     final data = _decodeResponse(response);
 
     if (response.statusCode != 200) {
-      throw Exception(
-        data['pesan'] ?? data['message'] ?? 'Gagal mengambil kategori',
-      );
+      throw _responseError(response, data, 'Gagal mengambil kategori.');
     }
 
     final items = data['data'];
@@ -294,9 +319,7 @@ class ApiService {
     final data = _decodeResponse(response);
 
     if (response.statusCode != 200) {
-      throw Exception(
-        data['pesan'] ?? data['message'] ?? 'Gagal mengambil lomba',
-      );
+      throw _responseError(response, data, 'Gagal mengambil daftar lomba.');
     }
 
     final items = data['data'];
@@ -320,9 +343,7 @@ class ApiService {
     final data = _decodeResponse(response);
 
     if (response.statusCode != 200) {
-      throw Exception(
-        data['pesan'] ?? data['message'] ?? 'Gagal mengambil detail lomba',
-      );
+      throw _responseError(response, data, 'Gagal mengambil detail lomba.');
     }
 
     final item = data['data'];
@@ -336,30 +357,42 @@ class ApiService {
 
   // MENGAMBIL PERTANYAAN FORMULIR LOMBA
   static Future<List<Map<String, dynamic>>> getFormFields(int idLomba) async {
+    if (idLomba <= 0) {
+      throw Exception('ID lomba tidak valid. Silakan buka detail lomba lagi.');
+    }
+
+    final uri = Uri.parse('$baseUrl/lomba/$idLomba/form-fields');
     final response = await http
-        .get(
-          Uri.parse('$baseUrl/lomba/$idLomba/form-fields'),
-          headers: {'Accept': 'application/json'},
-        )
+        .get(uri, headers: {'Accept': 'application/json'})
         .timeout(const Duration(seconds: 20));
 
     final data = _decodeResponse(response);
 
     if (response.statusCode != 200) {
-      throw Exception(
-        data['pesan'] ?? data['message'] ?? 'Gagal mengambil formulir',
-      );
+      throw _responseError(response, data, 'Gagal mengambil formulir.');
     }
 
     final fields = data['data'];
-
     if (fields is! List) {
-      throw Exception('Format pertanyaan formulir tidak valid.');
+      throw Exception(
+        'Format respons formulir tidak sesuai. '
+        'Pastikan endpoint Laravel mengembalikan properti "data" berupa daftar.',
+      );
     }
 
-    return fields
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .toList();
+    final parsed = <Map<String, dynamic>>[];
+    for (final item in fields) {
+      if (item is! Map) {
+        throw Exception('Salah satu data kolom formulir tidak valid.');
+      }
+      final field = Map<String, dynamic>.from(item);
+      if (field['id_field'] == null || field['nama_field'] == null) {
+        throw Exception('Respons formulir tidak memiliki ID atau nama field.');
+      }
+      parsed.add(field);
+    }
+
+    return parsed;
   }
 
   // MENGAMBIL RIWAYAT PENDAFTARAN PENGGUNA
@@ -379,17 +412,166 @@ class ApiService {
     final data = _decodeResponse(response);
 
     if (response.statusCode != 200) {
-      throw Exception(
-        data['pesan'] ??
-            data['message'] ??
-            'Gagal mengambil riwayat pendaftaran',
-      );
+      throw _responseError(response, data, 'Gagal mengambil riwayat pendaftaran.');
     }
 
     if (data['data'] is! List) {
       throw Exception('Format riwayat pendaftaran tidak valid.');
     }
 
+    return data;
+  }
+
+  // MENGAMBIL DAFTAR LOMBA YANG DIBUAT OLEH PENGGUNA LOGIN
+  static Future<Map<String, dynamic>> getPengajuanLombaSaya({
+    required String token,
+  }) async {
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/pengajuan-lomba/saya'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 20));
+
+    final data = _decodeResponse(response);
+    if (response.statusCode != 200) {
+      throw _responseError(
+        response,
+        data,
+        'Gagal mengambil lomba yang dibuat.',
+      );
+    }
+    if (data['data'] is! List) {
+      throw Exception('Format data lomba yang dibuat tidak valid.');
+    }
+    return data;
+  }
+
+  // MENGIRIM PENGAJUAN LOMBA KE LARAVEL
+  static Future<Map<String, dynamic>> ajukanLomba({
+    required String token,
+    required int idKategori,
+    required String namaLomba,
+    required String deskripsi,
+    required String tanggalPelaksanaan,
+    required String batasPendaftaran,
+    required String lokasiPendaftaran,
+    required String biaya,
+    required String kontakPenyelenggara,
+    String? persyaratan,
+    String? hadiah,
+    String? kuotaPeserta,
+    XFile? poster,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/pengajuan-lomba'),
+    );
+
+    request.headers.addAll({
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+    });
+
+    request.fields.addAll({
+      'id_kategori': idKategori.toString(),
+      'nama_lomba': namaLomba.trim(),
+      'deskripsi': deskripsi.trim(),
+      'tanggal_pelaksanaan': tanggalPelaksanaan,
+      'batas_pendaftaran': batasPendaftaran,
+      'lokasi_pendaftaran': lokasiPendaftaran.trim(),
+      'biaya': biaya.trim().isEmpty ? '0' : biaya.trim(),
+      'kontak_penyelenggara': kontakPenyelenggara.trim(),
+    });
+
+    if (persyaratan != null && persyaratan.trim().isNotEmpty) {
+      request.fields['persyaratan'] = persyaratan.trim();
+    }
+    if (hadiah != null && hadiah.trim().isNotEmpty) {
+      request.fields['hadiah'] = hadiah.trim();
+    }
+    if (kuotaPeserta != null && kuotaPeserta.trim().isNotEmpty) {
+      request.fields['kuota_peserta'] = kuotaPeserta.trim();
+    }
+
+    if (poster != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'poster_lomba',
+          await poster.readAsBytes(),
+          filename: poster.name,
+        ),
+      );
+    }
+
+    final streamedResponse = await request.send().timeout(
+      const Duration(seconds: 60),
+    );
+    final response = await http.Response.fromStream(streamedResponse)
+        .timeout(const Duration(seconds: 30));
+    final data = _decodeResponse(response);
+
+    if (response.statusCode != 201) {
+      throw _responseError(response, data, 'Pengajuan lomba gagal dikirim.');
+    }
+
+    return data;
+  }
+
+  // MENGAMBIL SEMUA PENGAJUAN UNTUK DASHBOARD ADMIN
+  static Future<Map<String, dynamic>> getPengajuanLombaAdmin({
+    required String token,
+  }) async {
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/admin/pengajuan-lomba'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 25));
+
+    final data = _decodeResponse(response);
+    if (response.statusCode != 200) {
+      throw _responseError(response, data, 'Gagal mengambil pengajuan lomba.');
+    }
+    if (data['data'] is! List) {
+      throw Exception('Format daftar pengajuan admin tidak valid.');
+    }
+    return data;
+  }
+
+  // ADMIN MENYETUJUI ATAU MENOLAK PENGAJUAN
+  static Future<Map<String, dynamic>> putuskanPengajuanLomba({
+    required String token,
+    required int idPengajuan,
+    required String keputusan,
+    String? catatanAdmin,
+  }) async {
+    final response = await http
+        .patch(
+          Uri.parse('$baseUrl/admin/pengajuan-lomba/$idPengajuan/keputusan'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'keputusan': keputusan,
+            if (catatanAdmin != null && catatanAdmin.trim().isNotEmpty)
+              'catatan_admin': catatanAdmin.trim(),
+          }),
+        )
+        .timeout(const Duration(seconds: 25));
+
+    final data = _decodeResponse(response);
+    if (response.statusCode != 200) {
+      throw _responseError(response, data, 'Gagal memproses pengajuan lomba.');
+    }
     return data;
   }
 
@@ -433,9 +615,7 @@ class ApiService {
     final data = _decodeResponse(response);
 
     if (response.statusCode != 201) {
-      throw Exception(
-        data['pesan'] ?? data['message'] ?? 'Pendaftaran gagal dikirim',
-      );
+      throw _responseError(response, data, 'Pendaftaran gagal dikirim.');
     }
 
     return data;

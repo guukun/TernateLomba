@@ -4,9 +4,17 @@ import '../../services/api_service.dart';
 
 class LombaSayaPage extends StatefulWidget {
   final VoidCallback? onJelajahiLomba;
+  final VoidCallback? onAjukanLomba;
   final String token;
+  final int refreshVersion;
 
-  const LombaSayaPage({super.key, this.onJelajahiLomba, required this.token});
+  const LombaSayaPage({
+    super.key,
+    this.onJelajahiLomba,
+    this.onAjukanLomba,
+    required this.token,
+    this.refreshVersion = 0,
+  });
 
   @override
   State<LombaSayaPage> createState() => _LombaSayaPageState();
@@ -19,6 +27,11 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
   bool _isLoadingRiwayat = false;
   String? _errorRiwayat;
   bool _riwayatSudahDimuat = false;
+
+  List<Map<String, dynamic>> _lombaDibuat = [];
+  bool _isLoadingLombaDibuat = false;
+  String? _errorLombaDibuat;
+  bool _lombaDibuatSudahDimuat = false;
 
   static const Color primaryBlue = Color(0xFF3478E5);
   static const Color lightBlue = Color(0xFFEAF2FF);
@@ -74,10 +87,62 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
     }
   }
 
+  Future<void> _loadLombaDibuat() async {
+    if (_isLoadingLombaDibuat) return;
+
+    setState(() {
+      _isLoadingLombaDibuat = true;
+      _errorLombaDibuat = null;
+    });
+
+    try {
+      final response = await ApiService.getPengajuanLombaSaya(
+        token: widget.token,
+      );
+      if (!mounted) return;
+
+      final data = response['data'];
+      if (data is! List) {
+        throw const FormatException(
+          'Format data lomba yang dibuat tidak sesuai.',
+        );
+      }
+
+      setState(() {
+        _lombaDibuat = data
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
+        _lombaDibuatSudahDimuat = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorLombaDibuat = e.toString().replaceFirst('Exception: ', '');
+      });
+      debugPrint('Gagal memuat lomba yang dibuat: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingLombaDibuat = false);
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _loadRiwayatPendaftaran();
+  }
+
+  @override
+  void didUpdateWidget(covariant LombaSayaPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.refreshVersion != oldWidget.refreshVersion) {
+      selectedTab = 1;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadLombaDibuat();
+      });
+    }
   }
 
   @override
@@ -190,14 +255,7 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
                   key: ValueKey<int>(selectedTab),
                   child: selectedTab == 0
                       ? _buildRiwayatContent()
-                      : _buildEmptyState(
-                          icon: Icons.add_circle_outline_rounded,
-                          title: 'Belum ada lomba yang dibuat',
-                          description:
-                              'Lomba yang kamu buat akan muncul di sini '
-                              'setelah tersedia.',
-                          tabIndex: 1,
-                        ),
+                      : _buildLombaDibuatContent(),
                 ),
               ),
             ),
@@ -223,6 +281,9 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
           setState(() {
             selectedTab = index;
           });
+          if (index == 1) {
+            _loadLombaDibuat();
+          }
         },
 
         child: AnimatedContainer(
@@ -269,6 +330,212 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLombaDibuatContent() {
+    if (_isLoadingLombaDibuat) {
+      return const Center(
+        child: CircularProgressIndicator(color: primaryBlue),
+      );
+    }
+
+    if (_errorLombaDibuat != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_rounded, size: 46, color: mutedColor),
+              const SizedBox(height: 12),
+              Text(
+                _errorLombaDibuat!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: textColor, fontSize: 13),
+              ),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: _loadLombaDibuat,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Coba Lagi'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_lombaDibuatSudahDimuat && _lombaDibuat.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.add_circle_outline_rounded,
+        title: 'Belum ada lomba yang dibuat',
+        description:
+            'Pengajuan lomba yang kamu kirim akan muncul di sini, '
+            'beserta status verifikasi dari admin.',
+        tabIndex: 1,
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadLombaDibuat,
+      color: primaryBlue,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 30),
+        itemCount: _lombaDibuat.length,
+        itemBuilder: (context, index) {
+          final item = _lombaDibuat[index];
+          final nama = item['nama_lomba']?.toString() ?? 'Lomba tanpa nama';
+          final status = item['status_pengajuan']?.toString() ?? 'Menunggu';
+          final kategori = item['kategori'] is Map
+              ? (item['kategori'] as Map)['nama_kategori']?.toString() ?? 'Kategori tidak tersedia'
+              : 'Kategori tidak tersedia';
+          final tanggalPelaksanaan = item['tanggal_pelaksanaan']?.toString() ?? '';
+          final tanggalPengajuan = item['tanggal_pengajuan']?.toString() ?? '';
+          final catatan = item['catatan_admin']?.toString().trim() ?? '';
+
+          final Color statusColor;
+          switch (status.toLowerCase()) {
+            case 'disetujui':
+              statusColor = const Color(0xFF21866D);
+              break;
+            case 'ditolak':
+              statusColor = const Color(0xFFD92D20);
+              break;
+            default:
+              statusColor = const Color(0xFFE5A000);
+          }
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.all(17),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: borderColor),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF344054).withValues(alpha: 0.04),
+                  blurRadius: 16,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: lightBlue,
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: const Icon(
+                        Icons.add_business_outlined,
+                        color: primaryBlue,
+                        size: 25,
+                      ),
+                    ),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            nama,
+                            style: const TextStyle(
+                              color: textColor,
+                              fontSize: 14,
+                              height: 1.4,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            kategori,
+                            style: const TextStyle(
+                              color: mutedColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 15),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _infoChip(
+                      Icons.calendar_today_rounded,
+                      'Pelaksanaan: ${tanggalPelaksanaan.isEmpty ? '-' : tanggalPelaksanaan}',
+                    ),
+                    _infoChip(
+                      Icons.send_rounded,
+                      'Diajukan: ${tanggalPengajuan.isEmpty ? '-' : tanggalPengajuan.split('T').first}',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 13),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Status: $status',
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                if (catatan.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Catatan admin: $catatan',
+                    style: const TextStyle(
+                      color: mutedColor,
+                      fontSize: 12,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: mutedColor),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(color: mutedColor, fontSize: 10),
+          ),
+        ],
       ),
     );
   }
@@ -547,6 +814,24 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
                           textStyle: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      )
+                    else if (tabIndex == 1)
+                      ElevatedButton.icon(
+                        onPressed: widget.onAjukanLomba,
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('Ajukan Lomba'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryBlue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 13,
+                          ),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
                           ),
                         ),
                       ),

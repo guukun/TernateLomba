@@ -21,6 +21,11 @@ class Lomba extends Model
         'status_lomba' => 'string',
     ];
 
+    public function getStatusLombaAttribute($value): ?string
+    {
+        return $value === null ? null : ucfirst(strtolower((string) $value));
+    }
+
     public function pengajuan(): BelongsTo
     {
         return $this->belongsTo(

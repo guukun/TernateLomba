@@ -1,303 +1,54 @@
 <?php
 
-use App\Http\Controllers\PendaftaranController;
-use App\Http\Controllers\LombaController;
-use App\Http\Middleware\AuthenticateApiToken;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Hash;
-use App\Models\User;
-use Illuminate\Validation\Rule;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\LombaController;
+use App\Http\Controllers\PendaftaranController;
+use App\Http\Controllers\PengajuanLombaController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Middleware\AuthenticateApiToken;
+use Illuminate\Support\Facades\Route;
 
-// Tes koneksi Flutter ke Laravel.
-// GET /api/tes-koneksi
+// Endpoint publik.
 Route::get('/tes-koneksi', function () {
     return response()->json([
         'pesan' => 'Flutter berhasil terhubung ke Laravel',
-    ], 200);
-});
-
-// Mengambil pengguna yang sedang login.
-// GET /api/users
-// Header: Authorization: Bearer TOKEN
-Route::get('/users', function (Request $request) {
-    $user = $request->user();
-
-    return response()->json([
-        'user' => [
-            'id_user' => $user->id_user,
-            'username' => $user->username,
-            'role' => $user->role,
-
-            // URL foto yang bisa diakses Flutter
-        'foto_profil_url' => $user->foto_profil
-            ? url('/api/profile-photo/' . basename($user->foto_profil))
-            : null,
-        ],
-    ], 200);
-})->middleware(AuthenticateApiToken::class);
-
-
-Route::get('/profile-photo/{filename}', function (string $filename) {
-    // Batasi nama file untuk mencegah akses ke file lain.
-    if (!preg_match(
-        '/\A[a-zA-Z0-9_-]+\.(jpg|jpeg|png|webp)\z/i',
-        $filename
-    )) {
-        abort(404);
-    }
-
-    $path = 'profile-photos/' . $filename;
-    $disk = Storage::disk('public');
-
-    if (!$disk->exists($path)) {
-        abort(404);
-    }
-
-    return response()->file($disk->path($path), [
-        'Access-Control-Allow-Origin' => '*',
-        'Cache-Control' => 'no-cache',
     ]);
 });
 
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+Route::get('/profile-photo/{filename}', [ProfileController::class, 'photo']);
 
-// Login pengguna.
-// POST /api/login
-Route::post('/login', function (Request $request) {
-    $data = $request->validate([
-        'username' => ['required', 'string'],
-        'password' => ['required', 'string'],
-    ]);
+// Katalog lomba dapat dibaca tanpa login.
+Route::get('/kategori', [LombaController::class, 'kategori']);
+Route::get('/lomba', [LombaController::class, 'index']);
+Route::get('/lomba/{id}', [LombaController::class, 'show'])->whereNumber('id');
+Route::get('/lomba/{id}/form-fields', [PendaftaranController::class, 'formFields'])
+    ->whereNumber('id');
 
-    $user = User::where(
-        'username',
-        $data['username']
-    )->first();
+// Endpoint yang memerlukan token API aktif.
+Route::middleware(AuthenticateApiToken::class)->group(function () {
+    Route::get('/users', [ProfileController::class, 'show']);
+    Route::put('/profile', [ProfileController::class, 'update']);
+    Route::post('/profile/foto', [ProfileController::class, 'uploadPhoto']);
+    Route::post('/logout', [AuthController::class, 'logout']);
 
-    if (
-        !$user ||
-        !Hash::check($data['password'], $user->password)
-    ) {
-        return response()->json([
-            'pesan' => 'Username atau password salah',
-        ], 401);
-    }
+    // Pengajuan lomba milik pengguna yang sedang login.
+    Route::get('/pengajuan-lomba/saya', [PengajuanLombaController::class, 'mine']);
+    Route::post('/pengajuan-lomba', [PengajuanLombaController::class, 'store']);
 
-    // Buat token acak untuk pengguna.
-    $plainToken = Str::random(80);
+    // Endpoint khusus administrator untuk memeriksa dan memutuskan pengajuan.
+    Route::get('/admin/pengajuan-lomba', [PengajuanLombaController::class, 'adminIndex']);
+    Route::patch('/admin/pengajuan-lomba/{id}/keputusan', [PengajuanLombaController::class, 'decide'])
+        ->whereNumber('id');
 
-    // Simpan hash token, bukan token aslinya.
-    $user->api_token_hash = hash(
-        'sha256',
-        $plainToken
-    );
-
-    // Token berlaku selama 30 hari.
-    $user->api_token_expires_at = now()->addDays(30);
-
-    $user->save();
-
-    return response()->json([
-        'pesan' => 'Login berhasil',
-        'token' => $plainToken,
-        'user' => [
-            'id_user' => $user->id_user,
-            'username' => $user->username,
-            'role' => $user->role,
-        ],
-    ], 200);
+    Route::post('/lomba/{id}/pendaftaran', [PendaftaranController::class, 'store'])
+        ->whereNumber('id');
+    Route::get('/pendaftaran/riwayat', [PendaftaranController::class, 'riwayat']);
+    Route::get('/pendaftaran/{id}', [PendaftaranController::class, 'detail'])
+        ->whereNumber('id');
+    Route::get(
+        '/pendaftaran/{id}/jawaban/{idJawaban}/file',
+        [PendaftaranController::class, 'unduhJawabanFile']
+    )->whereNumber('id')->whereNumber('idJawaban');
 });
-
-
-// Registrasi pengguna.
-// POST /api/register
-Route::post('/register', [AuthController::class, 'register']);
-
-/*
-| UPDATE PROFIL
-| Endpoint:
-| PUT /api/profile
-*/
-
-// UPDATE PROFILE
-Route::put('/profile', function (Request $request) {
-
-    $user = $request->user();
-
-    if (!$user) {
-        return response()->json([
-            'pesan' => 'User tidak ditemukan',
-        ], 401);
-    }
-
-    // Validasi
-    $data = $request->validate([
-
-        'username' => [
-            'required',
-            'string',
-            'max:255',
-
-            Rule::unique('users', 'username')
-                ->ignore(
-                    $user->id_user,
-                    'id_user'
-                ),
-        ],
-
-        // Password tidak wajib diganti
-        'password' => [
-            'nullable',
-            'string',
-            'min:8',
-            'confirmed',
-        ],
-    ]);
-
-    // Update username
-    $user->username =
-        $data['username'];
-
-    // Update password jika diisi
-    if (!empty($data['password'])) {
-
-        $user->password =
-            Hash::make(
-                $data['password']
-            );
-    }
-
-    // Simpan ke database
-    $user->save();
-
-    return response()->json([
-
-        'pesan' =>
-            'Profil berhasil diperbarui',
-
-        'user' => [
-            'id_user' =>
-                $user->id_user,
-
-            'username' =>
-                $user->username,
-
-            'role' =>
-                $user->role,
-        ],
-
-    ], 200);
-
-})->middleware(AuthenticateApiToken::class);
-
-Route::post('/logout', function (Request $request) {
-    $user = $request->user();
-
-    $user->api_token_hash = null;
-    $user->api_token_expires_at = null;
-    $user->save();
-
-    return response()->json([
-        'pesan' => 'Logout berhasil',
-    ], 200);
-})->middleware(AuthenticateApiToken::class);
-
-Route::post('/profile/foto', function (Request $request) {
-    $user = $request->user();
-
-    $request->validate([
-        'foto_profil' => [
-            'required',
-            'image',
-            'mimes:jpg,jpeg,png,webp',
-            'max:2048',
-        ],
-    ]);
-
-    $path = $request->file('foto_profil')
-        ->store('profile-photos', 'public');
-
-    if (!$path) {
-        return response()->json([
-            'pesan' => 'Foto gagal disimpan.',
-        ], 500);
-    }
-
-    $fotoLama = $user->foto_profil;
-
-    $user->foto_profil = $path;
-    $user->save();
-
-    if (
-        $fotoLama &&
-        Storage::disk('public')->exists($fotoLama)
-    ) {
-        Storage::disk('public')->delete($fotoLama);
-    }
-
-    return response()->json([
-        'pesan' => 'Foto profil berhasil diperbarui.',
-        'user' => [
-            'id_user' => $user->id_user,
-            'username' => $user->username,
-            'role' => $user->role,
-            'foto_profil' => $user->foto_profil,
-            'foto_profil_url' => url(
-                '/api/profile-photo/' . basename($user->foto_profil)
-            ),
-        ],
-    ], 200);
-})->middleware(AuthenticateApiToken::class);
-
-// KATALOG LOMBA PUBLIK
-
-Route::get('/kategori', [
-    LombaController::class,
-    'kategori',
-]);
-
-Route::get('/lomba', [
-    LombaController::class,
-    'index',
-]);
-
-Route::get('/lomba/{id}', [
-    LombaController::class,
-    'show',
-])->whereNumber('id');
-
-Route::get(
-    '/lomba/{id}/form-fields',
-    [PendaftaranController::class, 'formFields']
-)->whereNumber('id');
-
-Route::post(
-    '/lomba/{id}/pendaftaran',
-    [PendaftaranController::class, 'store']
-)->whereNumber('id')
- ->middleware(AuthenticateApiToken::class);
-
-
-Route::get(
-    '/pendaftaran/riwayat',
-    [PendaftaranController::class, 'riwayat']
-)->middleware(AuthenticateApiToken::class);
-
-
-Route::get(
-    '/pendaftaran/{id}',
-    [PendaftaranController::class, 'detail']
-)->whereNumber('id')
- ->middleware(AuthenticateApiToken::class);
-
-
-Route::get(
-    '/pendaftaran/{id}/jawaban/{idJawaban}/file',
-    [PendaftaranController::class, 'unduhJawabanFile']
-)
-    ->whereNumber('id')
-    ->whereNumber('idJawaban')
-    ->middleware(AuthenticateApiToken::class);

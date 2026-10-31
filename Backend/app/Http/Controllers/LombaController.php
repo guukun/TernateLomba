@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\KategoriLomba;
 use App\Models\Lomba;
 use Illuminate\Http\JsonResponse;
@@ -8,7 +9,7 @@ use Illuminate\Http\Request;
 
 class LombaController extends Controller
 {
-    // GET /api/kategori
+    /** GET /api/kategori */
     public function kategori(): JsonResponse
     {
         $kategori = KategoriLomba::query()
@@ -20,12 +21,12 @@ class LombaController extends Controller
             ]);
 
         return response()->json([
-            'pesan' => 'Kategori berhasil diambil',
+            'pesan' => 'Kategori berhasil diambil.',
             'data' => $kategori,
         ], 200);
     }
 
-    // GET /api/lomba
+    /** GET /api/lomba */
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -43,37 +44,35 @@ class LombaController extends Controller
                 'pengajuan.penyelenggara',
             ])
             ->where('status_lomba', 'Aktif')
-            ->whereHas('pengajuan', function ($q) {
-                $q->where('status_pengajuan', 'Disetujui');
+            ->whereHas('pengajuan', function ($query) {
+                $query->where('status_pengajuan', 'Disetujui');
             });
 
         if (!empty($validated['search'])) {
             $search = $validated['search'];
-
-            $query->whereHas('pengajuan', function ($q) use ($search) {
-                $q->where('nama_lomba', 'like', '%' . $search . '%');
+            $query->whereHas('pengajuan', function ($query) use ($search) {
+                $query->where('nama_lomba', 'like', '%' . $search . '%');
             });
         }
 
         if (!empty($validated['id_kategori'])) {
             $kategoriId = $validated['id_kategori'];
-
-            $query->whereHas('pengajuan', function ($q) use ($kategoriId) {
-                $q->where('id_kategori', $kategoriId);
+            $query->whereHas('pengajuan', function ($query) use ($kategoriId) {
+                $query->where('id_kategori', $kategoriId);
             });
         }
 
         $lomba = $query->orderByDesc('id_lomba')->get();
 
         return response()->json([
-            'pesan' => 'Daftar lomba berhasil diambil',
+            'pesan' => 'Daftar lomba berhasil diambil.',
             'data' => $lomba->map(
                 fn (Lomba $item) => $this->formatLomba($item)
             )->values(),
         ], 200);
     }
 
-    // GET /api/lomba/{id}
+    /** GET /api/lomba/{id} */
     public function show(int $id): JsonResponse
     {
         $lomba = Lomba::query()
@@ -82,17 +81,18 @@ class LombaController extends Controller
                 'pengajuan.penyelenggara',
             ])
             ->where('status_lomba', 'Aktif')
-            ->whereHas('pengajuan', function ($q) {
-                $q->where('status_pengajuan', 'Disetujui');
+            ->whereHas('pengajuan', function ($query) {
+                $query->where('status_pengajuan', 'Disetujui');
             })
             ->findOrFail($id);
 
         return response()->json([
-            'pesan' => 'Detail lomba berhasil diambil',
+            'pesan' => 'Detail lomba berhasil diambil.',
             'data' => $this->formatLomba($lomba),
         ], 200);
     }
 
+    /** Bentuk respons dipertahankan agar tetap sesuai dengan Flutter. */
     private function formatLomba(Lomba $lomba): array
     {
         $pengajuan = $lomba->pengajuan;
@@ -105,11 +105,10 @@ class LombaController extends Controller
             'nama_lomba' => $pengajuan->nama_lomba,
             'deskripsi' => $pengajuan->deskripsi,
             'persyaratan' => $pengajuan->persyaratan,
-            'tanggal_pelaksanaan' => $pengajuan
-                ->tanggal_pelaksanaan?->format('Y-m-d'),
-            'batas_pendaftaran' => $pengajuan
-                ->batas_pendaftaran?->format('Y-m-d'),
+            'tanggal_pelaksanaan' => $pengajuan->tanggal_pelaksanaan?->format('Y-m-d'),
+            'batas_pendaftaran' => $pengajuan->batas_pendaftaran?->format('Y-m-d'),
             'lokasi_pendaftaran' => $pengajuan->lokasi_pendaftaran,
+            // Nama kolom pada database asli adalah "biaya".
             'biaya' => $pengajuan->biaya,
             'hadiah' => $pengajuan->hadiah,
             'kuota_peserta' => $pengajuan->kuota_peserta,

@@ -50,9 +50,21 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
       _files.clear();
 
       for (final field in fields) {
-        if (field['tipe_field'] == 'Text') {
-          final id = int.parse(field['id_field'].toString());
+        final id = int.tryParse(field['id_field']?.toString() ?? '');
+        if (id == null) {
+          throw Exception('ID salah satu kolom formulir tidak valid.');
+        }
+
+        final type = (field['tipe_field']?.toString() ?? '')
+            .trim()
+            .toLowerCase();
+        if (type == 'text') {
           _controllers[id] = TextEditingController();
+        } else if (type != 'file') {
+          throw Exception(
+            'Tipe formulir "$type" belum didukung. '
+            'Gunakan tipe Text atau File pada database.',
+          );
         }
       }
 
@@ -63,8 +75,11 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
     } catch (e) {
       if (!mounted) return;
 
+      final message = e.toString().replaceFirst(RegExp(r'^Exception: ?'), '');
+      debugPrint('Gagal mengambil formulir lomba ${widget.idLomba}: $message');
+
       setState(() {
-        _loadError = e.toString();
+        _loadError = message;
         _isLoading = false;
       });
     }
@@ -72,15 +87,21 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
 
   Future<void> _pilihBerkas(int idField) async {
     try {
-      final files = await FilePicker.pickFiles(
+      // file_picker versi 11+ menggunakan API statis FilePicker.pickFile().
+      // API ini memilih satu berkas dan tidak lagi memakai allowMultiple/withData.
+      final picked = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
       );
 
-      if (files.isEmpty) return;
+      // Pengguna membatalkan pemilihan berkas.
+      if (picked == null) return;
 
-      final picked = files.single;
+      // Pada file_picker versi 13, isi berkas dibaca secara eksplisit.
       final bytes = await picked.readAsBytes();
+      if (bytes == null) {
+        throw Exception('Berkas tidak dapat dibaca. Silakan pilih ulang.');
+      }
 
       if (bytes.length > 5 * 1024 * 1024) {
         throw Exception('Ukuran berkas maksimal 5 MB.');
@@ -110,11 +131,11 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
   Widget _buildDynamicField(Map<String, dynamic> field) {
     final id = int.parse(field['id_field'].toString());
     final nama = field['nama_field']?.toString() ?? 'Pertanyaan';
-    final tipe = field['tipe_field']?.toString() ?? 'Text';
+    final tipe = (field['tipe_field']?.toString() ?? 'Text').trim().toLowerCase();
     final wajib =
         field['wajib'] == true || field['wajib'] == 1 || field['wajib'] == '1';
 
-    if (tipe == 'File') {
+    if (tipe == 'file') {
       return Padding(
         padding: const EdgeInsets.only(bottom: 17),
         child: FormField<XFile>(
@@ -457,7 +478,32 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                       else if (_loadError != null)
                         Column(
                           children: [
-                            const Text('Gagal mengambil formulir.'),
+                            const Text(
+                              'Gagal mengambil formulir.',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            if (_loadError != null) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withValues(alpha: 0.06),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Colors.red.withValues(alpha: 0.25),
+                                  ),
+                                ),
+                                child: Text(
+                                  _loadError!,
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 12,
+                                  ),
+                                  textAlign: TextAlign.left,
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 10),
                             ElevatedButton(
                               onPressed: _loadFormFields,

@@ -5,6 +5,7 @@ import '../pages/beranda/homePage.dart';
 import '../pages/lombaSaya/lombaSayaPage.dart';
 import '../pages/ajukan/ajukanPage.dart';
 import '../pages/profile/profilePage.dart';
+import '../pages/admin/verifikasiPengajuanPage.dart';
 import '../widgets/floatingNavigationBar.dart';
 
 class MainPage extends StatefulWidget {
@@ -28,6 +29,7 @@ class _MainPageState extends State<MainPage> {
   late String currentUsername;
 
   int profileRefreshVersion = 0;
+  int lombaSayaRefreshVersion = 0;
 
   @override
   void initState() {
@@ -43,8 +45,11 @@ class _MainPageState extends State<MainPage> {
     });
   }
 
+  bool get _isAdmin => widget.role.trim().toLowerCase() == 'administrator';
+
   void _onNavigationTap(int index) {
-    if (index < 0 || index > 3 || index == selectedIndex) {
+    final maxIndex = _isAdmin ? 4 : 3;
+    if (index < 0 || index > maxIndex || index == selectedIndex) {
       return;
     }
 
@@ -58,6 +63,14 @@ class _MainPageState extends State<MainPage> {
 
     setState(() {
       currentUsername = usernameBaru;
+    });
+  }
+
+  void _onLombaDiajukan() {
+    if (!mounted) return;
+    setState(() {
+      selectedIndex = 1;
+      lombaSayaRefreshVersion++;
     });
   }
 
@@ -84,13 +97,21 @@ class _MainPageState extends State<MainPage> {
               LombaSayaPage(
                 key: const PageStorageKey('lombaSayaPage'),
                 token: widget.token,
+                refreshVersion: lombaSayaRefreshVersion,
                 onJelajahiLomba: () {
                   _onNavigationTap(0);
+                },
+                onAjukanLomba: () {
+                  _onNavigationTap(2);
                 },
               ),
 
               // 2. Ajukan
-              const AjukanPage(key: PageStorageKey('ajukanPage')),
+              AjukanPage(
+                key: const PageStorageKey('ajukanPage'),
+                token: widget.token,
+                onLombaDiajukan: _onLombaDiajukan,
+              ),
 
               // 3. Profil
               ProfilePage(
@@ -101,6 +122,11 @@ class _MainPageState extends State<MainPage> {
                 onUsernameChanged: _onUsernameChanged,
                 onProfileChanged: _onProfileChanged,
               ),
+              if (_isAdmin)
+                VerifikasiPengajuanPage(
+                  key: const PageStorageKey('verifikasiPengajuanPage'),
+                  token: widget.token,
+                ),
             ],
           ),
 
@@ -111,6 +137,7 @@ class _MainPageState extends State<MainPage> {
             child: FloatingNavigationBar(
               currentIndex: selectedIndex,
               onTap: _onNavigationTap,
+              isAdmin: _isAdmin,
             ),
           ),
         ],

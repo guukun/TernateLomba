@@ -3,18 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Models\FormField;
+use App\Models\JawabanPendaftaran;
 use App\Models\Lomba;
 use App\Models\Pendaftaran;
-use App\Models\JawabanPendaftaran;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Throwable;
 
 class PendaftaranController extends Controller
 {
+    /** Ambil lomba yang masih aktif dan sudah disetujui. */
     private function cariLomba(int $id): Lomba
     {
         return Lomba::query()
@@ -26,7 +30,18 @@ class PendaftaranController extends Controller
             ->findOrFail($id);
     }
 
-    public function formFields(int $id)
+    private function batasPendaftaranLewat(mixed $batasPendaftaran): bool
+    {
+        if (!$batasPendaftaran) {
+            return false;
+        }
+
+        // Tanggal batas masih berlaku sampai akhir hari yang ditentukan.
+        return now()->toDateString() > Carbon::parse($batasPendaftaran)->toDateString();
+    }
+
+    /** GET /api/lomba/{id}/form-fields */
+    public function formFields(int $id): JsonResponse
     {
         $lomba = $this->cariLomba($id);
 
@@ -42,47 +57,35 @@ class PendaftaranController extends Controller
                 'urutan',
             ]);
 
-            foreach ($fields as $field) {
-                if (!in_array($field->tipe_field, ['Text', 'File'], true)) {
-                    return response()->json([
-                        'pesan' => 'Tipe field formulir tidak didukung.',
-                        'id_field' => $field->id_field,
-                    ], 422);
-                }
-            }
-
         return response()->json([
-            'pesan' => 'Formulir berhasil diambil',
+            'pesan' => 'Formulir berhasil diambil.',
             'id_lomba' => $lomba->id_lomba,
             'data' => $fields,
-        ]);
+        ], 200);
     }
 
-    public function store(Request $request, int $id)
+    /** POST /api/lomba/{id}/pendaftaran */
+    public function store(Request $request, int $id): JsonResponse
     {
-        // Menggunakan token yang sudah diterbitkan
-        // oleh sistem login TernateLomba.
         $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['pesan' => 'Autentikasi diperlukan.'], 401);
+        }
 
         $lomba = $this->cariLomba($id);
         $pengajuan = $lomba->pengajuan;
 
-        if (
-            $pengajuan->batas_pendaftaran &&
-            now()->toDateString() >
-                substr((string) $pengajuan->batas_pendaftaran, 0, 10)
-        ) {
+        if ($this->batasPendaftaranLewat($pengajuan->batas_pendaftaran)) {
             return response()->json([
                 'pesan' => 'Batas pendaftaran telah berakhir.',
             ], 422);
         }
 
-        $sudahDaftar = Pendaftaran::query()
+        if (Pendaftaran::query()
             ->where('id_lomba', $id)
             ->where('id_user', $user->getKey())
-            ->exists();
-
-        if ($sudahDaftar) {
+            ->exists()) {
             return response()->json([
                 'pesan' => 'Anda sudah terdaftar pada lomba ini.',
             ], 409);
@@ -91,8 +94,14 @@ class PendaftaranController extends Controller
         $fields = FormField::query()
             ->where('id_pengajuan', $lomba->id_pengajuan)
             ->orderBy('urutan')
+            ->orderBy('id_field')
             ->get();
 
+        if ($fields->isEmpty()) {
+            return response()->json([
+                'pesan' => 'Formulir lomba belum dikonfigurasi.',
+            ], 422);
+        }
 
         $rules = [
             'jawaban' => ['sometimes', 'array'],
@@ -101,27 +110,25 @@ class PendaftaranController extends Controller
 
         foreach ($fields as $field) {
             $key = (string) $field->id_field;
+            $requiredRule = $field->wajib ? 'required' : 'nullable';
 
             if ($field->tipe_field === 'File') {
                 $rules["files.$key"] = [
-                    $field->wajib ? 'required' : 'nullable',
+                    $requiredRule,
                     'file',
                     'max:5120',
                     'mimes:pdf,jpg,jpeg,png',
                 ];
             } else {
                 $rules["jawaban.$key"] = [
-                    $field->wajib ? 'required' : 'nullable',
+                    $requiredRule,
                     'string',
                     'max:5000',
                 ];
             }
         }
 
-        $validator = Validator::make(
-            $request->all(),
-            $rules
-        );
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return response()->json([
@@ -167,18 +174,19 @@ class PendaftaranController extends Controller
             $pendaftaran = DB::transaction(function () use (
                 $id,
                 $user,
-                $lomba,
-                $pengajuan,
                 $fields,
                 $request,
                 &$uploadedPaths
-            ) {
-                // Kunci baris lomba untuk menjaga kuota
-                // saat beberapa peserta mendaftar bersamaan.
+            ): Pendaftaran {
+                // Mengunci baris lomba agar pemeriksaan kuota tidak berjalan
+                // bersamaan tanpa koordinasi saat beberapa peserta mendaftar.
                 $lockedLomba = Lomba::query()
                     ->whereKey($id)
                     ->lockForUpdate()
                     ->firstOrFail();
+
+                $lockedLomba->load('pengajuan');
+                $lockedPengajuan = $lockedLomba->pengajuan;
 
                 if ($lockedLomba->status_lomba !== 'Aktif') {
                     throw ValidationException::withMessages([
@@ -186,52 +194,37 @@ class PendaftaranController extends Controller
                     ]);
                 }
 
-                $lockedLomba->load('pengajuan');
-
-                if (
-                    !$lockedLomba->pengajuan ||
-                    $lockedLomba->pengajuan->status_pengajuan !== 'Disetujui'
-                ) {
+                if (!$lockedPengajuan || $lockedPengajuan->status_pengajuan !== 'Disetujui') {
                     throw ValidationException::withMessages([
                         'lomba' => 'Pengajuan lomba belum disetujui atau sudah tidak berlaku.',
                     ]);
                 }
 
-                $batasPendaftaran = $lockedLomba->pengajuan->batas_pendaftaran;
-
-                if (
-                    $batasPendaftaran &&
-                    now()->toDateString() >
-                        substr((string) $batasPendaftaran, 0, 10)
-                ) {
+                if ($this->batasPendaftaranLewat($lockedPengajuan->batas_pendaftaran)) {
                     throw ValidationException::withMessages([
                         'batas_pendaftaran' => 'Batas pendaftaran telah berakhir.',
                     ]);
                 }
 
-
-                $sudahDaftarDalamTransaksi = Pendaftaran::query()
+                $sudahDaftar = Pendaftaran::query()
                     ->where('id_lomba', $lockedLomba->id_lomba)
                     ->where('id_user', $user->getKey())
                     ->exists();
 
-                if ($sudahDaftarDalamTransaksi) {
+                if ($sudahDaftar) {
                     throw ValidationException::withMessages([
                         'pendaftaran' => 'Anda sudah terdaftar pada lomba ini.',
                     ]);
                 }
 
                 $jumlahPeserta = Pendaftaran::query()
-                    ->where('id_lomba', $id)
-                    ->whereIn('status_pendaftaran', [
-                        'Menunggu',
-                        'Diterima',
-                    ])
+                    ->where('id_lomba', $lockedLomba->id_lomba)
+                    ->whereIn('status_pendaftaran', ['Menunggu', 'Diterima'])
                     ->count();
 
                 if (
-                    $pengajuan->kuota_peserta !== null &&
-                    $jumlahPeserta >= (int) $pengajuan->kuota_peserta
+                    $lockedPengajuan->kuota_peserta !== null &&
+                    $jumlahPeserta >= (int) $lockedPengajuan->kuota_peserta
                 ) {
                     throw ValidationException::withMessages([
                         'kuota' => 'Kuota lomba sudah penuh.',
@@ -247,32 +240,35 @@ class PendaftaranController extends Controller
 
                 foreach ($fields as $field) {
                     $key = (string) $field->id_field;
-                    $nilai = null;
+                    $value = null;
 
                     if ($field->tipe_field === 'File') {
                         $file = $request->file("files.$key");
 
                         if ($file) {
-                            $nilai = $file->store(
+                            $value = $file->store(
                                 'pendaftaran/' . $pendaftaran->id_pendaftaran,
                                 'local'
                             );
 
-                            $uploadedPaths[] = $nilai;
+                            if (!is_string($value) || $value === '') {
+                                throw new RuntimeException('Berkas gagal disimpan.');
+                            }
+
+                            $uploadedPaths[] = $value;
                         }
                     } else {
-                        $nilai = $request->input("jawaban.$key");
+                        $value = $request->input("jawaban.$key");
                     }
 
-                    if ($nilai === null || $nilai === '') {
+                    if ($value === null || $value === '') {
                         continue;
                     }
 
                     JawabanPendaftaran::create([
-                        'id_pendaftaran' =>
-                            $pendaftaran->id_pendaftaran,
+                        'id_pendaftaran' => $pendaftaran->id_pendaftaran,
                         'id_field' => $field->id_field,
-                        'jawaban' => $nilai,
+                        'jawaban' => $value,
                     ]);
                 }
 
@@ -282,110 +278,142 @@ class PendaftaranController extends Controller
             return response()->json([
                 'pesan' => 'Pendaftaran berhasil dikirim.',
                 'data' => [
-                    'id_pendaftaran' =>
-                        $pendaftaran->id_pendaftaran,
+                    'id_pendaftaran' => $pendaftaran->id_pendaftaran,
                     'id_lomba' => $pendaftaran->id_lomba,
-                    'status_pendaftaran' =>
-                        $pendaftaran->status_pendaftaran,
+                    'status_pendaftaran' => $pendaftaran->status_pendaftaran,
                 ],
             ], 201);
-        } catch (ValidationException $e) {
+        } catch (Throwable $exception) {
+            // File tidak ikut rollback bersama transaksi SQL, jadi hapus jika
+            // penyimpanan database gagal.
             foreach ($uploadedPaths as $path) {
                 Storage::disk('local')->delete($path);
             }
 
-            throw $e;
-        } catch (Throwable $e) {
-            foreach ($uploadedPaths as $path) {
-                Storage::disk('local')->delete($path);
-            }
-
-            throw $e;
+            throw $exception;
         }
     }
 
-    
+    /** GET /api/pendaftaran/riwayat */
+    public function riwayat(Request $request): JsonResponse
+    {
+        $user = $request->user();
 
-public function riwayat(Request $request)
-{
-    $user = $request->user();
+        $pendaftaran = Pendaftaran::query()
+            ->with(['lomba.pengajuan'])
+            ->where('id_user', $user->getKey())
+            ->orderByDesc('tanggal_pendaftaran')
+            ->get();
 
-    $pendaftaran = Pendaftaran::query()
-        ->with(['lomba.pengajuan'])
-        ->where('id_user', $user->getKey())
-        ->orderByDesc('tanggal_pendaftaran')
-        ->get();
-
-    return response()->json([
-        'pesan' => 'Riwayat pendaftaran berhasil diambil.',
-        'data' => $pendaftaran->map(function ($item) {
-            return [
+        return response()->json([
+            'pesan' => 'Riwayat pendaftaran berhasil diambil.',
+            'data' => $pendaftaran->map(fn (Pendaftaran $item) => [
                 'id_pendaftaran' => $item->id_pendaftaran,
                 'id_lomba' => $item->id_lomba,
                 'nama_lomba' => $item->lomba?->pengajuan?->nama_lomba,
                 'tanggal_pendaftaran' => $item->tanggal_pendaftaran,
                 'status_pendaftaran' => $item->status_pendaftaran,
+            ])->values(),
+        ], 200);
+    }
+
+    /** GET /api/pendaftaran/{id} */
+    public function detail(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+
+        $pendaftaran = Pendaftaran::query()
+            ->with([
+                'lomba.pengajuan',
+                'jawabanPendaftaran.formField',
+            ])
+            ->where('id_pendaftaran', $id)
+            ->where('id_user', $user->getKey())
+            ->first();
+
+        if (!$pendaftaran) {
+            return response()->json([
+                'pesan' => 'Pendaftaran tidak ditemukan atau Anda tidak memiliki akses.',
+            ], 404);
+        }
+
+        $dataJawaban = $pendaftaran->jawabanPendaftaran->map(function (JawabanPendaftaran $jawaban) use ($id) {
+            $field = $jawaban->formField;
+            $isFile = $field?->tipe_field === 'File';
+
+            return [
+                'id_jawaban' => $jawaban->id_jawaban,
+                'id_field' => $jawaban->id_field,
+                'nama_field' => $field?->nama_field,
+                'tipe_field' => $field?->tipe_field,
+                'jawaban' => $field && !$isFile ? $jawaban->jawaban : null,
+                'file_url' => $isFile
+                    ? url('/api/pendaftaran/' . $id . '/jawaban/' . $jawaban->id_jawaban . '/file')
+                    : null,
             ];
-        }),
-    ], 200);
-}
+        })->values();
 
-
-
-public function unduhJawabanFile(Request $request, int $id, int $idJawaban)
-{
-    $user = $request->user();
-
-    $jawaban = JawabanPendaftaran::query()
-        ->with('pendaftaran')
-        ->where('id_jawaban', $idJawaban)
-        ->whereHas('pendaftaran', function ($query) use ($id, $user) {
-            $query->where('id_pendaftaran', $id)
-                ->where('id_user', $user->getKey());
-        })
-        ->first();
-
-    if (!$jawaban || !$jawaban->pendaftaran) {
         return response()->json([
-            'pesan' => 'Dokumen tidak ditemukan atau Anda tidak memiliki akses.',
-        ], 404);
+            'pesan' => 'Detail pendaftaran berhasil diambil.',
+            'data' => [
+                'id_pendaftaran' => $pendaftaran->id_pendaftaran,
+                'id_lomba' => $pendaftaran->id_lomba,
+                'nama_lomba' => $pendaftaran->lomba?->pengajuan?->nama_lomba,
+                'tanggal_pendaftaran' => $pendaftaran->tanggal_pendaftaran,
+                'status_pendaftaran' => $pendaftaran->status_pendaftaran,
+                'jawaban' => $dataJawaban,
+            ],
+        ], 200);
     }
 
-    $field = FormField::query()
-        ->where('id_field', $jawaban->id_field)
-        ->where(
-            'id_pengajuan',
-            $jawaban->pendaftaran->lomba->id_pengajuan
-        )
-        ->first();
+    /** GET /api/pendaftaran/{id}/jawaban/{idJawaban}/file */
+    public function unduhJawabanFile(Request $request, int $id, int $idJawaban)
+    {
+        $user = $request->user();
 
-    if (!$field || $field->tipe_field !== 'File') {
-        return response()->json([
-            'pesan' => 'Jawaban tersebut bukan dokumen yang dapat diunduh.',
-        ], 404);
+        $jawaban = JawabanPendaftaran::query()
+            ->with(['pendaftaran.lomba', 'formField'])
+            ->where('id_jawaban', $idJawaban)
+            ->whereHas('pendaftaran', function ($query) use ($id, $user) {
+                $query->where('id_pendaftaran', $id)
+                    ->where('id_user', $user->getKey());
+            })
+            ->first();
+
+        if (!$jawaban || !$jawaban->pendaftaran || !$jawaban->pendaftaran->lomba) {
+            return response()->json([
+                'pesan' => 'Dokumen tidak ditemukan atau Anda tidak memiliki akses.',
+            ], 404);
+        }
+
+        if (
+            $jawaban->formField?->tipe_field !== 'File' ||
+            (int) $jawaban->formField->id_pengajuan !==
+                (int) $jawaban->pendaftaran->lomba->id_pengajuan
+        ) {
+            return response()->json([
+                'pesan' => 'Jawaban tersebut bukan dokumen yang dapat diunduh.',
+            ], 404);
+        }
+
+        $path = $jawaban->jawaban;
+        $expectedPrefix = 'pendaftaran/' . $id . '/';
+        $disk = Storage::disk('local');
+
+        if (
+            !is_string($path) ||
+            !str_starts_with($path, $expectedPrefix) ||
+            str_contains($path, '..') ||
+            !$disk->exists($path)
+        ) {
+            return response()->json([
+                'pesan' => 'File tidak ditemukan.',
+            ], 404);
+        }
+
+        return $disk->download($path, basename($path), [
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
-
-    $path = $jawaban->jawaban;
-    $disk = Storage::disk('local');
-
-    if (
-        !is_string($path) ||
-        !str_starts_with(
-            $path,
-            'pendaftaran/' . $id . '/'
-        ) ||
-        !$disk->exists($path)
-    ) {
-        return response()->json([
-            'pesan' => 'File tidak ditemukan.',
-        ], 404);
-    }
-
-    return $disk->download(
-        $path,
-        basename($path),
-        ['Cache-Control' => 'private, no-store']
-    );
-}
-
 }

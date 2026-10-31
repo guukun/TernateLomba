@@ -42,6 +42,11 @@ class PengajuanLomba extends Model
         'kuota_peserta' => 'integer',
     ];
 
+    public function getStatusPengajuanAttribute($value): ?string
+    {
+        return $value === null ? null : ucfirst(strtolower((string) $value));
+    }
+
     public function penyelenggara(): BelongsTo
     {
         return $this->belongsTo(

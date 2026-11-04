@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PengajuanLomba;
 use App\Models\Lomba;
 use App\Models\FormField;
+use App\Models\Notifikasi;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -13,10 +14,14 @@ use Throwable;
 
 class PengajuanLombaController extends Controller
 {
-    /** GET /api/pengajuan-lomba/saya */
+    /**
+     * GET /api/pengajuan-lomba/saya
+     * Menampilkan pengajuan lomba milik pengguna.
+     */
     public function mine(Request $request): JsonResponse
     {
         $user = $request->user();
+
         if (!$user) {
             return response()->json([
                 'pesan' => 'Silakan login untuk melihat pengajuan lomba.',
@@ -24,7 +29,10 @@ class PengajuanLombaController extends Controller
         }
 
         $items = PengajuanLomba::query()
-            ->with(['kategori:id_kategori,nama_kategori', 'lomba:id_lomba,id_pengajuan,status_lomba'])
+            ->with([
+                'kategori:id_kategori,nama_kategori',
+                'lomba:id_lomba,id_pengajuan,status_lomba'
+            ])
             ->where('id_user', $user->id_user)
             ->orderByDesc('tanggal_pengajuan')
             ->orderByDesc('id_pengajuan')
@@ -39,24 +47,36 @@ class PengajuanLombaController extends Controller
                     'nama_lomba' => $item->nama_lomba,
                     'deskripsi' => $item->deskripsi,
                     'persyaratan' => $item->persyaratan,
-                    'tanggal_pelaksanaan' => $item->tanggal_pelaksanaan?->format('Y-m-d'),
-                    'batas_pendaftaran' => $item->batas_pendaftaran?->format('Y-m-d'),
+
+                    'tanggal_pelaksanaan' =>
+                        $item->tanggal_pelaksanaan?->format('Y-m-d'),
+
+                    'batas_pendaftaran' =>
+                        $item->batas_pendaftaran?->format('Y-m-d'),
+
                     'lokasi_pendaftaran' => $item->lokasi_pendaftaran,
                     'biaya' => $item->biaya,
                     'hadiah' => $item->hadiah,
                     'kuota_peserta' => $item->kuota_peserta,
                     'kontak_penyelenggara' => $item->kontak_penyelenggara,
                     'poster_lomba' => $item->poster_lomba,
+
                     'poster_url' => $item->poster_lomba
-                        ? url('/api/poster-lomba/' . rawurlencode(basename($item->poster_lomba)))
+                        ? url('/api/poster-lomba/' .
+                            rawurlencode(basename($item->poster_lomba)))
                         : null,
+
                     'status_pengajuan' => $item->status_pengajuan,
                     'catatan_admin' => $item->catatan_admin,
-                    'tanggal_pengajuan' => $item->tanggal_pengajuan?->toISOString(),
+
+                    'tanggal_pengajuan' =>
+                        $item->tanggal_pengajuan?->toISOString(),
+
                     'kategori' => $item->kategori ? [
                         'id_kategori' => $item->kategori->id_kategori,
                         'nama_kategori' => $item->kategori->nama_kategori,
                     ] : null,
+
                     'lomba' => $item->lomba ? [
                         'id_lomba' => $item->lomba->id_lomba,
                         'status_lomba' => $item->lomba->status_lomba,
@@ -66,10 +86,15 @@ class PengajuanLombaController extends Controller
         ], 200);
     }
 
-    /** POST /api/pengajuan-lomba */
+
+    /**
+     * POST /api/pengajuan-lomba
+     * Pengguna mengajukan lomba.
+     */
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
+
         if (!$user) {
             return response()->json([
                 'pesan' => 'Silakan login untuk mengajukan lomba.',
@@ -77,40 +102,95 @@ class PengajuanLombaController extends Controller
         }
 
         $data = $request->validate([
-            'id_kategori' => ['required', 'integer', 'exists:kategori_lomba,id_kategori'],
+            'id_kategori' => [
+                'required',
+                'integer',
+                'exists:kategori_lomba,id_kategori'
+            ],
+
             'nama_lomba' => ['required', 'string', 'max:200'],
             'deskripsi' => ['required', 'string', 'max:10000'],
             'persyaratan' => ['nullable', 'string', 'max:10000'],
-            'tanggal_pelaksanaan' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
-            'batas_pendaftaran' => ['required', 'date_format:Y-m-d', 'after_or_equal:today', 'before_or_equal:tanggal_pelaksanaan'],
-            'lokasi_pendaftaran' => ['required', 'string', 'max:255'],
+
+            'tanggal_pelaksanaan' => [
+                'required',
+                'date_format:Y-m-d',
+                'after_or_equal:today'
+            ],
+
+            'batas_pendaftaran' => [
+                'required',
+                'date_format:Y-m-d',
+                'after_or_equal:today',
+                'before_or_equal:tanggal_pelaksanaan'
+            ],
+
+            'lokasi_pendaftaran' => [
+                'required',
+                'string',
+                'max:255'
+            ],
+
             'biaya' => ['required', 'numeric', 'min:0'],
             'hadiah' => ['nullable', 'string', 'max:10000'],
             'kuota_peserta' => ['nullable', 'integer', 'min:1'],
-            'kontak_penyelenggara' => ['required', 'string', 'max:100'],
-            'poster_lomba' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
-            'form_fields' => ['required', 'array', 'min:1', 'max:30'],
-            'form_fields.*.nama_field' => ['required', 'string', 'max:150'],
-            'form_fields.*.tipe_field' => ['required', 'in:Text,File'],
-            'form_fields.*.wajib' => ['required', 'boolean'],
+
+            'kontak_penyelenggara' => [
+                'required',
+                'string',
+                'max:100'
+            ],
+
+            'poster_lomba' => [
+                'required',
+                'image',
+                'mimes:jpg,jpeg,png',
+                'max:5120'
+            ],
+
+            'form_fields' => [
+                'required',
+                'array',
+                'min:1',
+                'max:30'
+            ],
+
+            'form_fields.*.nama_field' => [
+                'required',
+                'string',
+                'max:150'
+            ],
+
+            'form_fields.*.tipe_field' => [
+                'required',
+                'in:Text,File'
+            ],
+
+            'form_fields.*.wajib' => [
+                'required',
+                'boolean'
+            ],
         ]);
 
-        // Pastikan request benar-benar membawa file poster.
-        if (!$request->hasFile('poster_lomba') ||
-            !$request->file('poster_lomba')->isValid()) {
+        // Pastikan request membawa file poster.
+        if (
+            !$request->hasFile('poster_lomba') ||
+            !$request->file('poster_lomba')->isValid()
+        ) {
             return response()->json([
                 'pesan' => 'File poster tidak diterima server. Silakan pilih ulang poster.',
             ], 422);
         }
 
-        // Siapkan folder tujuan agar selalu tersedia.
+        // Siapkan folder penyimpanan poster.
         $publicDisk = Storage::disk('public');
         $publicDisk->makeDirectory('poster-lomba');
 
-        // Simpan file fisik pada:
-        // storage/app/public/poster-lomba/
+        // Simpan poster.
         try {
-            $posterPath = $request->file('poster_lomba')->store('poster-lomba', 'public');
+            $posterPath = $request->file('poster_lomba')
+                ->store('poster-lomba', 'public');
+
         } catch (Throwable $exception) {
             report($exception);
 
@@ -119,7 +199,7 @@ class PengajuanLombaController extends Controller
             ], 500);
         }
 
-        // Jangan menyimpan record MySQL jika file fisik tidak benar-benar ada.
+        // Pastikan poster benar-benar tersimpan.
         if (
             !is_string($posterPath) ||
             $posterPath === '' ||
@@ -131,25 +211,53 @@ class PengajuanLombaController extends Controller
         }
 
         try {
-            $pengajuan = DB::transaction(function () use ($data, $user, $posterPath) {
+            $pengajuan = DB::transaction(function () use (
+                $data,
+                $user,
+                $posterPath
+            ) {
+
+                // Simpan data pengajuan.
                 $pengajuan = PengajuanLomba::create([
                     'id_user' => $user->id_user,
                     'id_kategori' => (int) $data['id_kategori'],
+
                     'nama_lomba' => trim($data['nama_lomba']),
                     'deskripsi' => trim($data['deskripsi']),
-                    'persyaratan' => isset($data['persyaratan']) ? trim($data['persyaratan']) : null,
-                    'tanggal_pelaksanaan' => $data['tanggal_pelaksanaan'],
-                    'batas_pendaftaran' => $data['batas_pendaftaran'],
-                    'lokasi_pendaftaran' => trim($data['lokasi_pendaftaran']),
+
+                    'persyaratan' => isset($data['persyaratan'])
+                        ? trim($data['persyaratan'])
+                        : null,
+
+                    'tanggal_pelaksanaan' =>
+                        $data['tanggal_pelaksanaan'],
+
+                    'batas_pendaftaran' =>
+                        $data['batas_pendaftaran'],
+
+                    'lokasi_pendaftaran' =>
+                        trim($data['lokasi_pendaftaran']),
+
                     'biaya' => $data['biaya'],
-                    'hadiah' => isset($data['hadiah']) ? trim($data['hadiah']) : null,
-                    'kuota_peserta' => $data['kuota_peserta'] ?? null,
-                    'kontak_penyelenggara' => trim($data['kontak_penyelenggara']),
+
+                    'hadiah' => isset($data['hadiah'])
+                        ? trim($data['hadiah'])
+                        : null,
+
+                    'kuota_peserta' =>
+                        $data['kuota_peserta'] ?? null,
+
+                    'kontak_penyelenggara' =>
+                        trim($data['kontak_penyelenggara']),
+
                     'poster_lomba' => $posterPath,
+
                     'status_pengajuan' => 'Menunggu',
                     'catatan_admin' => null,
                     'tanggal_pengajuan' => now(),
                 ]);
+
+                // Simpan formulir dinamis.
                 foreach ($data['form_fields'] as $index => $field) {
                     FormField::create([
                         'id_pengajuan' => $pengajuan->id_pengajuan,
@@ -159,153 +267,293 @@ class PengajuanLombaController extends Controller
                         'urutan' => $index + 1,
                     ]);
                 }
+
+                // NOTIFIKASI PENGAJUAN BERHASIL DIKIRIM.
+                Notifikasi::create([
+                    'user_id' => $user->id_user,
+                    'pengajuan_id' => $pengajuan->id_pengajuan,
+
+                    'judul' => 'Pengajuan Lomba Berhasil Dikirim',
+
+                    'pesan' => 'Pengajuan lomba "' .
+                        $pengajuan->nama_lomba .
+                        '" berhasil dikirim dan sedang menunggu verifikasi admin.',
+
+                    'tipe' => 'pengajuan',
+                    'is_read' => false,
+                ]);
+
                 return $pengajuan;
             });
+
         } catch (Throwable $exception) {
+
+            // Hapus poster jika transaksi gagal.
             if ($posterPath) {
                 Storage::disk('public')->delete($posterPath);
             }
+
             throw $exception;
         }
 
         return response()->json([
             'pesan' => 'Pengajuan lomba berhasil dikirim dan menunggu verifikasi admin.',
+
             'data' => [
                 'id_pengajuan' => $pengajuan->id_pengajuan,
                 'nama_lomba' => $pengajuan->nama_lomba,
                 'status_pengajuan' => $pengajuan->status_pengajuan,
+
                 'poster_lomba' => $pengajuan->poster_lomba,
+
                 'poster_url' => $pengajuan->poster_lomba
-                    ? url('/api/poster-lomba/' . rawurlencode(basename($pengajuan->poster_lomba)))
+                    ? url('/api/poster-lomba/' .
+                        rawurlencode(basename($pengajuan->poster_lomba)))
                     : null,
-                'tanggal_pengajuan' => $pengajuan->tanggal_pengajuan?->toISOString(),
+
+                'tanggal_pengajuan' =>
+                    $pengajuan->tanggal_pengajuan?->toISOString(),
             ],
         ], 201);
     }
 
-    /** GET /api/admin/pengajuan-lomba */
+
+    /**
+     * GET /api/admin/pengajuan-lomba
+     * Menampilkan semua pengajuan untuk administrator.
+     */
     public function adminIndex(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user || strtolower((string) $user->role) !== 'administrator') {
-            return response()->json(['pesan' => 'Akses hanya untuk administrator.'], 403);
+
+        if (
+            !$user ||
+            strtolower((string) $user->role) !== 'administrator'
+        ) {
+            return response()->json([
+                'pesan' => 'Akses hanya untuk administrator.'
+            ], 403);
         }
 
         $items = PengajuanLomba::query()
-            ->with(['kategori:id_kategori,nama_kategori', 'penyelenggara:id_user,username', 'formFields'])
-            ->orderByRaw("CASE WHEN LOWER(status_pengajuan) = 'menunggu' THEN 0 ELSE 1 END")
+            ->with([
+                'kategori:id_kategori,nama_kategori',
+                'penyelenggara:id_user,username',
+                'formFields'
+            ])
+            ->orderByRaw(
+                "CASE WHEN LOWER(status_pengajuan) = 'menunggu' THEN 0 ELSE 1 END"
+            )
             ->orderByDesc('tanggal_pengajuan')
             ->get();
 
         return response()->json([
             'pesan' => 'Daftar pengajuan lomba berhasil diambil.',
+
             'data' => $items->map(fn (PengajuanLomba $item) => [
                 'id_pengajuan' => $item->id_pengajuan,
                 'nama_lomba' => $item->nama_lomba,
                 'deskripsi' => $item->deskripsi,
                 'persyaratan' => $item->persyaratan,
-                'tanggal_pelaksanaan' => $item->tanggal_pelaksanaan?->format('Y-m-d'),
-                'batas_pendaftaran' => $item->batas_pendaftaran?->format('Y-m-d'),
+
+                'tanggal_pelaksanaan' =>
+                    $item->tanggal_pelaksanaan?->format('Y-m-d'),
+
+                'batas_pendaftaran' =>
+                    $item->batas_pendaftaran?->format('Y-m-d'),
+
                 'lokasi_pendaftaran' => $item->lokasi_pendaftaran,
                 'biaya' => $item->biaya,
                 'hadiah' => $item->hadiah,
                 'kuota_peserta' => $item->kuota_peserta,
                 'kontak_penyelenggara' => $item->kontak_penyelenggara,
+
                 'poster_lomba' => $item->poster_lomba,
-                    'poster_url' => $item->poster_lomba
-                        ? url('/api/poster-lomba/' . rawurlencode(basename($item->poster_lomba)))
-                        : null,
+
+                'poster_url' => $item->poster_lomba
+                    ? url('/api/poster-lomba/' .
+                        rawurlencode(basename($item->poster_lomba)))
+                    : null,
+
                 'status_pengajuan' => $item->status_pengajuan,
                 'catatan_admin' => $item->catatan_admin,
-                'tanggal_pengajuan' => $item->tanggal_pengajuan?->toISOString(),
-                'form_fields' => $item->formFields->sortBy('urutan')->values()->map(fn (FormField $field) => [
-                    'id_field' => $field->id_field,
-                    'nama_field' => $field->nama_field,
-                    'tipe_field' => $field->tipe_field,
-                    'wajib' => (bool) $field->wajib,
-                    'urutan' => $field->urutan,
-                ])->all(),
+
+                'tanggal_pengajuan' =>
+                    $item->tanggal_pengajuan?->toISOString(),
+
+                'form_fields' => $item->formFields
+                    ->sortBy('urutan')
+                    ->values()
+                    ->map(fn (FormField $field) => [
+                        'id_field' => $field->id_field,
+                        'nama_field' => $field->nama_field,
+                        'tipe_field' => $field->tipe_field,
+                        'wajib' => (bool) $field->wajib,
+                        'urutan' => $field->urutan,
+                    ])->all(),
+
                 'kategori' => $item->kategori ? [
                     'id_kategori' => $item->kategori->id_kategori,
                     'nama_kategori' => $item->kategori->nama_kategori,
                 ] : null,
+
                 'penyelenggara' => $item->penyelenggara ? [
                     'id_user' => $item->penyelenggara->id_user,
                     'username' => $item->penyelenggara->username,
                 ] : null,
+
             ])->values(),
         ]);
     }
 
-    /** PATCH /api/admin/pengajuan-lomba/{id}/keputusan */
+
+    /**
+     * PATCH /api/admin/pengajuan-lomba/{id}/keputusan
+     * Administrator menyetujui atau menolak pengajuan.
+     */
     public function decide(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
-        if (!$user || strtolower((string) $user->role) !== 'administrator') {
-            return response()->json(['pesan' => 'Akses hanya untuk administrator.'], 403);
+
+        if (
+            !$user ||
+            strtolower((string) $user->role) !== 'administrator'
+        ) {
+            return response()->json([
+                'pesan' => 'Akses hanya untuk administrator.'
+            ], 403);
         }
 
         $data = $request->validate([
-            'keputusan' => ['required', 'in:Disetujui,Ditolak'],
-            'catatan_admin' => ['nullable', 'string', 'max:5000'],
+            'keputusan' => [
+                'required',
+                'in:Disetujui,Ditolak'
+            ],
+
+            'catatan_admin' => [
+                'nullable',
+                'string',
+                'max:5000'
+            ],
         ]);
 
         $result = DB::transaction(function () use ($id, $data) {
+
+            // Cari pengajuan dan kunci record.
             $pengajuan = PengajuanLomba::query()
                 ->whereKey($id)
                 ->lockForUpdate()
                 ->first();
 
             if (!$pengajuan) {
-                return ['error' => 'Pengajuan lomba tidak ditemukan.', 'status' => 404];
+                return [
+                    'error' => 'Pengajuan lomba tidak ditemukan.',
+                    'status' => 404
+                ];
             }
 
-            if (strtolower((string) $pengajuan->status_pengajuan) !== 'menunggu') {
+            // Cegah keputusan ganda.
+            if (
+                strtolower((string) $pengajuan->status_pengajuan)
+                !== 'menunggu'
+            ) {
                 return [
                     'error' => 'Pengajuan ini sudah diproses sebelumnya.',
                     'status' => 409,
                 ];
             }
 
-            if ($data['keputusan'] === 'Disetujui' && !$pengajuan->formFields()->exists()) {
+            // Pastikan formulir sudah tersedia sebelum disetujui.
+            if (
+                $data['keputusan'] === 'Disetujui' &&
+                !$pengajuan->formFields()->exists()
+            ) {
                 return [
                     'error' => 'Pengajuan belum memiliki formulir pendaftaran. Lengkapi field sebelum disetujui.',
                     'status' => 422,
                 ];
             }
 
+            // Simpan keputusan administrator.
             $pengajuan->status_pengajuan = $data['keputusan'];
+
             $pengajuan->catatan_admin = isset($data['catatan_admin'])
                 ? trim($data['catatan_admin'])
                 : null;
+
             $pengajuan->save();
 
+            // Jika disetujui, terbitkan lomba.
             if ($data['keputusan'] === 'Disetujui') {
+
                 Lomba::query()->updateOrCreate(
-                    ['id_pengajuan' => $pengajuan->id_pengajuan],
-                    ['status_lomba' => 'Aktif']
+                    [
+                        'id_pengajuan' => $pengajuan->id_pengajuan
+                    ],
+                    [
+                        'status_lomba' => 'Aktif'
+                    ]
                 );
             }
 
-            return ['pengajuan' => $pengajuan->fresh()];
+            // NOTIFIKASI PERSETUJUAN ATAU PENOLAKAN.
+            Notifikasi::create([
+                'user_id' => $pengajuan->id_user,
+                'pengajuan_id' => $pengajuan->id_pengajuan,
+
+                'judul' => $data['keputusan'] === 'Disetujui'
+                    ? 'Pengajuan Lomba Disetujui'
+                    : 'Pengajuan Lomba Ditolak',
+
+                'pesan' => $data['keputusan'] === 'Disetujui'
+
+                    ? 'Pengajuan lomba "' .
+                        $pengajuan->nama_lomba .
+                        '" berhasil disetujui dan telah diterbitkan.'
+
+                    : 'Pengajuan lomba "' .
+                        $pengajuan->nama_lomba .
+                        '" ditolak. Catatan admin: ' .
+                        (
+                            $pengajuan->catatan_admin
+                            ?: 'Tidak ada catatan.'
+                        ),
+
+                'tipe' => strtolower($data['keputusan']),
+
+                'is_read' => false,
+            ]);
+
+            return [
+                'pengajuan' => $pengajuan->fresh()
+            ];
         });
 
+        // Tangani error dari transaksi.
         if (isset($result['error'])) {
-            return response()->json(['pesan' => $result['error']], $result['status']);
+            return response()->json([
+                'pesan' => $result['error']
+            ], $result['status']);
         }
 
         return response()->json([
             'pesan' => $data['keputusan'] === 'Disetujui'
                 ? 'Pengajuan lomba berhasil disetujui dan diterbitkan.'
                 : 'Pengajuan lomba berhasil ditolak.',
+
             'data' => [
-                'id_pengajuan' => $result['pengajuan']->id_pengajuan,
-                'nama_lomba' => $result['pengajuan']->nama_lomba,
-                'status_pengajuan' => $result['pengajuan']->status_pengajuan,
-                'catatan_admin' => $result['pengajuan']->catatan_admin,
+                'id_pengajuan' =>
+                    $result['pengajuan']->id_pengajuan,
+
+                'nama_lomba' =>
+                    $result['pengajuan']->nama_lomba,
+
+                'status_pengajuan' =>
+                    $result['pengajuan']->status_pengajuan,
+
+                'catatan_admin' =>
+                    $result['pengajuan']->catatan_admin,
             ],
         ]);
     }
-
-
 }

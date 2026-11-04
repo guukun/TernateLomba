@@ -1,460 +1,428 @@
+
 import 'package:flutter/material.dart';
 
-class NotifikasiPage extends StatelessWidget {
-  final List<Map<String, String>> notifications;
+import '../../models/notification_model.dart';
+import '../../services/notification_service.dart';
 
-  const NotifikasiPage({super.key, required this.notifications});
+class NotifikasiPage extends StatefulWidget {
+  final String token;
+  final String baseApiUrl;
 
-  static const Color _primary = Color(0xFF3478E5);
-  static const Color _text = Color(0xFF202938);
-  static const Color _muted = Color(0xFF667085);
-  static const Color _background = Color(0xFFF4F7FC);
+  const NotifikasiPage({
+    super.key,
+    required this.token,
+    required this.baseApiUrl,
+  });
 
-  IconData _iconFor(String title) {
-    final value = title.toLowerCase();
+  @override
+  State<NotifikasiPage> createState() =>
+      _NotifikasiPageState();
+}
 
-    if (value.contains('pendaftaran')) {
-      return Icons.task_alt_rounded;
-    }
+class _NotifikasiPageState extends State<NotifikasiPage> {
+  static const Color primary = Color(0xFF3478E5);
+  static const Color textColor = Color(0xFF202938);
+  static const Color muted = Color(0xFF667085);
 
-    if (value.contains('lomba')) {
-      return Icons.emoji_events_rounded;
-    }
+  late final NotificationService service;
 
-    if (value.contains('status')) {
-      return Icons.hourglass_top_rounded;
-    }
+  List<NotificationModel> notifications = [];
 
-    return Icons.notifications_active_rounded;
+  bool loading = true;
+  bool markingAll = false;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+
+    service = NotificationService(
+      baseApiUrl: widget.baseApiUrl,
+    );
+
+    loadNotifications();
   }
 
-  Color _colorFor(String title) {
-    final value = title.toLowerCase();
+  // Mengambil data notifikasi
+  Future<void> loadNotifications() async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
 
-    if (value.contains('pendaftaran')) {
-      return const Color(0xFF3478E5);
+    try {
+      final data = await service.getNotifications(
+        token: widget.token,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        notifications = data;
+        loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        error = e.toString();
+        loading = false;
+      });
     }
-
-    if (value.contains('lomba')) {
-      return const Color(0xFF8B65D8);
-    }
-
-    if (value.contains('status')) {
-      return const Color(0xFFE59A24);
-    }
-
-    return const Color(0xFF238A78);
   }
 
-  String _categoryFor(String title) {
+  // Menandai satu notifikasi dibaca
+  Future<void> markAsRead(
+    NotificationModel item,
+  ) async {
+    if (item.isRead || item.id == 0) return;
+
+    try {
+      await service.markAsRead(
+        token: widget.token,
+        id: item.id,
+      );
+
+      await loadNotifications();
+    } catch (e) {
+      showMessage('Gagal menandai notifikasi: $e');
+    }
+  }
+
+  // Menandai semua notifikasi dibaca
+  Future<void> markAllAsRead() async {
+    if (notifications.isEmpty || markingAll) return;
+
+    setState(() => markingAll = true);
+
+    try {
+      await service.markAllAsRead(
+        token: widget.token,
+      );
+
+      await loadNotifications();
+
+      showMessage('Semua notifikasi sudah dibaca.');
+    } catch (e) {
+      showMessage('Gagal memperbarui notifikasi: $e');
+    } finally {
+      if (mounted) {
+        setState(() => markingAll = false);
+      }
+    }
+  }
+
+  // Menghapus notifikasi
+  Future<void> deleteNotification(
+    NotificationModel item,
+  ) async {
+    if (item.id == 0) {
+      showMessage('ID notifikasi tidak ditemukan.');
+      return;
+    }
+
+    try {
+      await service.deleteNotification(
+        token: widget.token,
+        id: item.id,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        notifications.removeWhere(
+          (n) => n.id == item.id,
+        );
+      });
+
+      showMessage('Notifikasi berhasil dihapus.');
+    } catch (e) {
+      showMessage('Gagal menghapus notifikasi: $e');
+      loadNotifications();
+    }
+  }
+
+  void showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+  }
+
+  IconData getIcon(String title) {
     final value = title.toLowerCase();
 
     if (value.contains('pendaftaran')) {
-      return 'PENDAFTARAN';
+      return Icons.assignment_turned_in_outlined;
     }
 
     if (value.contains('lomba')) {
-      return 'INFORMASI LOMBA';
+      return Icons.emoji_events_outlined;
     }
 
     if (value.contains('status')) {
-      return 'PEMBARUAN STATUS';
+      return Icons.query_stats_rounded;
     }
 
-    return 'PEMBERITAHUAN';
+    return Icons.notifications_none_rounded;
   }
 
   @override
   Widget build(BuildContext context) {
+    final unreadCount = notifications
+        .where((item) => !item.isRead)
+        .length;
+
     return Scaffold(
-      backgroundColor: _background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // HEADER DENGAN GRADASI
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF235FC7),
-                    Color(0xFF3478E5),
-                    Color(0xFF6398F2),
-                  ],
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(32),
-                  bottomRight: Radius.circular(32),
-                ),
-              ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned(
-                    right: -35,
-                    top: 15,
-                    child: Container(
-                      width: 145,
-                      height: 145,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.07),
-                      ),
+      backgroundColor: const Color(0xFFF5F7FB),
+
+      appBar: AppBar(
+        title: const Text(
+          'Notifikasi',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: textColor,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+
+        actions: [
+          TextButton(
+            onPressed: unreadCount == 0 || markingAll
+                ? null
+                : markAllAsRead,
+            child: markingAll
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
                     ),
-                  ),
-                  Positioned(
-                    right: 38,
-                    bottom: -46,
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.13),
-                          width: 18,
+                  )
+                : const Text('Baca semua'),
+          ),
+        ],
+      ),
+
+      body: loading
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: primary,
+              ),
+            )
+
+          : error != null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.cloud_off_outlined,
+                        size: 45,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Gagal mengambil notifikasi',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                        ),
+                        child: Text(
+                          error!,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      ElevatedButton(
+                        onPressed: loadNotifications,
+                        child: const Text('Coba Lagi'),
+                      ),
+                    ],
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Material(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            shape: const CircleBorder(),
-                            child: InkWell(
-                              customBorder: const CircleBorder(),
-                              onTap: () => Navigator.of(context).pop(),
-                              child: const SizedBox(
-                                width: 44,
-                                height: 44,
-                                child: Icon(
-                                  Icons.arrow_back_rounded,
-                                  color: Colors.white,
-                                  size: 23,
-                                ),
-                              ),
-                            ),
+                )
+
+              : notifications.isEmpty
+                  ? RefreshIndicator(
+                      onRefresh: loadNotifications,
+                      child: ListView(
+                        children: const [
+                          SizedBox(height: 150),
+                          Icon(
+                            Icons.notifications_off_outlined,
+                            size: 58,
+                            color: muted,
                           ),
-                          const SizedBox(width: 13),
-                          const Expanded(
+                          SizedBox(height: 14),
+                          Center(
                             child: Text(
-                              'PUSAT AKTIVITAS',
+                              'Belum ada notifikasi',
                               style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.8,
+                                color: muted,
+                                fontWeight: FontWeight.w600,
                               ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.18),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.notifications_active_rounded,
-                                  color: Colors.white,
-                                  size: 15,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${notifications.length}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 30),
-                      const Text(
-                        'Notifikasi',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 30,
-                          height: 1.15,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.7,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Semua kabar penting tentang aktivitas\n'
-                        'dan perjalanan lombamu ada di sini.',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.84),
-                          fontSize: 13,
-                          height: 1.7,
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.13),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.history_rounded,
-                              color: Colors.white,
-                              size: 17,
+                    )
+
+                  : RefreshIndicator(
+                      onRefresh: loadNotifications,
+
+                      child: ListView.separated(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: notifications.length,
+
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 10),
+
+                        itemBuilder: (context, index) {
+                          final item = notifications[index];
+
+                          return Dismissible(
+                            key: ValueKey(
+                              'notification-${item.id}-$index',
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${notifications.length} aktivitas tersedia',
-                              style: const TextStyle(
+
+                            direction:
+                                DismissDirection.endToStart,
+
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(
+                                right: 22,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius:
+                                    BorderRadius.circular(18),
+                              ),
+                              child: const Icon(
+                                Icons.delete_outline,
                                 color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
 
-            // DAFTAR NOTIFIKASI
-            Expanded(
-              child: notifications.isEmpty
-                  ? _buildEmptyState()
-                  : ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 25, 20, 36),
-                      children: [
-                        Row(
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                'Aktivitas terbaru',
-                                style: TextStyle(
-                                  color: _text,
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.4,
+                            onDismissed: (_) {
+                              deleteNotification(item);
+                            },
+
+                            child: Material(
+                              color: Colors.white,
+                              borderRadius:
+                                  BorderRadius.circular(18),
+
+                              child: InkWell(
+                                borderRadius:
+                                    BorderRadius.circular(18),
+
+                                onTap: () => markAsRead(item),
+
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+
+                                    children: [
+                                      Container(
+                                        width: 46,
+                                        height: 46,
+
+                                        decoration: BoxDecoration(
+                                          color: const Color(
+                                            0xFFEAF2FF,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(15),
+                                        ),
+
+                                        child: Icon(
+                                          getIcon(item.title),
+                                          color: primary,
+                                        ),
+                                      ),
+
+                                      const SizedBox(width: 12),
+
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    item.title,
+                                                    style:
+                                                        const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      color: textColor,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ),
+
+                                                if (!item.isRead)
+                                                  Container(
+                                                    width: 8,
+                                                    height: 8,
+                                                    decoration:
+                                                        const BoxDecoration(
+                                                      color: primary,
+                                                      shape:
+                                                          BoxShape.circle,
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+
+                                            const SizedBox(height: 6),
+
+                                            Text(
+                                              item.message,
+                                              style: const TextStyle(
+                                                color: muted,
+                                                height: 1.4,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+
+                                            const SizedBox(height: 8),
+
+                                            Text(
+                                              item.timeLabel,
+                                              style: const TextStyle(
+                                                color: muted,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                            Text(
-                              '${notifications.length} notifikasi',
-                              style: const TextStyle(
-                                color: _muted,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Informasi yang tersedia untuk akunmu.',
-                          style: TextStyle(color: _muted, fontSize: 12),
-                        ),
-                        const SizedBox(height: 19),
-                        ...List.generate(notifications.length, (index) {
-                          final item = notifications[index];
-
-                          return Padding(
-                            key: ValueKey(
-                              '${item['judul']}_${item['waktu']}_$index',
-                            ),
-                            padding: const EdgeInsets.only(bottom: 13),
-                            child: _buildNotificationCard(item),
                           );
-                        }),
-                      ],
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNotificationCard(Map<String, String> item) {
-    final title = item['judul'] ?? 'Notifikasi';
-    final message = item['isi'] ?? '';
-    final time = item['waktu'] ?? '';
-    final accent = _colorFor(title);
-
-    return Container(
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(23),
-        border: Border.all(color: const Color(0xFFE7ECF4)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF344054).withValues(alpha: 0.035),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(17),
-            ),
-            child: Icon(_iconFor(title), color: accent, size: 25),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          color: _text,
-                          fontSize: 14,
-                          height: 1.4,
-                          fontWeight: FontWeight.w800,
-                        ),
+                        },
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 7,
-                      height: 7,
-                      margin: const EdgeInsets.only(top: 5),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: accent,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    color: _muted,
-                    fontSize: 12,
-                    height: 1.65,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Row(
-                  children: [
-                    Icon(Icons.schedule_rounded, color: accent, size: 14),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        time,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: _muted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        _categoryFor(title),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.end,
-                        style: TextStyle(
-                          color: accent,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: const BoxDecoration(
-                color: Color(0xFFEAF2FF),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.notifications_none_rounded,
-                size: 45,
-                color: _primary,
-              ),
-            ),
-            const SizedBox(height: 22),
-            const Text(
-              'Belum ada kabar baru',
-              style: TextStyle(
-                color: _text,
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 9),
-            const Text(
-              'Notifikasi mengenai lomba dan aktivitasmu\n'
-              'akan ditampilkan di halaman ini.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: _muted, fontSize: 13, height: 1.7),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

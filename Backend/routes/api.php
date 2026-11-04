@@ -55,13 +55,14 @@ Route::middleware(AuthenticateApiToken::class)->group(function () {
         '/pendaftaran/{id}/jawaban/{idJawaban}/file',
         [PendaftaranController::class, 'unduhJawabanFile']
     )->whereNumber('id')->whereNumber('idJawaban');
-});
 
-Route::middleware('auth:sanctum')->group(function () {
+    // NOTIFIKASI
     Route::get('/notifikasi', [NotifikasiController::class, 'index']);
+
     Route::get('/notifikasi/unread-count', [NotifikasiController::class, 'unreadCount']);
 
     Route::patch('/notifikasi/{id}/read', [NotifikasiController::class, 'markAsRead']);
+
     Route::patch('/notifikasi/read-all', [NotifikasiController::class, 'markAllAsRead']);
 
     Route::delete('/notifikasi/{id}', [NotifikasiController::class, 'destroy']);

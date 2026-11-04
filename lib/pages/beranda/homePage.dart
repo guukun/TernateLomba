@@ -500,17 +500,18 @@ class _HomePageState extends State<HomePage> {
     _notificationOverlay = null;
   }
 
-  void _showAllNotifications() {
-    _closeNotificationPopup();
+void _showAllNotifications() {
+  _closeNotificationPopup();
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => NotifikasiPage(
-          notifications: List<Map<String, String>>.of(_notifikasiRingkas),
-        ),
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => NotifikasiPage(
+        token: widget.token,
+        baseApiUrl: 'http://10.104.22.67:8000/api',
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _toggleProfilePopup() {
     if (_profileOverlay != null) {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../services/api_service.dart';
+
 class DetailPengajuanPage extends StatelessWidget {
   final String token;
   final Map<String, dynamic> item;
@@ -22,12 +24,52 @@ class DetailPengajuanPage extends StatelessWidget {
     }
   }
 
+  String _value(String key, {String fallback = 'Belum diisi'}) {
+    final value = item[key];
+    if (value == null || value.toString().trim().isEmpty) return fallback;
+    return value.toString();
+  }
+
+  String _tanggal(String key) {
+    final raw = item[key]?.toString();
+    if (raw == null || raw.trim().isEmpty) return 'Belum diisi';
+    return _formatDate(raw);
+  }
+
+  String _kategori() {
+    final raw = item['kategori'];
+    if (raw is Map) {
+      final nama = raw['nama_kategori']?.toString();
+      if (nama != null && nama.trim().isNotEmpty) return nama;
+    }
+    return 'Kategori tidak tersedia';
+  }
+
+  String _biaya() {
+    final value = num.tryParse(item['biaya']?.toString() ?? '');
+    if (value == null) return 'Belum diisi';
+    if (value == 0) return 'Gratis';
+    return NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    ).format(value);
+  }
+
+  String _kuota() {
+    final value = item['kuota_peserta'];
+    if (value == null || value.toString().trim().isEmpty)
+      return 'Tidak dibatasi';
+    return '${value.toString()} peserta';
+  }
+
   String _getPenyelenggara() {
     if (item['penyelenggara'] is Map) {
       return (item['penyelenggara'] as Map)['username']?.toString() ??
-          (item['penyelenggara'] as Map)['nama']?.toString() ?? 'Universitas';
+          (item['penyelenggara'] as Map)['nama']?.toString() ??
+          'Tidak diketahui';
     }
-    return item['penyelenggara']?.toString() ?? 'Universitas';
+    return item['penyelenggara']?.toString() ?? 'Tidak diketahui';
   }
 
   @override
@@ -78,7 +120,7 @@ class DetailPengajuanPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -99,20 +141,12 @@ class DetailPengajuanPage extends StatelessWidget {
                     color: const Color(0xFF1B2A4A),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.menu_book, color: Colors.white, size: 24),
-                      SizedBox(height: 2),
-                      Text(
-                        'LKTI 2024',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                  child: const Center(
+                    child: Icon(
+                      Icons.emoji_events_outlined,
+                      color: Colors.white,
+                      size: 30,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -123,13 +157,16 @@ class DetailPengajuanPage extends StatelessWidget {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFE3F2FD),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: const Text(
-                              'Pendidikan',
+                            child: Text(
+                              _kategori(),
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -149,7 +186,10 @@ class DetailPengajuanPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        item['nama_lomba']?.toString() ?? 'Lomba Karya Tulis Ilmiah',
+                        _value(
+                          'nama_lomba',
+                          fallback: 'Nama lomba tidak tersedia',
+                        ),
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -172,7 +212,7 @@ class DetailPengajuanPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                item['deskripsi']?.toString() ?? 'Lomba karya tulis ilmiah untuk pelajar dan mahasiswa.',
+                _value('deskripsi'),
                 style: const TextStyle(
                   fontSize: 13,
                   color: Color(0xFF757575),
@@ -186,15 +226,29 @@ class DetailPengajuanPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: [
-                _infoRow('Biaya Pendaftaran', 'Gratis', isFree: true),
+                _infoRow(
+                  'Biaya Pendaftaran',
+                  _biaya(),
+                  isFree: _biaya() == 'Gratis',
+                ),
                 const SizedBox(height: 12),
-                _infoRow('Batas Pendaftaran', '20 Nov 2024'),
+                _infoRow('Batas Pendaftaran', _tanggal('batas_pendaftaran')),
                 const SizedBox(height: 12),
-                _infoRow('Pelaksanaan', '1 - 3 Des 2024'),
+                _infoRow('Pelaksanaan', _tanggal('tanggal_pelaksanaan')),
                 const SizedBox(height: 12),
-                _infoRow('Total Kuota', '100 Peserta'),
+                _infoRow('Total Kuota', _kuota()),
                 const SizedBox(height: 12),
-                _infoRowWithIcon('Kontak Panitia', '0812-3456-7890', Icons.phone),
+                _infoRowWithIcon(
+                  'Kontak Panitia',
+                  _value('kontak_penyelenggara'),
+                  Icons.phone,
+                ),
+                const SizedBox(height: 12),
+                _infoRow('Lokasi', _value('lokasi_pendaftaran')),
+                const SizedBox(height: 12),
+                _infoRow('Hadiah', _value('hadiah')),
+                const SizedBox(height: 12),
+                _infoRow('Persyaratan', _value('persyaratan')),
               ],
             ),
           ),
@@ -210,17 +264,18 @@ class DetailPengajuanPage extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF757575),
-          ),
+          style: const TextStyle(fontSize: 13, color: Color(0xFF757575)),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: isFree ? const Color(0xFF4CAF50) : const Color(0xFF1A1A2E),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: isFree ? const Color(0xFF4CAF50) : const Color(0xFF1A1A2E),
+            ),
           ),
         ),
       ],
@@ -233,199 +288,89 @@ class DetailPengajuanPage extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF757575),
-          ),
+          style: const TextStyle(fontSize: 13, color: Color(0xFF757575)),
         ),
-        Row(
-          children: [
-            Icon(icon, size: 16, color: _blue),
-            const SizedBox(width: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: _blue,
+        const SizedBox(width: 12),
+        Flexible(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(icon, size: 16, color: _blue),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: _blue,
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
   }
 
   Widget _buildFormulirCard(BuildContext context) {
+    final raw = item['form_fields'];
+    final fields = raw is List ? raw.whereType<Map>().toList() : <Map>[];
     return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+          const Text(
+            'Formulir Pendaftaran Peserta',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          if (raw is! List)
+            const Text(
+              'Daftar field belum tersedia dari API. Muat ulang setelah backend diperbarui.',
+            ),
+          if (raw is List && fields.isEmpty)
+            const Text(
+              'Pengajuan ini belum memiliki field pendaftaran. Periksa sebelum menyetujui.',
+            ),
+          for (var i = 0; i < fields.length; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 6,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      color: _blue,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
+                  const Icon(Icons.list_alt_outlined, size: 18, color: _blue),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Formulir Pendaftaran Peserta',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A2E),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          fields[i]['nama_field']?.toString() ?? 'Tanpa nama',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          '${fields[i]['tipe_field'] ?? 'Tidak diketahui'} • '
+                          '${fields[i]['wajib'] == true || fields[i]['wajib'] == 1 ? 'Wajib' : 'Opsional'}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF757575),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7FB),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  '3 Field Diatur',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF757575),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildFieldItem(
-            icon: Icons.person_outline,
-            title: 'Nama Pengguna',
-            subtitle: 'Otomatis dari profil akun',
-            badge: 'Standar Sistem',
-            badgeColor: const Color(0xFFE8ECF1),
-            badgeTextColor: const Color(0xFF757575),
-          ),
-          const SizedBox(height: 12),
-          _buildFieldItem(
-            number: '1',
-            title: 'Motivasi Mengikuti Lomba',
-            subtitle: 'Tipe: Jawaban Teks',
-            badge: 'Wajib',
-            badgeColor: const Color(0xFFFFF3E0),
-            badgeTextColor: const Color(0xFFE65100),
-          ),
-          const SizedBox(height: 12),
-          _buildFieldItem(
-            number: '2',
-            title: 'Upload Berkas Karya Tulis (PDF)',
-            subtitle: 'Tipe: Upload File',
-            badge: 'Wajib',
-            badgeColor: const Color(0xFFFFF3E0),
-            badgeTextColor: const Color(0xFFE65100),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFieldItem({
-    IconData? icon,
-    String? number,
-    required String title,
-    required String subtitle,
-    required String badge,
-    required Color badgeColor,
-    required Color badgeTextColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 20, color: const Color(0xFF9E9E9E)),
-            const SizedBox(width: 10),
-          ],
-          if (number != null) ...[
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE3F2FD),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Center(
-                child: Text(
-                  number,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _blue,
-                  ),
-                ),
-              ),
             ),
-            const SizedBox(width: 10),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A2E),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF9E9E9E),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: badgeColor,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              badge,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: badgeTextColor,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -438,7 +383,7 @@ class DetailPengajuanPage extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -486,78 +431,111 @@ class DetailPengajuanPage extends StatelessWidget {
   }
 
   void _showApproveDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Setujui Pengajuan'),
-          content: const Text('Apakah Anda yakin ingin menyetujui pengajuan lomba ini?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context, true); // Return true to refresh list
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Pengajuan berhasil disetujui'),
-                    backgroundColor: Color(0xFF4CAF50),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _blue,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text('Setujui'),
-            ),
-          ],
-        );
-      },
-    );
+    _showDecisionDialog(context, 'Disetujui');
   }
 
   void _showRejectDialog(BuildContext context) {
-    showDialog(
+    _showDecisionDialog(context, 'Ditolak');
+  }
+
+  Future<void> _showDecisionDialog(
+    BuildContext context,
+    String keputusan,
+  ) async {
+    final idPengajuan = int.tryParse(item['id_pengajuan']?.toString() ?? '');
+    if (idPengajuan == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ID pengajuan tidak valid.')),
+      );
+      return;
+    }
+
+    final disetujui = keputusan == 'Disetujui';
+    bool sedangMengirim = false;
+    await showDialog<void>(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Tolak Pengajuan'),
-          content: const Text('Apakah Anda yakin ingin menolak pengajuan lomba ini?'),
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(disetujui ? 'Setujui Pengajuan' : 'Tolak Pengajuan'),
+          content: Text(
+            disetujui
+                ? 'Apakah Anda yakin ingin menyetujui pengajuan lomba ini?'
+                : 'Apakah Anda yakin ingin menolak pengajuan lomba ini?',
+          ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: sedangMengirim
+                  ? null
+                  : () => Navigator.pop(dialogContext),
               child: const Text('Batal'),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context, false); // Return false to refresh list
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Pengajuan ditolak'),
-                    backgroundColor: Color(0xFFE53935),
-                  ),
-                );
-              },
+              onPressed: sedangMengirim
+                  ? null
+                  : () async {
+                      setDialogState(() => sedangMengirim = true);
+                      try {
+                        await ApiService.putuskanPengajuanLomba(
+                          token: token,
+                          idPengajuan: idPengajuan,
+                          keputusan: keputusan,
+                        );
+                        if (!dialogContext.mounted || !context.mounted) return;
+                        final messenger = ScaffoldMessenger.of(context);
+                        Navigator.pop(
+                          dialogContext,
+                        ); // Tutup dialog setelah API berhasil.
+                        Navigator.pop(
+                          context,
+                          true,
+                        ); // Segarkan daftar pengajuan.
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              disetujui
+                                  ? 'Pengajuan berhasil disetujui.'
+                                  : 'Pengajuan berhasil ditolak.',
+                            ),
+                            backgroundColor: disetujui
+                                ? const Color(0xFF4CAF50)
+                                : const Color(0xFFE53935),
+                          ),
+                        );
+                      } catch (error) {
+                        if (!dialogContext.mounted) return;
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
+                          SnackBar(
+                            content: Text('Gagal memproses pengajuan: $error'),
+                          ),
+                        );
+                      } finally {
+                        if (dialogContext.mounted) {
+                          setDialogState(() => sedangMengirim = false);
+                        }
+                      }
+                    },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE53935),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                backgroundColor: disetujui ? _blue : const Color(0xFFE53935),
+                foregroundColor: Colors.white,
               ),
-              child: const Text('Tolak'),
+              child: sedangMengirim
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(disetujui ? 'Setujui' : 'Tolak'),
             ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 }

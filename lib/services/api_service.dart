@@ -10,7 +10,7 @@ class ApiService {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     // defaultValue: 'http://127.0.0.1:8000/api',
-    defaultValue: 'http://10.104.22.67:8000/api' 
+    defaultValue: 'http://10.104.22.67:8000/api',
   );
 
   // MEMBACA RESPONSE JSON
@@ -126,7 +126,7 @@ class ApiService {
             // Laravel menggunakan validator "confirmed".
             'password_confirmation': confirmation,
           }),
-        ) 
+        )
         .timeout(const Duration(seconds: 20));
 
     final data = _decodeResponse(response);
@@ -413,7 +413,11 @@ class ApiService {
     final data = _decodeResponse(response);
 
     if (response.statusCode != 200) {
-      throw _responseError(response, data, 'Gagal mengambil riwayat pendaftaran.');
+      throw _responseError(
+        response,
+        data,
+        'Gagal mengambil riwayat pendaftaran.',
+      );
     }
 
     if (data['data'] is! List) {
@@ -466,6 +470,7 @@ class ApiService {
     String? hadiah,
     String? kuotaPeserta,
     XFile? poster,
+    required List<Map<String, dynamic>> formFields,
   }) async {
     final request = http.MultipartRequest(
       'POST',
@@ -496,6 +501,18 @@ class ApiService {
     }
     if (kuotaPeserta != null && kuotaPeserta.trim().isNotEmpty) {
       request.fields['kuota_peserta'] = kuotaPeserta.trim();
+    }
+
+    for (var i = 0; i < formFields.length; i++) {
+      final field = formFields[i];
+      request.fields['form_fields[$i][nama_field]'] = field['nama_field']
+          .toString()
+          .trim();
+      request.fields['form_fields[$i][tipe_field]'] = field['tipe_field']
+          .toString();
+      request.fields['form_fields[$i][wajib]'] = field['wajib'] == true
+          ? '1'
+          : '0';
     }
 
     if (poster != null) {

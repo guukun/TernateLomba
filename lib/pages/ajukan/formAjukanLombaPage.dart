@@ -327,7 +327,7 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: DropdownButtonFormField<int>(
-                    value: _idKategori,
+                    initialValue: _idKategori,
                     isExpanded: true,
                     decoration: _dekorasi('Kategori lomba'),
                     items: _kategori.map((item) {

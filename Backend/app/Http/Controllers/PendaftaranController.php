@@ -8,7 +8,9 @@ use App\Models\Lomba;
 use App\Models\Pendaftaran;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -36,8 +38,10 @@ class PendaftaranController extends Controller
             return false;
         }
 
-        // Tanggal batas masih berlaku sampai akhir hari yang ditentukan.
-        return now()->toDateString() > Carbon::parse($batasPendaftaran)->toDateString();
+        // Kolom batas_pendaftaran merupakan tanggal kalender lokal Ternate (WIT).
+        // Pendaftaran dibuka hingga akhir tanggal tersebut, waktu Asia/Jayapura.
+        return Carbon::now('Asia/Jayapura')->toDateString()
+            > Carbon::parse($batasPendaftaran)->toDateString();
     }
 
     /** GET /api/lomba/{id}/form-fields */
@@ -212,9 +216,9 @@ class PendaftaranController extends Controller
                     ->exists();
 
                 if ($sudahDaftar) {
-                    throw ValidationException::withMessages([
-                        'pendaftaran' => 'Anda sudah terdaftar pada lomba ini.',
-                    ]);
+                    throw new HttpResponseException(response()->json([
+                        'pesan' => 'Anda sudah terdaftar pada lomba ini.',
+                    ], 409));
                 }
 
                 $jumlahPeserta = Pendaftaran::query()
@@ -288,6 +292,16 @@ class PendaftaranController extends Controller
             // penyimpanan database gagal.
             foreach ($uploadedPaths as $path) {
                 Storage::disk('local')->delete($path);
+            }
+
+            // Unique index database tetap menjadi pelindung akhir jika terjadi
+            // pendaftaran ganda secara bersamaan dari dua request.
+            if ($exception instanceof QueryException
+                && (int) ($exception->errorInfo[1] ?? 0) === 1062
+                && str_contains($exception->getMessage(), 'uq_pendaftaran_lomba_user')) {
+                return response()->json([
+                    'pesan' => 'Anda sudah terdaftar pada lomba ini.',
+                ], 409);
             }
 
             throw $exception;

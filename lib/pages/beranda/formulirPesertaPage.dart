@@ -99,9 +99,6 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
 
       // Pada file_picker versi 13, isi berkas dibaca secara eksplisit.
       final bytes = await picked.readAsBytes();
-      if (bytes == null) {
-        throw Exception('Berkas tidak dapat dibaca. Silakan pilih ulang.');
-      }
 
       if (bytes.length > 5 * 1024 * 1024) {
         throw Exception('Ukuran berkas maksimal 5 MB.');
@@ -195,7 +192,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
   final _asalController = TextEditingController();
   final _institusiController = TextEditingController();
 
-  String _jenisPeserta = 'Mahasiswa';
+  final String _jenisPeserta = 'Mahasiswa';
   bool _isSubmitting = false;
 
   @override

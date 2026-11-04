@@ -188,46 +188,9 @@ class _PengajuanPageState extends State<PengajuanPage> {
     return Icons.menu_book_rounded;
   }
 
-  Widget _card(Map<String, dynamic> item) {
-    final name = (item['nama_lomba'] ?? 'Lomba tanpa nama').toString();
-    final status = _status(item);
-    final category = _category(item);
-    final eventDate = _shortDate(item['tanggal_pelaksanaan']);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        child: InkWell(
-          onTap: () => _openDetails(item),
-          borderRadius: BorderRadius.circular(22),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              border: Border.all(color: _outline),
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF253759).withValues(alpha: 0.025),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Thumbnail seirama dengan kartu Beranda. Tidak memakai tahun statis.
-                Container(
-                  width: 94,
-                  height: 122,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F1FF),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Stack(
+  Widget _posterFallback(String category, String eventDate) {
+    return Stack(
                     children: [
                       Positioned(
                         top: -18,
@@ -288,7 +251,63 @@ class _PengajuanPageState extends State<PengajuanPage> {
                         ),
                       ),
                     ],
+                  );
+  }
+
+  Widget _card(Map<String, dynamic> item) {
+    final name = (item['nama_lomba'] ?? 'Lomba tanpa nama').toString();
+    final status = _status(item);
+    final category = _category(item);
+    final eventDate = _shortDate(item['tanggal_pelaksanaan']);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          onTap: () => _openDetails(item),
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              border: Border.all(color: _outline),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF253759).withValues(alpha: 0.025),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Poster yang diunggah penyelenggara ditampilkan apa adanya.
+                Container(
+                  width: 94,
+                  height: 122,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F1FF),
+                    borderRadius: BorderRadius.circular(18),
                   ),
+                  child: ApiService.publicStorageUrl(
+                            item['poster_lomba']?.toString(),
+                          ) ==
+                          null
+                      ? _posterFallback(category, eventDate)
+                      : Image.network(
+                          ApiService.publicStorageUrl(
+                            item['poster_lomba']?.toString(),
+                          )!,
+                          width: 94,
+                          height: 122,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              _posterFallback(category, eventDate),
+                        ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(

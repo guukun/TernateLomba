@@ -1,4 +1,7 @@
 *
 !private/
 !public/
+!public/.gitignore
+!public/poster-lomba/
+!public/poster-lomba/.gitkeep
 !.gitignore

@@ -13,6 +13,45 @@ class ApiService {
     defaultValue: 'http://10.104.22.67:8000/api',
   );
 
+  /// Membentuk URL gambar dengan merujuk path poster yang disimpan MySQL.
+  ///
+  /// Nilai database tetap berupa path, misalnya:
+  /// poster-lomba/abc123.jpg
+  /// Laravel akan mencari record pengajuan berdasarkan nama file tersebut,
+  /// lalu membaca file aslinya dari public storage.
+  static String? publicStorageUrl(String? path) {
+    final value = path?.trim() ?? '';
+    if (value.isEmpty) return null;
+
+    try {
+      final normalized = value.replaceAll('\\', '/');
+      final parsed = Uri.tryParse(normalized);
+      final segments = parsed != null && parsed.hasScheme
+          ? parsed.pathSegments.where((segment) => segment.isNotEmpty).toList()
+          : normalized
+              .split('/')
+              .where((segment) => segment.isNotEmpty)
+              .toList();
+
+      if (segments.isEmpty) return null;
+
+      final filename = Uri.decodeComponent(segments.last);
+      if (filename == '.' ||
+          filename == '..' ||
+          filename.contains('/') ||
+          filename.contains('\\') ||
+          !RegExp(r'\.(jpg|jpeg|png)$', caseSensitive: false)
+              .hasMatch(filename)) {
+        return null;
+      }
+
+      final endpoint = baseUrl.replaceFirst(RegExp(r'/+$'), '');
+      return '$endpoint/poster-lomba/${Uri.encodeComponent(filename)}';
+    } catch (_) {
+      return null;
+    }
+  }
+
   // MEMBACA RESPONSE JSON
   // Fungsi ini mencegah error ketika Laravel
   // mengembalikan response yang bukan JSON.
@@ -469,7 +508,7 @@ class ApiService {
     String? persyaratan,
     String? hadiah,
     String? kuotaPeserta,
-    XFile? poster,
+    required XFile poster,
     required List<Map<String, dynamic>> formFields,
   }) async {
     final request = http.MultipartRequest(
@@ -515,15 +554,18 @@ class ApiService {
           : '0';
     }
 
-    if (poster != null) {
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'poster_lomba',
-          await poster.readAsBytes(),
-          filename: poster.name,
-        ),
-      );
+    // Poster wajib dikirim sebagai file multipart, bukan hanya nama/path.
+    final posterBytes = await poster.readAsBytes();
+    if (posterBytes.isEmpty) {
+      throw Exception('File poster kosong atau tidak dapat dibaca.');
     }
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'poster_lomba',
+        posterBytes,
+        filename: poster.name,
+      ),
+    );
 
     final streamedResponse = await request.send().timeout(
       const Duration(seconds: 60),

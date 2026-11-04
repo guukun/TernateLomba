@@ -129,24 +129,56 @@ class DetailPengajuanPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (ApiService.publicStorageUrl(item['poster_lomba']?.toString()) != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Image.network(
+                    ApiService.publicStorageUrl(item['poster_lomba']?.toString())!,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: const Color(0xFFEAF2FF),
+                      child: const Icon(Icons.image_not_supported_outlined, color: _blue, size: 42),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1B2A4A),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.emoji_events_outlined,
-                      color: Colors.white,
-                      size: 30,
-                    ),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    width: 88,
+                    height: 88,
+                    child: ApiService.publicStorageUrl(item['poster_lomba']?.toString()) == null
+                        ? Container(
+                            color: const Color(0xFFEAF2FF),
+                            child: const Icon(
+                              Icons.emoji_events_outlined,
+                              color: _blue,
+                              size: 34,
+                            ),
+                          )
+                        : Image.network(
+                            ApiService.publicStorageUrl(item['poster_lomba']?.toString())!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xFFEAF2FF),
+                              child: const Icon(
+                                Icons.image_not_supported_outlined,
+                                color: _blue,
+                                size: 34,
+                              ),
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(width: 12),

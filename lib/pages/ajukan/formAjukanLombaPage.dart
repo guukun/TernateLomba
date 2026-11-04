@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -44,6 +46,7 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
   DateTime? _tanggalPelaksanaan;
   DateTime? _batasPendaftaran;
   XFile? _poster;
+  Uint8List? _posterPreviewBytes;
   bool _loadingKategori = true;
   bool _mengirim = false;
   String? _errorKategori;
@@ -142,7 +145,10 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
         _pesan('Ukuran poster maksimal 5 MB.');
         return;
       }
-      setState(() => _poster = image);
+      setState(() {
+        _poster = image;
+        _posterPreviewBytes = bytes;
+      });
     } catch (e) {
       _pesan('Gagal memilih poster: $e');
     }
@@ -247,6 +253,10 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
       _pesan('Tanggal pelaksanaan dan batas pendaftaran wajib dipilih.');
       return;
     }
+    if (_poster == null || _posterPreviewBytes == null) {
+      _pesan('Poster lomba wajib diunggah sebelum pengajuan dikirim.');
+      return;
+    }
     final pelaksanaan = DateTime(
       _tanggalPelaksanaan!.year,
       _tanggalPelaksanaan!.month,
@@ -303,7 +313,7 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
         hadiah: _hadiahController.text,
         kuotaPeserta: kuota,
         kontakPenyelenggara: _kontakController.text,
-        poster: _poster,
+        poster: _poster!,
         formFields: _formFields,
       );
       if (!mounted) return;
@@ -584,7 +594,7 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                     Expanded(
                       child: Text(
                         _poster?.name ??
-                            'Poster lomba (opsional, JPG/PNG, maks. 5 MB)',
+                            'Poster lomba wajib diunggah (JPG/PNG, maks. 5 MB)',
                         style: const TextStyle(color: _text, fontSize: 13),
                       ),
                     ),
@@ -601,12 +611,34 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                         tooltip: 'Hapus poster',
                         onPressed: _mengirim
                             ? null
-                            : () => setState(() => _poster = null),
+                            : () => setState(() {
+                                _poster = null;
+                                _posterPreviewBytes = null;
+                              }),
                         icon: const Icon(Icons.close, color: Colors.red),
                       ),
                   ],
                 ),
               ),
+              if (_posterPreviewBytes != null) ...[
+                const SizedBox(height: 2),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    width: double.infinity,
+                    height: 190,
+                    color: _background,
+                    child: Image.memory(
+                      _posterPreviewBytes!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(Icons.broken_image_outlined, color: _muted, size: 42),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               _pembuatFormulir(),
               SizedBox(
                 height: 52,

@@ -426,6 +426,24 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (ApiService.publicStorageUrl(item['poster_lomba']?.toString()) != null) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 150,
+                      child: Image.network(
+                        ApiService.publicStorageUrl(item['poster_lomba']?.toString())!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: lightBlue,
+                          child: const Icon(Icons.image_not_supported_outlined, color: primaryBlue, size: 40),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 13),
+                ],
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -624,6 +642,24 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (ApiService.publicStorageUrl(item['poster_lomba']?.toString()) != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 138,
+                    child: Image.network(
+                      ApiService.publicStorageUrl(item['poster_lomba']?.toString())!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: lightBlue,
+                        child: const Icon(Icons.image_not_supported_outlined, color: primaryBlue, size: 38),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 13),
+              ],
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

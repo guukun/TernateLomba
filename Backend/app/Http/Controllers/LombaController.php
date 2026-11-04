@@ -114,6 +114,9 @@ class LombaController extends Controller
             'kuota_peserta' => $pengajuan->kuota_peserta,
             'kontak_penyelenggara' => $pengajuan->kontak_penyelenggara,
             'poster_lomba' => $pengajuan->poster_lomba,
+            'poster_url' => $pengajuan->poster_lomba
+                ? url('/api/poster-lomba/' . rawurlencode(basename($pengajuan->poster_lomba)))
+                : null,
             'status_lomba' => $lomba->status_lomba,
             'kategori' => [
                 'id_kategori' => $kategori->id_kategori,

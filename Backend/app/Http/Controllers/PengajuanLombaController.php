@@ -47,6 +47,9 @@ class PengajuanLombaController extends Controller
                     'kuota_peserta' => $item->kuota_peserta,
                     'kontak_penyelenggara' => $item->kontak_penyelenggara,
                     'poster_lomba' => $item->poster_lomba,
+                    'poster_url' => $item->poster_lomba
+                        ? url('/api/poster-lomba/' . rawurlencode(basename($item->poster_lomba)))
+                        : null,
                     'status_pengajuan' => $item->status_pengajuan,
                     'catatan_admin' => $item->catatan_admin,
                     'tanggal_pengajuan' => $item->tanggal_pengajuan?->toISOString(),
@@ -85,21 +88,46 @@ class PengajuanLombaController extends Controller
             'hadiah' => ['nullable', 'string', 'max:10000'],
             'kuota_peserta' => ['nullable', 'integer', 'min:1'],
             'kontak_penyelenggara' => ['required', 'string', 'max:100'],
-            'poster_lomba' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'poster_lomba' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
             'form_fields' => ['required', 'array', 'min:1', 'max:30'],
             'form_fields.*.nama_field' => ['required', 'string', 'max:150'],
             'form_fields.*.tipe_field' => ['required', 'in:Text,File'],
             'form_fields.*.wajib' => ['required', 'boolean'],
         ]);
 
-        $posterPath = null;
-        if ($request->hasFile('poster_lomba')) {
+        // Pastikan request benar-benar membawa file poster.
+        if (!$request->hasFile('poster_lomba') ||
+            !$request->file('poster_lomba')->isValid()) {
+            return response()->json([
+                'pesan' => 'File poster tidak diterima server. Silakan pilih ulang poster.',
+            ], 422);
+        }
+
+        // Siapkan folder tujuan agar selalu tersedia.
+        $publicDisk = Storage::disk('public');
+        $publicDisk->makeDirectory('poster-lomba');
+
+        // Simpan file fisik pada:
+        // storage/app/public/poster-lomba/
+        try {
             $posterPath = $request->file('poster_lomba')->store('poster-lomba', 'public');
-            if (!$posterPath) {
-                return response()->json([
-                    'pesan' => 'Poster gagal disimpan. Silakan coba lagi.',
-                ], 500);
-            }
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return response()->json([
+                'pesan' => 'Laravel gagal menyimpan poster. Periksa konfigurasi disk public dan izin folder storage.',
+            ], 500);
+        }
+
+        // Jangan menyimpan record MySQL jika file fisik tidak benar-benar ada.
+        if (
+            !is_string($posterPath) ||
+            $posterPath === '' ||
+            !$publicDisk->exists($posterPath)
+        ) {
+            return response()->json([
+                'pesan' => 'Poster belum berhasil tersimpan di storage/app/public/poster-lomba.',
+            ], 500);
         }
 
         try {
@@ -146,6 +174,10 @@ class PengajuanLombaController extends Controller
                 'id_pengajuan' => $pengajuan->id_pengajuan,
                 'nama_lomba' => $pengajuan->nama_lomba,
                 'status_pengajuan' => $pengajuan->status_pengajuan,
+                'poster_lomba' => $pengajuan->poster_lomba,
+                'poster_url' => $pengajuan->poster_lomba
+                    ? url('/api/poster-lomba/' . rawurlencode(basename($pengajuan->poster_lomba)))
+                    : null,
                 'tanggal_pengajuan' => $pengajuan->tanggal_pengajuan?->toISOString(),
             ],
         ], 201);
@@ -180,6 +212,9 @@ class PengajuanLombaController extends Controller
                 'kuota_peserta' => $item->kuota_peserta,
                 'kontak_penyelenggara' => $item->kontak_penyelenggara,
                 'poster_lomba' => $item->poster_lomba,
+                    'poster_url' => $item->poster_lomba
+                        ? url('/api/poster-lomba/' . rawurlencode(basename($item->poster_lomba)))
+                        : null,
                 'status_pengajuan' => $item->status_pengajuan,
                 'catatan_admin' => $item->catatan_admin,
                 'tanggal_pengajuan' => $item->tanggal_pengajuan?->toISOString(),

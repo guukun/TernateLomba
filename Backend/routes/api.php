@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LombaController;
 use App\Http\Controllers\PendaftaranController;
 use App\Http\Controllers\PengajuanLombaController;
+use App\Http\Controllers\PosterLombaController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Middleware\AuthenticateApiToken;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,8 @@ Route::get('/profile-photo/{filename}', [ProfileController::class, 'photo']);
 Route::get('/kategori', [LombaController::class, 'kategori']);
 Route::get('/lomba', [LombaController::class, 'index']);
 Route::get('/lomba/{id}', [LombaController::class, 'show'])->whereNumber('id');
+Route::get('/poster-lomba/{filename}', [PosterLombaController::class, 'show'])
+    ->where('filename', '[^/]+');
 Route::get('/lomba/{id}/form-fields', [PendaftaranController::class, 'formFields'])
     ->whereNumber('id');
 

@@ -325,6 +325,10 @@ class PendaftaranController extends Controller
                 'id_pendaftaran' => $item->id_pendaftaran,
                 'id_lomba' => $item->id_lomba,
                 'nama_lomba' => $item->lomba?->pengajuan?->nama_lomba,
+                'poster_lomba' => $item->lomba?->pengajuan?->poster_lomba,
+                'poster_url' => $item->lomba?->pengajuan?->poster_lomba
+                    ? url('/api/poster-lomba/' . rawurlencode(basename($item->lomba->pengajuan->poster_lomba)))
+                    : null,
                 'tanggal_pendaftaran' => $item->tanggal_pendaftaran,
                 'status_pendaftaran' => $item->status_pendaftaran,
             ])->values(),

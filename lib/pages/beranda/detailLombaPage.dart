@@ -247,6 +247,28 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                if (ApiService.publicStorageUrl(lomba['poster_lomba']) != null) ...[
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(17),
+                                    child: AspectRatio(
+                                      aspectRatio: 16 / 9,
+                                      child: Image.network(
+                                        ApiService.publicStorageUrl(lomba['poster_lomba'])!,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          color: primaryLight,
+                                          child: const Icon(
+                                            Icons.image_not_supported_outlined,
+                                            color: primary,
+                                            size: 42,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 12,

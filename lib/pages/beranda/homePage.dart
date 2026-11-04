@@ -1193,76 +1193,66 @@ class _HomePageState extends State<HomePage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ILUSTRASI POSTER
-              Container(
-                width: 86,
-                height: 112,
-                decoration: BoxDecoration(
-                  color: warnaLatarPoster,
-                  borderRadius: BorderRadius.circular(17),
-                ),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      top: -12,
-                      right: -12,
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: warnaPoster.withValues(alpha: 0.10),
-                          shape: BoxShape.circle,
+              // Poster asli dari pengajuan. Gunakan ilustrasi kategori jika poster belum tersedia.
+              ClipRRect(
+                borderRadius: BorderRadius.circular(17),
+                child: SizedBox(
+                  width: 86,
+                  height: 112,
+                  child: ApiService.publicStorageUrl(lomba['poster_lomba']) == null
+                      ? Container(
+                          color: warnaLatarPoster,
+                          child: Stack(
+                            children: [
+                              Positioned(
+                                top: -12,
+                                right: -12,
+                                child: Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: warnaPoster.withValues(alpha: 0.10),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                              Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      kategori == 'Seni'
+                                          ? Icons.palette_rounded
+                                          : kategori == 'Teknologi'
+                                              ? Icons.psychology_alt_rounded
+                                              : Icons.menu_book_rounded,
+                                      size: 28,
+                                      color: warnaPoster,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      kategori.isEmpty ? 'LOMBA' : kategori.toUpperCase(),
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: warnaPoster,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Image.network(
+                          ApiService.publicStorageUrl(lomba['poster_lomba'])!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: warnaLatarPoster,
+                            child: Icon(Icons.image_not_supported_outlined, color: warnaPoster, size: 30),
+                          ),
                         ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: -12,
-                      left: -10,
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: warnaPoster.withValues(alpha: 0.08),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                    Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            kategori == 'Seni'
-                                ? Icons.palette_rounded
-                                : kategori == 'Teknologi'
-                                ? Icons.psychology_alt_rounded
-                                : Icons.menu_book_rounded,
-                            size: 28,
-                            color: warnaPoster,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            lomba['poster'] ?? '',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: warnaPoster,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            lomba['tanggal'] ?? '',
-                            style: TextStyle(
-                              color: warnaPoster,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ),
               ),
               const SizedBox(width: 14),

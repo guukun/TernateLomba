@@ -25,6 +25,19 @@ class FormField extends Model
         'urutan' => 'integer',
     ];
 
+    /**
+     * Normalize enum values so both 'Text'/'File' and 'text'/'file'
+     * from an existing database are handled consistently by the API.
+     */
+    public function getTipeFieldAttribute($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return ucfirst(strtolower((string) $value));
+    }
+
     public function pengajuan(): BelongsTo
     {
         return $this->belongsTo(

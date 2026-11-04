@@ -83,11 +83,13 @@ class _AuthScreenState extends State<AuthScreen> {
       final Map<String, dynamic> data;
 
       if (isLogin) {
+        // Login tanpa mengirim role.
         data = await ApiService.login(
           username,
           password,
         ).timeout(const Duration(seconds: 20));
       } else {
+        // Role akun baru ditetapkan oleh Laravel.
         data = await ApiService.register(
           username,
           password,
@@ -111,19 +113,26 @@ class _AuthScreenState extends State<AuthScreen> {
           return;
         }
 
-        final usernameLogin = user['username']?.toString() ?? '';
-        final roleLogin = user['role']?.toString() ?? '';
+        final usernameLogin = user['username']?.toString().trim() ?? '';
 
-        if (usernameLogin.trim().isEmpty) {
+        // Normalisasi role agar tidak sensitif huruf kapital.
+        final roleLogin = user['role']?.toString().trim().toLowerCase() ?? '';
+
+        // Ketiga role TernateLomba diperbolehkan login.
+        const allowedRoles = {'user', 'penyelenggara', 'administrator'};
+
+        if (!allowedRoles.contains(roleLogin)) {
+          _showMessage('Role akun tidak valid. Hubungi administrator.');
+          return;
+        }
+
+        if (usernameLogin.isEmpty) {
           _showMessage('Username dari database tidak valid.');
           return;
         }
 
-        if (roleLogin.trim().isEmpty) {
-          _showMessage('Role dari database tidak valid.');
-          return;
-        }
-
+        // Login berhasil.
+        // Dashboard khusus Administrator akan dibuat terpisah.
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => MainPage(
@@ -152,7 +161,8 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     } on TimeoutException {
       _showMessage(
-        'Server tidak merespons. Pastikan Laravel dan MySQL berjalan.',
+        'Server tidak merespons. '
+        'Pastikan Laravel dan MySQL berjalan.',
       );
     } on FormatException {
       _showMessage('Respons Laravel bukan JSON yang sesuai.');
@@ -286,6 +296,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       letterSpacing: -0.6,
                     ),
                   ),
+
                   const SizedBox(height: 7),
 
                   const Text(
@@ -324,7 +335,9 @@ class _AuthScreenState extends State<AuthScreen> {
                               fontWeight: FontWeight.w800,
                             ),
                           ),
+
                           const SizedBox(height: 7),
+
                           Text(
                             _isLogin ? 'Masuk untuk menemukan peluang lomba.' : 'Daftar untuk mulai menjelajahi TernateLomba.',
                             style: const TextStyle(
@@ -355,6 +368,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
                           // USERNAME
                           _label('Nama Pengguna'),
+
                           CustomTextField(
                             controller: _username,
                             hintText: 'Masukkan nama pengguna',
@@ -376,6 +390,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
                           // PASSWORD
                           _label('Password'),
+
                           CustomTextField(
                             controller: _password,
                             hintText: 'Masukkan password',
@@ -402,7 +417,9 @@ class _AuthScreenState extends State<AuthScreen> {
                           // KONFIRMASI PASSWORD
                           if (!_isLogin) ...[
                             const SizedBox(height: 17),
+
                             _label('Konfirmasi Password'),
+
                             CustomTextField(
                               controller: _confirm,
                               hintText: 'Ulangi password',
@@ -452,6 +469,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                   fontSize: 12,
                                 ),
                               ),
+
                               GestureDetector(
                                 onTap: _loading
                                     ? null

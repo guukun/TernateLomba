@@ -5,14 +5,16 @@ import '../config/appTheme.dart';
 class FloatingNavigationBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final bool isAdmin;
 
   const FloatingNavigationBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.isAdmin = false,
   });
 
-  static const List<_NavigationItem> _items = [
+  static const List<_NavigationItem> _baseItems = [
     _NavigationItem(
       label: 'Beranda',
       icon: Icons.home_outlined,
@@ -34,6 +36,16 @@ class FloatingNavigationBar extends StatelessWidget {
       activeIcon: Icons.person_rounded,
     ),
   ];
+
+  List<_NavigationItem> get _items => [
+        ..._baseItems,
+        if (isAdmin)
+          const _NavigationItem(
+            label: 'Verifikasi',
+            icon: Icons.fact_check_outlined,
+            activeIcon: Icons.fact_check_rounded,
+          ),
+      ];
 
   @override
   Widget build(BuildContext context) {

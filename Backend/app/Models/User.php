@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    use Notifiable;
+    use HasFactory, Notifiable;
 
     protected $table = 'users';
 
@@ -20,9 +21,20 @@ class User extends Authenticatable
         'role',
         'foto_profil',
     ];
+
     protected $hidden = [
         'password',
+        'api_token_hash',
+        'api_token_expires_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'api_token_expires_at' => 'datetime',
+        ];
+    }
+
     public function pengajuanLomba(): HasMany
     {
         return $this->hasMany(

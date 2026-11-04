@@ -102,7 +102,7 @@ class NotifikasiPage extends StatelessWidget {
                       height: 145,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.07),
+                        color: Colors.white.withValues(alpha: 0.07),
                       ),
                     ),
                   ),
@@ -115,7 +115,7 @@ class NotifikasiPage extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.13),
+                          color: Colors.white.withValues(alpha: 0.13),
                           width: 18,
                         ),
                       ),
@@ -127,7 +127,7 @@ class NotifikasiPage extends StatelessWidget {
                       Row(
                         children: [
                           Material(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withValues(alpha: 0.15),
                             shape: const CircleBorder(),
                             child: InkWell(
                               customBorder: const CircleBorder(),
@@ -161,10 +161,10 @@ class NotifikasiPage extends StatelessWidget {
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.16),
+                              color: Colors.white.withValues(alpha: 0.16),
                               borderRadius: BorderRadius.circular(24),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.18),
+                                color: Colors.white.withValues(alpha: 0.18),
                               ),
                             ),
                             child: Row(
@@ -205,7 +205,7 @@ class NotifikasiPage extends StatelessWidget {
                         'Semua kabar penting tentang aktivitas\n'
                         'dan perjalanan lombamu ada di sini.',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.84),
+                          color: Colors.white.withValues(alpha: 0.84),
                           fontSize: 13,
                           height: 1.7,
                         ),
@@ -217,7 +217,7 @@ class NotifikasiPage extends StatelessWidget {
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.13),
+                          color: Colors.white.withValues(alpha: 0.13),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
@@ -316,7 +316,7 @@ class NotifikasiPage extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE7ECF4)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF344054).withOpacity(0.035),
+            color: const Color(0xFF344054).withValues(alpha: 0.035),
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
@@ -329,7 +329,7 @@ class NotifikasiPage extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: accent.withOpacity(0.10),
+              color: accent.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(17),
             ),
             child: Icon(_iconFor(title), color: accent, size: 25),

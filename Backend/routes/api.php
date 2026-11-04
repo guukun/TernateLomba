@@ -8,6 +8,7 @@ use App\Http\Controllers\PosterLombaController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Middleware\AuthenticateApiToken;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\NotifikasiController;
 
 // Endpoint publik.
 Route::get('/tes-koneksi', function () {
@@ -54,4 +55,14 @@ Route::middleware(AuthenticateApiToken::class)->group(function () {
         '/pendaftaran/{id}/jawaban/{idJawaban}/file',
         [PendaftaranController::class, 'unduhJawabanFile']
     )->whereNumber('id')->whereNumber('idJawaban');
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/notifikasi', [NotifikasiController::class, 'index']);
+    Route::get('/notifikasi/unread-count', [NotifikasiController::class, 'unreadCount']);
+
+    Route::patch('/notifikasi/{id}/read', [NotifikasiController::class, 'markAsRead']);
+    Route::patch('/notifikasi/read-all', [NotifikasiController::class, 'markAllAsRead']);
+
+    Route::delete('/notifikasi/{id}', [NotifikasiController::class, 'destroy']);
 });

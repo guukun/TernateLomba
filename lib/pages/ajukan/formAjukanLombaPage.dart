@@ -30,6 +30,15 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
   final _kontakController = TextEditingController();
   final _imagePicker = ImagePicker();
 
+  // Field yang harus diisi peserta saat mendaftar lomba ini.
+  final List<Map<String, dynamic>> _formFields = [
+    {
+      'nama_field': 'Asal sekolah / instansi',
+      'tipe_field': 'Text',
+      'wajib': true,
+    },
+  ];
+
   List<Map<String, dynamic>> _kategori = [];
   int? _idKategori;
   DateTime? _tanggalPelaksanaan;
@@ -91,13 +100,17 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
 
   Future<void> _pilihTanggal({required bool tanggalPelaksanaan}) async {
     final now = DateTime.now();
-    final current = tanggalPelaksanaan ? _tanggalPelaksanaan : _batasPendaftaran;
+    final current = tanggalPelaksanaan
+        ? _tanggalPelaksanaan
+        : _batasPendaftaran;
     final date = await showDatePicker(
       context: context,
       initialDate: current ?? DateTime(now.year, now.month, now.day),
       firstDate: DateTime(now.year, now.month, now.day),
       lastDate: DateTime(now.year + 10),
-      helpText: tanggalPelaksanaan ? 'Tanggal pelaksanaan lomba' : 'Batas pendaftaran',
+      helpText: tanggalPelaksanaan
+          ? 'Tanggal pelaksanaan lomba'
+          : 'Batas pendaftaran',
       cancelText: 'BATAL',
       confirmText: 'PILIH',
     );
@@ -139,10 +152,12 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(message),
-        backgroundColor: sukses ? Colors.green.shade700 : Colors.red.shade700,
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: sukses ? Colors.green.shade700 : Colors.red.shade700,
+        ),
+      );
   }
 
   String? _wajib(String? value, String label) {
@@ -187,14 +202,20 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
         controller: controller,
         maxLines: maxLines,
         keyboardType: keyboardType,
-        textCapitalization: maxLines > 1 ? TextCapitalization.sentences : TextCapitalization.words,
+        textCapitalization: maxLines > 1
+            ? TextCapitalization.sentences
+            : TextCapitalization.words,
         decoration: _dekorasi(label, hint: hint),
         validator: validator,
       ),
     );
   }
 
-  Widget _tanggal({required String label, required DateTime? value, required VoidCallback onTap}) {
+  Widget _tanggal({
+    required String label,
+    required DateTime? value,
+    required VoidCallback onTap,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: InkWell(
@@ -204,7 +225,10 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
           decoration: _dekorasi(label, icon: Icons.calendar_month_outlined),
           child: Text(
             _formatTanggal(value),
-            style: TextStyle(color: value == null ? _muted : _text, fontSize: 14),
+            style: TextStyle(
+              color: value == null ? _muted : _text,
+              fontSize: 14,
+            ),
           ),
         ),
       ),
@@ -223,23 +247,45 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
       _pesan('Tanggal pelaksanaan dan batas pendaftaran wajib dipilih.');
       return;
     }
-    final pelaksanaan = DateTime(_tanggalPelaksanaan!.year, _tanggalPelaksanaan!.month, _tanggalPelaksanaan!.day);
-    final batas = DateTime(_batasPendaftaran!.year, _batasPendaftaran!.month, _batasPendaftaran!.day);
+    final pelaksanaan = DateTime(
+      _tanggalPelaksanaan!.year,
+      _tanggalPelaksanaan!.month,
+      _tanggalPelaksanaan!.day,
+    );
+    final batas = DateTime(
+      _batasPendaftaran!.year,
+      _batasPendaftaran!.month,
+      _batasPendaftaran!.day,
+    );
     if (batas.isAfter(pelaksanaan)) {
       _pesan('Batas pendaftaran tidak boleh setelah tanggal pelaksanaan.');
       return;
     }
 
-    final biaya = _biayaController.text.trim().isEmpty ? '0' : _biayaController.text.trim();
+    final biaya = _biayaController.text.trim().isEmpty
+        ? '0'
+        : _biayaController.text.trim();
     final parsedBiaya = num.tryParse(biaya);
     if (parsedBiaya == null || parsedBiaya < 0) {
       _pesan('Biaya harus berupa angka nol atau lebih.');
       return;
     }
     final kuota = _kuotaController.text.trim();
-    if (kuota.isNotEmpty && (int.tryParse(kuota) == null || int.parse(kuota) < 1)) {
+    if (kuota.isNotEmpty &&
+        (int.tryParse(kuota) == null || int.parse(kuota) < 1)) {
       _pesan('Kuota harus berupa bilangan bulat minimal 1.');
       return;
+    }
+
+    if (_formFields.isEmpty) {
+      _pesan('Tambahkan minimal satu field pendaftaran peserta.');
+      return;
+    }
+    for (final field in _formFields) {
+      if (field['nama_field'].toString().trim().isEmpty) {
+        _pesan('Nama field pendaftaran tidak boleh kosong.');
+        return;
+      }
     }
 
     setState(() => _mengirim = true);
@@ -258,18 +304,115 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
         kuotaPeserta: kuota,
         kontakPenyelenggara: _kontakController.text,
         poster: _poster,
+        formFields: _formFields,
       );
       if (!mounted) return;
       _pesan(
-        response['pesan']?.toString() ?? 'Pengajuan lomba berhasil dikirim dan menunggu verifikasi admin.',
+        response['pesan']?.toString() ??
+            'Pengajuan lomba berhasil dikirim dan menunggu verifikasi admin.',
         sukses: true,
       );
       Navigator.of(context).pop(true);
     } catch (e) {
-      _pesan('Pengajuan gagal: ${e.toString().replaceFirst('Exception: ', '')}');
+      _pesan(
+        'Pengajuan gagal: ${e.toString().replaceFirst('Exception: ', '')}',
+      );
     } finally {
       if (mounted) setState(() => _mengirim = false);
     }
+  }
+
+  Widget _pembuatFormulir() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Formulir pendaftaran peserta',
+          style: TextStyle(
+            color: _text,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Tentukan informasi yang harus diisi peserta ketika mendaftar lomba.',
+          style: TextStyle(color: _muted),
+        ),
+        const SizedBox(height: 12),
+        for (var index = 0; index < _formFields.length; index++)
+          Card(
+            key: ObjectKey(_formFields[index]),
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  TextFormField(
+                    initialValue: _formFields[index]['nama_field'].toString(),
+                    maxLength: 150,
+                    decoration: _dekorasi('Nama field'),
+                    onChanged: (value) =>
+                        _formFields[index]['nama_field'] = value,
+                    validator: (value) => _wajib(value, 'Nama field'),
+                  ),
+                  DropdownButtonFormField<String>(
+                    initialValue: _formFields[index]['tipe_field'] as String,
+                    decoration: _dekorasi('Tipe input'),
+                    items: const [
+                      DropdownMenuItem(value: 'Text', child: Text('Teks')),
+                      DropdownMenuItem(
+                        value: 'File',
+                        child: Text('Unggah file'),
+                      ),
+                    ],
+                    onChanged: _mengirim
+                        ? null
+                        : (value) {
+                            if (value != null)
+                              setState(
+                                () => _formFields[index]['tipe_field'] = value,
+                              );
+                          },
+                  ),
+                  SwitchListTile(
+                    title: const Text('Wajib diisi'),
+                    value: _formFields[index]['wajib'] == true,
+                    onChanged: _mengirim
+                        ? null
+                        : (value) {
+                            setState(() => _formFields[index]['wajib'] = value);
+                          },
+                  ),
+                  TextButton.icon(
+                    onPressed: _mengirim
+                        ? null
+                        : () => setState(() => _formFields.removeAt(index)),
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Hapus field'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        OutlinedButton.icon(
+          onPressed: _mengirim || _formFields.length >= 30
+              ? null
+              : () {
+                  setState(
+                    () => _formFields.add({
+                      'nama_field': '',
+                      'tipe_field': 'Text',
+                      'wajib': true,
+                    }),
+                  );
+                },
+          icon: const Icon(Icons.add),
+          label: const Text('Tambah field'),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
   }
 
   @override
@@ -290,7 +433,11 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
             children: [
               const Text(
                 'Informasi lomba',
-                style: TextStyle(color: _text, fontSize: 20, fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  color: _text,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 6),
               const Text(
@@ -299,10 +446,12 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
               ),
               const SizedBox(height: 20),
               if (_loadingKategori)
-                const Center(child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: CircularProgressIndicator(),
-                ))
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
               else if (_errorKategori != null)
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -314,7 +463,10 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_errorKategori!, style: TextStyle(color: Colors.red.shade800)),
+                      Text(
+                        _errorKategori!,
+                        style: TextStyle(color: Colors.red.shade800),
+                      ),
                       TextButton.icon(
                         onPressed: _muatKategori,
                         icon: const Icon(Icons.refresh),
@@ -330,15 +482,25 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                     initialValue: _idKategori,
                     isExpanded: true,
                     decoration: _dekorasi('Kategori lomba'),
-                    items: _kategori.map((item) {
-                      final id = int.tryParse(item['id_kategori'].toString());
-                      return DropdownMenuItem<int>(
-                        value: id,
-                        child: Text(item['nama_kategori']?.toString() ?? 'Kategori'),
-                      );
-                    }).where((item) => item.value != null).toList(),
-                    onChanged: _mengirim ? null : (value) => setState(() => _idKategori = value),
-                    validator: (value) => value == null ? 'Kategori wajib dipilih.' : null,
+                    items: _kategori
+                        .map((item) {
+                          final id = int.tryParse(
+                            item['id_kategori'].toString(),
+                          );
+                          return DropdownMenuItem<int>(
+                            value: id,
+                            child: Text(
+                              item['nama_kategori']?.toString() ?? 'Kategori',
+                            ),
+                          );
+                        })
+                        .where((item) => item.value != null)
+                        .toList(),
+                    onChanged: _mengirim
+                        ? null
+                        : (value) => setState(() => _idKategori = value),
+                    validator: (value) =>
+                        value == null ? 'Kategori wajib dipilih.' : null,
                   ),
                 ),
               _teks(
@@ -373,20 +535,28 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                 label: 'Lokasi / metode pendaftaran *',
                 controller: _lokasiController,
                 hint: 'Contoh: Online atau Aula Kampus',
-                validator: (value) => _wajib(value, 'Lokasi / metode pendaftaran'),
+                validator: (value) =>
+                    _wajib(value, 'Lokasi / metode pendaftaran'),
               ),
               _teks(
                 label: 'Biaya pendaftaran (Rp)',
                 controller: _biayaController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) return null;
                   final number = num.tryParse(value.trim());
-                  if (number == null || number < 0) return 'Masukkan biaya berupa angka nol atau lebih.';
+                  if (number == null || number < 0)
+                    return 'Masukkan biaya berupa angka nol atau lebih.';
                   return null;
                 },
               ),
-              _teks(label: 'Hadiah', controller: _hadiahController, maxLines: 2),
+              _teks(
+                label: 'Hadiah',
+                controller: _hadiahController,
+                maxLines: 2,
+              ),
               _teks(
                 label: 'Kuota peserta',
                 controller: _kuotaController,
@@ -413,42 +583,59 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        _poster?.name ?? 'Poster lomba (opsional, JPG/PNG, maks. 5 MB)',
+                        _poster?.name ??
+                            'Poster lomba (opsional, JPG/PNG, maks. 5 MB)',
                         style: const TextStyle(color: _text, fontSize: 13),
                       ),
                     ),
                     IconButton(
                       tooltip: 'Pilih poster',
                       onPressed: _mengirim ? null : _pilihPoster,
-                      icon: const Icon(Icons.upload_file_outlined, color: _primary),
+                      icon: const Icon(
+                        Icons.upload_file_outlined,
+                        color: _primary,
+                      ),
                     ),
                     if (_poster != null)
                       IconButton(
                         tooltip: 'Hapus poster',
-                        onPressed: _mengirim ? null : () => setState(() => _poster = null),
+                        onPressed: _mengirim
+                            ? null
+                            : () => setState(() => _poster = null),
                         icon: const Icon(Icons.close, color: Colors.red),
                       ),
                   ],
                 ),
               ),
+              _pembuatFormulir(),
               SizedBox(
                 height: 52,
                 child: ElevatedButton.icon(
-                  onPressed: _mengirim || _loadingKategori || _errorKategori != null ? null : _kirim,
+                  onPressed:
+                      _mengirim || _loadingKategori || _errorKategori != null
+                      ? null
+                      : _kirim,
                   icon: _mengirim
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Icon(Icons.send_rounded),
-                  label: Text(_mengirim ? 'Mengirim pengajuan...' : 'Kirim Pengajuan'),
+                  label: Text(
+                    _mengirim ? 'Mengirim pengajuan...' : 'Kirim Pengajuan',
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primary,
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: _primary.withValues(alpha: 0.5),
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
                   ),
                 ),
               ),

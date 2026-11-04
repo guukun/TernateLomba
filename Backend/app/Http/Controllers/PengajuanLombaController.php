@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PengajuanLomba;
 use App\Models\Lomba;
+use App\Models\FormField;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -85,6 +86,10 @@ class PengajuanLombaController extends Controller
             'kuota_peserta' => ['nullable', 'integer', 'min:1'],
             'kontak_penyelenggara' => ['required', 'string', 'max:100'],
             'poster_lomba' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'form_fields' => ['required', 'array', 'min:1', 'max:30'],
+            'form_fields.*.nama_field' => ['required', 'string', 'max:150'],
+            'form_fields.*.tipe_field' => ['required', 'in:Text,File'],
+            'form_fields.*.wajib' => ['required', 'boolean'],
         ]);
 
         $posterPath = null;
@@ -98,24 +103,36 @@ class PengajuanLombaController extends Controller
         }
 
         try {
-            $pengajuan = PengajuanLomba::create([
-                'id_user' => $user->id_user,
-                'id_kategori' => (int) $data['id_kategori'],
-                'nama_lomba' => trim($data['nama_lomba']),
-                'deskripsi' => trim($data['deskripsi']),
-                'persyaratan' => isset($data['persyaratan']) ? trim($data['persyaratan']) : null,
-                'tanggal_pelaksanaan' => $data['tanggal_pelaksanaan'],
-                'batas_pendaftaran' => $data['batas_pendaftaran'],
-                'lokasi_pendaftaran' => trim($data['lokasi_pendaftaran']),
-                'biaya' => $data['biaya'],
-                'hadiah' => isset($data['hadiah']) ? trim($data['hadiah']) : null,
-                'kuota_peserta' => $data['kuota_peserta'] ?? null,
-                'kontak_penyelenggara' => trim($data['kontak_penyelenggara']),
-                'poster_lomba' => $posterPath,
-                'status_pengajuan' => 'Menunggu',
-                'catatan_admin' => null,
-                'tanggal_pengajuan' => now(),
-            ]);
+            $pengajuan = DB::transaction(function () use ($data, $user, $posterPath) {
+                $pengajuan = PengajuanLomba::create([
+                    'id_user' => $user->id_user,
+                    'id_kategori' => (int) $data['id_kategori'],
+                    'nama_lomba' => trim($data['nama_lomba']),
+                    'deskripsi' => trim($data['deskripsi']),
+                    'persyaratan' => isset($data['persyaratan']) ? trim($data['persyaratan']) : null,
+                    'tanggal_pelaksanaan' => $data['tanggal_pelaksanaan'],
+                    'batas_pendaftaran' => $data['batas_pendaftaran'],
+                    'lokasi_pendaftaran' => trim($data['lokasi_pendaftaran']),
+                    'biaya' => $data['biaya'],
+                    'hadiah' => isset($data['hadiah']) ? trim($data['hadiah']) : null,
+                    'kuota_peserta' => $data['kuota_peserta'] ?? null,
+                    'kontak_penyelenggara' => trim($data['kontak_penyelenggara']),
+                    'poster_lomba' => $posterPath,
+                    'status_pengajuan' => 'Menunggu',
+                    'catatan_admin' => null,
+                    'tanggal_pengajuan' => now(),
+                ]);
+                foreach ($data['form_fields'] as $index => $field) {
+                    FormField::create([
+                        'id_pengajuan' => $pengajuan->id_pengajuan,
+                        'nama_field' => trim($field['nama_field']),
+                        'tipe_field' => $field['tipe_field'],
+                        'wajib' => (bool) $field['wajib'],
+                        'urutan' => $index + 1,
+                    ]);
+                }
+                return $pengajuan;
+            });
         } catch (Throwable $exception) {
             if ($posterPath) {
                 Storage::disk('public')->delete($posterPath);
@@ -143,7 +160,7 @@ class PengajuanLombaController extends Controller
         }
 
         $items = PengajuanLomba::query()
-            ->with(['kategori:id_kategori,nama_kategori', 'penyelenggara:id_user,username'])
+            ->with(['kategori:id_kategori,nama_kategori', 'penyelenggara:id_user,username', 'formFields'])
             ->orderByRaw("CASE WHEN LOWER(status_pengajuan) = 'menunggu' THEN 0 ELSE 1 END")
             ->orderByDesc('tanggal_pengajuan')
             ->get();
@@ -166,6 +183,13 @@ class PengajuanLombaController extends Controller
                 'status_pengajuan' => $item->status_pengajuan,
                 'catatan_admin' => $item->catatan_admin,
                 'tanggal_pengajuan' => $item->tanggal_pengajuan?->toISOString(),
+                'form_fields' => $item->formFields->sortBy('urutan')->values()->map(fn (FormField $field) => [
+                    'id_field' => $field->id_field,
+                    'nama_field' => $field->nama_field,
+                    'tipe_field' => $field->tipe_field,
+                    'wajib' => (bool) $field->wajib,
+                    'urutan' => $field->urutan,
+                ])->all(),
                 'kategori' => $item->kategori ? [
                     'id_kategori' => $item->kategori->id_kategori,
                     'nama_kategori' => $item->kategori->nama_kategori,
@@ -205,6 +229,13 @@ class PengajuanLombaController extends Controller
                 return [
                     'error' => 'Pengajuan ini sudah diproses sebelumnya.',
                     'status' => 409,
+                ];
+            }
+
+            if ($data['keputusan'] === 'Disetujui' && !$pengajuan->formFields()->exists()) {
+                return [
+                    'error' => 'Pengajuan belum memiliki formulir pendaftaran. Lengkapi field sebelum disetujui.',
+                    'status' => 422,
                 ];
             }
 

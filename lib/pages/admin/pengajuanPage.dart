@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../../services/api_service.dart';
 import 'detailPengajuanPage.dart'; // Pastikan nama file sesuai
 
@@ -20,7 +21,8 @@ class _PengajuanPageState extends State<PengajuanPage> {
 
   // Tab & filter state
   int _activeTab = 0; // 0 = Pengajuan Lomba, 1 = Lomba Terpublikasi
-  String _activeFilter = 'Semua'; // Semua, Menunggu Verifikasi, Disetujui
+  String _activeFilter =
+      'Semua'; // Tab pengajuan: Semua, Menunggu Verifikasi, Ditolak
 
   @override
   void initState() {
@@ -35,7 +37,9 @@ class _PengajuanPageState extends State<PengajuanPage> {
       _error = null;
     });
     try {
-      final response = await ApiService.getPengajuanLombaAdmin(token: widget.token);
+      final response = await ApiService.getPengajuanLombaAdmin(
+        token: widget.token,
+      );
       if (!mounted) return;
       final list = response['data'] as List;
       setState(() {
@@ -51,15 +55,38 @@ class _PengajuanPageState extends State<PengajuanPage> {
     }
   }
 
-  // Filter items berdasarkan status
+  // Tab 0 menampilkan pengajuan yang belum diterbitkan (Menunggu / Ditolak).
+  // Tab 1 menampilkan pengajuan yang telah disetujui dan diterbitkan
+  // oleh backend ketika keputusan disimpan.
   List<Map<String, dynamic>> get _filteredItems {
-    if (_activeFilter == 'Semua') return _items;
     return _items.where((item) {
-      final status = (item['status_pengajuan']?.toString() ?? '').toLowerCase();
-      if (_activeFilter == 'Menunggu Verifikasi') return status == 'menunggu';
-      if (_activeFilter == 'Disetujui') return status == 'disetujui';
+      final status = (item['status_pengajuan']?.toString() ?? '')
+          .trim()
+          .toLowerCase();
+
+      if (_activeTab == 1) {
+        return status == 'disetujui';
+      }
+
+      if (status != 'menunggu' && status != 'ditolak') {
+        return false;
+      }
+
+      if (_activeFilter == 'Menunggu Verifikasi') {
+        return status == 'menunggu';
+      }
+      if (_activeFilter == 'Ditolak') {
+        return status == 'ditolak';
+      }
       return true;
     }).toList();
+  }
+
+  void _selectTab(int tab) {
+    setState(() {
+      _activeTab = tab;
+      _activeFilter = 'Semua';
+    });
   }
 
   // Format tanggal menjadi "10 Nov 2024"
@@ -75,7 +102,8 @@ class _PengajuanPageState extends State<PengajuanPage> {
   // Warna logo berdasarkan kategori/jenis lomba
   Color _logoColor(String namaLomba) {
     final name = namaLomba.toLowerCase();
-    if (name.contains('web') || name.contains('desain')) return const Color(0xFF1B5E20);
+    if (name.contains('web') || name.contains('desain'))
+      return const Color(0xFF1B5E20);
     if (name.contains('hack')) return const Color(0xFF1A237E);
     return const Color(0xFF1B2A4A);
   }
@@ -91,25 +119,34 @@ class _PengajuanPageState extends State<PengajuanPage> {
     final name = namaLomba.toLowerCase();
     if (name.contains('web')) return 'WEB 2024';
     if (name.contains('hack')) return 'HACK 2024';
-    if (name.contains('lk ti') || name.contains('karya tulis')) return 'LKTI 2024';
+    if (name.contains('lk ti') || name.contains('karya tulis'))
+      return 'LKTI 2024';
     return '2024';
   }
 
   Widget _card(Map<String, dynamic> item) {
-    final status = item['status_pengajuan']?.toString() ?? 'Menunggu Verifikasi';
+    final status =
+        item['status_pengajuan']?.toString() ?? 'Menunggu Verifikasi';
     final statusLower = status.toLowerCase();
     final tanggal = _formatDate(
-      item['tanggal_pengajuan']?.toString() ?? item['created_at']?.toString() ?? DateTime.now().toIso8601String(),
+      item['tanggal_pengajuan']?.toString() ??
+          item['created_at']?.toString() ??
+          DateTime.now().toIso8601String(),
     );
     final penyelenggara = item['penyelenggara'] is Map
         ? (item['penyelenggara'] as Map)['username']?.toString() ??
-            (item['penyelenggara'] as Map)['nama']?.toString() ?? '-'
+              (item['penyelenggara'] as Map)['nama']?.toString() ??
+              '-'
         : item['penyelenggara']?.toString() ?? '-';
 
-    final isMenunggu = statusLower == 'menunggu' || statusLower.contains('menunggu');
-    final isDisetujui = statusLower == 'disetujui' || statusLower.contains('disetujui');
+    final isMenunggu =
+        statusLower == 'menunggu' || statusLower.contains('menunggu');
+    final isDisetujui =
+        statusLower == 'disetujui' || statusLower.contains('disetujui');
 
-    final statusText = isMenunggu ? 'Menunggu Verifikasi' : (isDisetujui ? 'Disetujui' : status);
+    final statusText = isMenunggu
+        ? 'Menunggu Verifikasi'
+        : (isDisetujui ? 'Disetujui' : status);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -137,13 +174,19 @@ class _PengajuanPageState extends State<PengajuanPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(_logoIcon(item['nama_lomba']?.toString() ?? ''),
-                          color: Colors.white, size: 24),
+                      Icon(
+                        _logoIcon(item['nama_lomba']?.toString() ?? ''),
+                        color: Colors.white,
+                        size: 24,
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         _logoLabel(item['nama_lomba']?.toString() ?? ''),
                         style: const TextStyle(
-                            color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700),
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
@@ -158,13 +201,16 @@ class _PengajuanPageState extends State<PengajuanPage> {
                         children: [
                           // Status badge
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: isMenunggu
                                   ? const Color(0xFFFFF9E6)
                                   : isDisetujui
-                                      ? const Color(0xFFE8F5E9)
-                                      : const Color(0xFFFFEBEE),
+                                  ? const Color(0xFFE8F5E9)
+                                  : const Color(0xFFFFEBEE),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
@@ -178,8 +224,8 @@ class _PengajuanPageState extends State<PengajuanPage> {
                                     color: isMenunggu
                                         ? const Color(0xFFFFA726)
                                         : isDisetujui
-                                            ? const Color(0xFF43A047)
-                                            : const Color(0xFFE53935),
+                                        ? const Color(0xFF43A047)
+                                        : const Color(0xFFE53935),
                                   ),
                                 ),
                                 const SizedBox(width: 6),
@@ -191,8 +237,8 @@ class _PengajuanPageState extends State<PengajuanPage> {
                                     color: isMenunggu
                                         ? const Color(0xFFE65100)
                                         : isDisetujui
-                                            ? const Color(0xFF2E7D32)
-                                            : const Color(0xFFC62828),
+                                        ? const Color(0xFF2E7D32)
+                                        : const Color(0xFFC62828),
                                   ),
                                 ),
                               ],
@@ -201,7 +247,10 @@ class _PengajuanPageState extends State<PengajuanPage> {
                           const Spacer(),
                           Text(
                             tanggal,
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF9E9E9E)),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF9E9E9E),
+                            ),
                           ),
                         ],
                       ),
@@ -209,19 +258,29 @@ class _PengajuanPageState extends State<PengajuanPage> {
                       Text(
                         item['nama_lomba']?.toString() ?? 'Lomba tanpa nama',
                         style: const TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E)),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1A1A2E),
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.account_balance_outlined, size: 14, color: Color(0xFF9E9E9E)),
+                          const Icon(
+                            Icons.account_balance_outlined,
+                            size: 14,
+                            color: Color(0xFF9E9E9E),
+                          ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               penyelenggara,
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF757575)),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF757575),
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -255,7 +314,7 @@ class _PengajuanPageState extends State<PengajuanPage> {
                           ),
                         ),
                       );
-                      
+
                       // Refresh list jika ada perubahan (misal setelah approve/reject)
                       if (result != null) {
                         _load();
@@ -263,7 +322,10 @@ class _PengajuanPageState extends State<PengajuanPage> {
                     },
                     borderRadius: BorderRadius.circular(20),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -328,16 +390,20 @@ class _PengajuanPageState extends State<PengajuanPage> {
                   children: [
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() => _activeTab = 0),
+                        onTap: () => _selectTab(0),
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            color: _activeTab == 0 ? Colors.white : Colors.transparent,
+                            color: _activeTab == 0
+                                ? Colors.white
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(10),
                             boxShadow: _activeTab == 0
                                 ? [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.06),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.06,
+                                      ),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),
@@ -350,7 +416,9 @@ class _PengajuanPageState extends State<PengajuanPage> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: _activeTab == 0 ? const Color(0xFF1A1A2E) : const Color(0xFF9E9E9E),
+                                color: _activeTab == 0
+                                    ? const Color(0xFF1A1A2E)
+                                    : const Color(0xFF9E9E9E),
                               ),
                             ),
                           ),
@@ -359,16 +427,20 @@ class _PengajuanPageState extends State<PengajuanPage> {
                     ),
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() => _activeTab = 1),
+                        onTap: () => _selectTab(1),
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            color: _activeTab == 1 ? Colors.white : Colors.transparent,
+                            color: _activeTab == 1
+                                ? Colors.white
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(10),
                             boxShadow: _activeTab == 1
                                 ? [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.06),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.06,
+                                      ),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),
@@ -381,7 +453,9 @@ class _PengajuanPageState extends State<PengajuanPage> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: _activeTab == 1 ? const Color(0xFF1A1A2E) : const Color(0xFF9E9E9E),
+                                color: _activeTab == 1
+                                    ? const Color(0xFF1A1A2E)
+                                    : const Color(0xFF9E9E9E),
                               ),
                             ),
                           ),
@@ -395,64 +469,86 @@ class _PengajuanPageState extends State<PengajuanPage> {
 
             const SizedBox(height: 14),
 
-            // Filter chips
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  _filterChip('Semua'),
-                  const SizedBox(width: 8),
-                  _filterChip('Menunggu Verifikasi'),
-                  const SizedBox(width: 8),
-                  _filterChip('Disetujui'),
-                ],
+            // Filter status hanya relevan untuk pengajuan yang belum terbit.
+            if (_activeTab == 0) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _filterChip('Semua'),
+                      const SizedBox(width: 8),
+                      _filterChip('Menunggu Verifikasi'),
+                      const SizedBox(width: 8),
+                      _filterChip('Ditolak'),
+                    ],
+                  ),
+                ),
               ),
-            ),
-
-            const SizedBox(height: 14),
+              const SizedBox(height: 14),
+            ] else
+              const SizedBox(height: 14),
 
             // Content
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _error != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(_error!, textAlign: TextAlign.center),
-                                const SizedBox(height: 12),
-                                OutlinedButton(onPressed: _load, child: const Text('Coba lagi')),
-                              ],
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(_error!, textAlign: TextAlign.center),
+                            const SizedBox(height: 12),
+                            OutlinedButton(
+                              onPressed: _load,
+                              child: const Text('Coba lagi'),
                             ),
-                          ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: _load,
-                          child: filtered.isEmpty
-                              ? ListView(
-                                  physics: const AlwaysScrollableScrollPhysics(),
-                                  children: const [
-                                    SizedBox(height: 150),
-                                    Icon(Icons.inbox_outlined, size: 54, color: Colors.blueGrey),
-                                    SizedBox(height: 12),
-                                    Center(child: Text('Belum ada pengajuan lomba.')),
-                                  ],
-                                )
-                              : ListView.builder(
-                                  physics: const AlwaysScrollableScrollPhysics(),
-                                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                                  itemCount: filtered.length,
-                                  itemBuilder: (_, index) => _card(filtered[index]),
-                                ),
+                          ],
                         ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: filtered.isEmpty
+                          ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                const SizedBox(height: 150),
+                                const Icon(
+                                  Icons.inbox_outlined,
+                                  size: 54,
+                                  color: Colors.blueGrey,
+                                ),
+                                const SizedBox(height: 12),
+                                Center(
+                                  child: Text(
+                                    _activeTab == 1
+                                        ? 'Belum ada lomba terpublikasi.'
+                                        : 'Tidak ada pengajuan untuk filter ini.',
+                                  ),
+                                ),
+                              ],
+                            )
+                          : ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                0,
+                                20,
+                                100,
+                              ),
+                              itemCount: filtered.length,
+                              itemBuilder: (_, index) => _card(filtered[index]),
+                            ),
+                    ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: _bottomNav(),
     );
   }
 
@@ -478,50 +574,6 @@ class _PengajuanPageState extends State<PengajuanPage> {
             color: isActive ? Colors.white : const Color(0xFF555555),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _bottomNav() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: SafeArea(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _navItem(Icons.home_outlined, 'Beranda', false),
-            _navItem(Icons.emoji_events_outlined, 'Lomba Saya', false),
-            _navItem(Icons.add_circle_outline, 'Ajukan', false),
-            _navItem(Icons.person_outline, 'Profile', false),
-            _navItem(Icons.description_outlined, 'Pengajuan', true),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _navItem(IconData icon, String label, bool active) {
-    return GestureDetector(
-      onTap: () {
-        // Handle navigation
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: active ? _blue : const Color(0xFF9E9E9E), size: 22),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-              color: active ? _blue : const Color(0xFF9E9E9E),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -5,7 +5,7 @@ import '../pages/beranda/homePage.dart';
 import '../pages/lombaSaya/lombaSayaPage.dart';
 import '../pages/ajukan/ajukanPage.dart';
 import '../pages/profile/profilePage.dart';
-import '../pages/admin/verifikasiPengajuanPage.dart';
+import '../pages/admin/pengajuanPage.dart';
 import '../widgets/floatingNavigationBar.dart';
 
 class MainPage extends StatefulWidget {
@@ -123,8 +123,8 @@ class _MainPageState extends State<MainPage> {
                 onProfileChanged: _onProfileChanged,
               ),
               if (_isAdmin)
-                VerifikasiPengajuanPage(
-                  key: const PageStorageKey('verifikasiPengajuanPage'),
+                PengajuanPage(
+                  key: const PageStorageKey('pengajuanPage'),
                   token: widget.token,
                 ),
             ],

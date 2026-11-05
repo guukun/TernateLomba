@@ -26,6 +26,7 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int selectedIndex = 0;
+
   late String currentUsername;
 
   int profileRefreshVersion = 0;
@@ -37,6 +38,8 @@ class _MainPageState extends State<MainPage> {
     currentUsername = widget.username;
   }
 
+  bool get _isAdmin => widget.role.trim().toLowerCase() == 'administrator';
+
   void _onProfileChanged() {
     if (!mounted) return;
 
@@ -45,10 +48,9 @@ class _MainPageState extends State<MainPage> {
     });
   }
 
-  bool get _isAdmin => widget.role.trim().toLowerCase() == 'administrator';
-
   void _onNavigationTap(int index) {
     final maxIndex = _isAdmin ? 4 : 3;
+
     if (index < 0 || index > maxIndex || index == selectedIndex) {
       return;
     }
@@ -68,6 +70,7 @@ class _MainPageState extends State<MainPage> {
 
   void _onLombaDiajukan() {
     if (!mounted) return;
+
     setState(() {
       selectedIndex = 1;
       lombaSayaRefreshVersion++;
@@ -113,7 +116,16 @@ class _MainPageState extends State<MainPage> {
                 onLombaDiajukan: _onLombaDiajukan,
               ),
 
-              // 3. Profil
+              // 3. Pengajuan (khusus administrator)
+              if (_isAdmin)
+                PengajuanPage(
+                  key: const PageStorageKey('pengajuanPage'),
+                  token: widget.token,
+                ),
+
+              // Profil berada di urutan terakhir.
+              // Admin: indeks 4.
+              // User biasa: indeks 3.
               ProfilePage(
                 key: const PageStorageKey('profilePage'),
                 username: currentUsername,
@@ -122,14 +134,10 @@ class _MainPageState extends State<MainPage> {
                 onUsernameChanged: _onUsernameChanged,
                 onProfileChanged: _onProfileChanged,
               ),
-              if (_isAdmin)
-                PengajuanPage(
-                  key: const PageStorageKey('pengajuanPage'),
-                  token: widget.token,
-                ),
             ],
           ),
 
+          // Navigasi bawah
           Positioned(
             left: 0,
             right: 0,

@@ -14,38 +14,37 @@ class FloatingNavigationBar extends StatelessWidget {
     this.isAdmin = false,
   });
 
-  static const List<_NavigationItem> _baseItems = [
-    _NavigationItem(
+  List<_NavigationItem> get _items => [
+    const _NavigationItem(
       label: 'Beranda',
       icon: Icons.home_outlined,
       activeIcon: Icons.home_rounded,
     ),
-    _NavigationItem(
+    const _NavigationItem(
       label: 'Lomba Saya',
       icon: Icons.card_giftcard_outlined,
       activeIcon: Icons.card_giftcard_rounded,
     ),
-    _NavigationItem(
+    const _NavigationItem(
       label: 'Ajukan',
       icon: Icons.explore_outlined,
       activeIcon: Icons.explore_rounded,
     ),
-    _NavigationItem(
+
+    // Pengajuan khusus administrator.
+    if (isAdmin)
+      const _NavigationItem(
+        label: 'Pengajuan',
+        icon: Icons.fact_check_outlined,
+        activeIcon: Icons.fact_check_rounded,
+      ),
+
+    const _NavigationItem(
       label: 'Profil',
       icon: Icons.person_outline_rounded,
       activeIcon: Icons.person_rounded,
     ),
   ];
-
-  List<_NavigationItem> get _items => [
-        ..._baseItems,
-        if (isAdmin)
-          const _NavigationItem(
-            label: 'Verifikasi',
-            icon: Icons.fact_check_outlined,
-            activeIcon: Icons.fact_check_rounded,
-          ),
-      ];
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +59,6 @@ class FloatingNavigationBar extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              // Panel utama tetap putih.
               color: Colors.white,
               borderRadius: BorderRadius.circular(32),
               border: Border.all(color: AppColors.fieldBorder, width: 1),
@@ -96,8 +94,6 @@ class FloatingNavigationBar extends StatelessWidget {
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            // Indikator menu aktif berwarna biru muda.
-                            // Menu aktif menggunakan biru solid.
                             color: selected
                                 ? AppColors.primary
                                 : Colors.transparent,

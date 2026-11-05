@@ -379,10 +379,11 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                     onChanged: _mengirim
                         ? null
                         : (value) {
-                            if (value != null)
+                            if (value != null) {
                               setState(
                                 () => _formFields[index]['tipe_field'] = value,
                               );
+                            }
                           },
                   ),
                   SwitchListTile(
@@ -557,8 +558,9 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) return null;
                   final number = num.tryParse(value.trim());
-                  if (number == null || number < 0)
+                  if (number == null || number < 0) {
                     return 'Masukkan biaya berupa angka nol atau lebih.';
+                  }
                   return null;
                 },
               ),
@@ -631,7 +633,7 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                     child: Image.memory(
                       _posterPreviewBytes!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Center(
+                      errorBuilder: (_, _, _) => const Center(
                         child: Icon(Icons.broken_image_outlined, color: _muted, size: 42),
                       ),
                     ),

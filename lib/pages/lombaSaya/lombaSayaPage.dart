@@ -435,7 +435,7 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
                       child: Image.network(
                         ApiService.publicStorageUrl(item['poster_lomba']?.toString())!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
+                        errorBuilder: (_, _, _) => Container(
                           color: lightBlue,
                           child: const Icon(Icons.image_not_supported_outlined, color: primaryBlue, size: 40),
                         ),
@@ -651,7 +651,7 @@ class _LombaSayaPageState extends State<LombaSayaPage> {
                     child: Image.network(
                       ApiService.publicStorageUrl(item['poster_lomba']?.toString())!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         color: lightBlue,
                         child: const Icon(Icons.image_not_supported_outlined, color: primaryBlue, size: 38),
                       ),

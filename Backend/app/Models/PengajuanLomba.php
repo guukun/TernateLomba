@@ -44,7 +44,9 @@ class PengajuanLomba extends Model
 
     public function getStatusPengajuanAttribute($value): ?string
     {
-        return $value === null ? null : ucfirst(strtolower((string) $value));
+        return $value === null
+            ? null
+            : ucfirst(strtolower((string) $value));
     }
 
     public function penyelenggara(): BelongsTo

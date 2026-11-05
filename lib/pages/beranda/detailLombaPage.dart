@@ -256,7 +256,7 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
                                         ApiService.publicStorageUrl(lomba['poster_lomba'])!,
                                         width: double.infinity,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Container(
+                                        errorBuilder: (_, _, _) => Container(
                                           color: primaryLight,
                                           child: const Icon(
                                             Icons.image_not_supported_outlined,

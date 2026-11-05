@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\PengajuanLomba;
 use App\Models\Lomba;
 use App\Models\FormField;
-use App\Models\Notifikasi;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -47,36 +46,28 @@ class PengajuanLombaController extends Controller
                     'nama_lomba' => $item->nama_lomba,
                     'deskripsi' => $item->deskripsi,
                     'persyaratan' => $item->persyaratan,
-
                     'tanggal_pelaksanaan' =>
                         $item->tanggal_pelaksanaan?->format('Y-m-d'),
-
                     'batas_pendaftaran' =>
                         $item->batas_pendaftaran?->format('Y-m-d'),
-
                     'lokasi_pendaftaran' => $item->lokasi_pendaftaran,
                     'biaya' => $item->biaya,
                     'hadiah' => $item->hadiah,
                     'kuota_peserta' => $item->kuota_peserta,
                     'kontak_penyelenggara' => $item->kontak_penyelenggara,
                     'poster_lomba' => $item->poster_lomba,
-
                     'poster_url' => $item->poster_lomba
                         ? url('/api/poster-lomba/' .
                             rawurlencode(basename($item->poster_lomba)))
                         : null,
-
                     'status_pengajuan' => $item->status_pengajuan,
                     'catatan_admin' => $item->catatan_admin,
-
                     'tanggal_pengajuan' =>
                         $item->tanggal_pengajuan?->toISOString(),
-
                     'kategori' => $item->kategori ? [
                         'id_kategori' => $item->kategori->id_kategori,
                         'nama_kategori' => $item->kategori->nama_kategori,
                     ] : null,
-
                     'lomba' => $item->lomba ? [
                         'id_lomba' => $item->lomba->id_lomba,
                         'status_lomba' => $item->lomba->status_lomba,
@@ -85,7 +76,6 @@ class PengajuanLombaController extends Controller
             })->values(),
         ], 200);
     }
-
 
     /**
      * POST /api/pengajuan-lomba
@@ -148,6 +138,7 @@ class PengajuanLombaController extends Controller
                 'max:5120'
             ],
 
+            // Validasi formulir dinamis.
             'form_fields' => [
                 'required',
                 'array',
@@ -268,21 +259,6 @@ class PengajuanLombaController extends Controller
                     ]);
                 }
 
-                // NOTIFIKASI PENGAJUAN BERHASIL DIKIRIM.
-                Notifikasi::create([
-                    'user_id' => $user->id_user,
-                    'pengajuan_id' => $pengajuan->id_pengajuan,
-
-                    'judul' => 'Pengajuan Lomba Berhasil Dikirim',
-
-                    'pesan' => 'Pengajuan lomba "' .
-                        $pengajuan->nama_lomba .
-                        '" berhasil dikirim dan sedang menunggu verifikasi admin.',
-
-                    'tipe' => 'pengajuan',
-                    'is_read' => false,
-                ]);
-
                 return $pengajuan;
             });
 
@@ -298,25 +274,20 @@ class PengajuanLombaController extends Controller
 
         return response()->json([
             'pesan' => 'Pengajuan lomba berhasil dikirim dan menunggu verifikasi admin.',
-
             'data' => [
                 'id_pengajuan' => $pengajuan->id_pengajuan,
                 'nama_lomba' => $pengajuan->nama_lomba,
                 'status_pengajuan' => $pengajuan->status_pengajuan,
-
                 'poster_lomba' => $pengajuan->poster_lomba,
-
                 'poster_url' => $pengajuan->poster_lomba
                     ? url('/api/poster-lomba/' .
                         rawurlencode(basename($pengajuan->poster_lomba)))
                     : null,
-
                 'tanggal_pengajuan' =>
                     $pengajuan->tanggal_pengajuan?->toISOString(),
             ],
         ], 201);
     }
-
 
     /**
      * GET /api/admin/pengajuan-lomba
@@ -339,7 +310,8 @@ class PengajuanLombaController extends Controller
             ->with([
                 'kategori:id_kategori,nama_kategori',
                 'penyelenggara:id_user,username',
-                'formFields'
+                'formFields',
+                'lomba:id_lomba,id_pengajuan,status_lomba'
             ])
             ->orderByRaw(
                 "CASE WHEN LOWER(status_pengajuan) = 'menunggu' THEN 0 ELSE 1 END"
@@ -349,35 +321,27 @@ class PengajuanLombaController extends Controller
 
         return response()->json([
             'pesan' => 'Daftar pengajuan lomba berhasil diambil.',
-
             'data' => $items->map(fn (PengajuanLomba $item) => [
                 'id_pengajuan' => $item->id_pengajuan,
                 'nama_lomba' => $item->nama_lomba,
                 'deskripsi' => $item->deskripsi,
                 'persyaratan' => $item->persyaratan,
-
                 'tanggal_pelaksanaan' =>
                     $item->tanggal_pelaksanaan?->format('Y-m-d'),
-
                 'batas_pendaftaran' =>
                     $item->batas_pendaftaran?->format('Y-m-d'),
-
                 'lokasi_pendaftaran' => $item->lokasi_pendaftaran,
                 'biaya' => $item->biaya,
                 'hadiah' => $item->hadiah,
                 'kuota_peserta' => $item->kuota_peserta,
                 'kontak_penyelenggara' => $item->kontak_penyelenggara,
-
                 'poster_lomba' => $item->poster_lomba,
-
                 'poster_url' => $item->poster_lomba
                     ? url('/api/poster-lomba/' .
                         rawurlencode(basename($item->poster_lomba)))
                     : null,
-
                 'status_pengajuan' => $item->status_pengajuan,
                 'catatan_admin' => $item->catatan_admin,
-
                 'tanggal_pengajuan' =>
                     $item->tanggal_pengajuan?->toISOString(),
 
@@ -402,10 +366,13 @@ class PengajuanLombaController extends Controller
                     'username' => $item->penyelenggara->username,
                 ] : null,
 
+                'lomba' => $item->lomba ? [
+                    'id_lomba' => $item->lomba->id_lomba,
+                    'status_lomba' => $item->lomba->status_lomba,
+                ] : null,
             ])->values(),
         ]);
     }
-
 
     /**
      * PATCH /api/admin/pengajuan-lomba/{id}/keputusan
@@ -495,34 +462,6 @@ class PengajuanLombaController extends Controller
                     ]
                 );
             }
-
-            // NOTIFIKASI PERSETUJUAN ATAU PENOLAKAN.
-            Notifikasi::create([
-                'user_id' => $pengajuan->id_user,
-                'pengajuan_id' => $pengajuan->id_pengajuan,
-
-                'judul' => $data['keputusan'] === 'Disetujui'
-                    ? 'Pengajuan Lomba Disetujui'
-                    : 'Pengajuan Lomba Ditolak',
-
-                'pesan' => $data['keputusan'] === 'Disetujui'
-
-                    ? 'Pengajuan lomba "' .
-                        $pengajuan->nama_lomba .
-                        '" berhasil disetujui dan telah diterbitkan.'
-
-                    : 'Pengajuan lomba "' .
-                        $pengajuan->nama_lomba .
-                        '" ditolak. Catatan admin: ' .
-                        (
-                            $pengajuan->catatan_admin
-                            ?: 'Tidak ada catatan.'
-                        ),
-
-                'tipe' => strtolower($data['keputusan']),
-
-                'is_read' => false,
-            ]);
 
             return [
                 'pengajuan' => $pengajuan->fresh()

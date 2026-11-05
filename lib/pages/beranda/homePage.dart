@@ -138,18 +138,13 @@ class _HomePageState extends State<HomePage> {
 
   final List<Map<String, String>> _notifikasiRingkas = [
     {
-      'judul': 'Pendaftaran berhasil',
-      'isi': 'Lomba Karya Tulis Ilmiah berhasil didaftarkan.',
+      'judul': 'Pengajuan Lomba Disetujui',
+      'isi': 'Pengajuan lomba "Kompetisi Karya Tulis Ilmiah" berhasil disetujui dan telah diterbitkan.',
       'waktu': 'Baru saja',
     },
     {
-      'judul': 'Lomba baru tersedia',
-      'isi': 'AI Innovation Competition 2026 telah tersedia.',
-      'waktu': '2 jam lalu',
-    },
-    {
-      'judul': 'Status pendaftaran',
-      'isi': 'Pendaftaran Anda menunggu verifikasi.',
+      'judul': 'Pengajuan Lomba Ditolak',
+      'isi': 'Pengajuan lomba "Festival Teknologi 2026" ditolak. Catatan admin: Persyaratan belum lengkap.',
       'waktu': 'Kemarin',
     },
   ];
@@ -370,12 +365,10 @@ class _HomePageState extends State<HomePage> {
                                   final judulLower = judul.toLowerCase();
 
                                   final IconData notificationIcon =
-                                      judulLower.contains('pendaftaran')
-                                      ? Icons.assignment_turned_in_outlined
-                                      : judulLower.contains('lomba')
-                                      ? Icons.lightbulb_outline_rounded
-                                      : judulLower.contains('status')
-                                      ? Icons.query_stats_rounded
+                                      judulLower.contains('disetujui')
+                                      ? Icons.check_circle_outline_rounded
+                                      : judulLower.contains('ditolak')
+                                      ? Icons.cancel_outlined
                                       : Icons.notifications_none_rounded;
 
                                   return InkWell(
@@ -500,18 +493,12 @@ class _HomePageState extends State<HomePage> {
     _notificationOverlay = null;
   }
 
-void _showAllNotifications() {
-  _closeNotificationPopup();
+  void _showAllNotifications() {
+    _closeNotificationPopup();
 
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => NotifikasiPage(
-        token: widget.token,
-        baseApiUrl: 'http://10.104.22.67:8000/api',
-      ),
-    ),
-  );
-}
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const NotifikasiPage()));
+  }
 
   void _toggleProfilePopup() {
     if (_profileOverlay != null) {
@@ -744,7 +731,7 @@ void _showAllNotifications() {
             // HEADER GRADASI
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(22, 20, 22, 24),
+              padding: const EdgeInsets.fromLTRB(20, 15, 20, 18),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
@@ -767,8 +754,8 @@ void _showAllNotifications() {
                   Row(
                     children: [
                       Container(
-                        width: 46,
-                        height: 46,
+                        width: 42,
+                        height: 42,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
@@ -866,13 +853,13 @@ void _showAllNotifications() {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 26),
+                  const SizedBox(height: 18),
                   Text(
                     'Halo, ${widget.username}!',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 27,
+                      fontSize: 24,
                       height: 1.2,
                       fontWeight: FontWeight.w800,
                       color: _text,
@@ -889,7 +876,7 @@ void _showAllNotifications() {
 
                   // KOTAK PENCARIAN
                   Container(
-                    height: 54,
+                    height: 50,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(19),
@@ -945,45 +932,65 @@ void _showAllNotifications() {
               ),
             ),
 
-            // KATEGORI
+            // KATEGORI LOMBA - GRID 2 KOLOM
             const Padding(
-              padding: EdgeInsets.fromLTRB(22, 24, 22, 12),
+              padding: EdgeInsets.fromLTRB(20, 17, 20, 9),
               child: Text(
-                'Jelajahi Kategori',
+                'Kategori Lomba',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 17,
                   fontWeight: FontWeight.w800,
                   color: _text,
                 ),
               ),
             ),
 
-            SizedBox(
-              height: 42,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 22),
-                children: [
-                  kategoriButton('Semua'),
-                  ...daftarKategoriApi.map((kategori) {
-                    final nama = kategori['nama_kategori']?.toString() ?? '';
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: daftarKategoriApi.isEmpty
+                  ? const SizedBox(
+                      height: 84,
+                      child: Center(
+                        child: Text(
+                          'Kategori belum tersedia.',
+                          style: TextStyle(color: _muted, fontSize: 13),
+                        ),
+                      ),
+                    )
+                  : GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: daftarKategoriApi.length,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 9,
+                            childAspectRatio: 2.85,
+                          ),
+                      itemBuilder: (context, index) {
+                        final nama =
+                            daftarKategoriApi[index]['nama_kategori']
+                                ?.toString()
+                                .trim() ??
+                            '';
 
-                    return kategoriButton(nama);
-                  }),
-                ],
-              ),
+                        if (nama.isEmpty) return const SizedBox.shrink();
+                        return kategoriCard(nama);
+                      },
+                    ),
             ),
 
             // JUDUL DAFTAR LOMBA
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 25, 22, 14),
+              padding: const EdgeInsets.fromLTRB(20, 19, 20, 11),
               child: Row(
                 children: [
                   const Expanded(
                     child: Text(
                       'Lomba Terbaru',
                       style: TextStyle(
-                        fontSize: 19,
+                        fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: _text,
                       ),
@@ -1046,7 +1053,7 @@ void _showAllNotifications() {
                   : RefreshIndicator(
                       onRefresh: _loadDataLomba,
                       child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(22, 0, 22, 125),
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 118),
                         itemCount: lombaTampil.length,
                         itemBuilder: (context, index) {
                           return cardLomba(context, lombaTampil[index]);
@@ -1061,51 +1068,85 @@ void _showAllNotifications() {
   }
 
   // =========================================================
-  // TOMBOL KATEGORI
+  // KARTU KATEGORI LOMBA
   // =========================================================
 
-  Widget kategoriButton(String text) {
-    final aktif = kategoriAktif == text;
+  IconData _iconKategori(String nama) {
+    switch (nama.toLowerCase()) {
+      case 'akademik':
+        return Icons.menu_book_rounded;
+      case 'olahraga':
+        return Icons.emoji_events_rounded;
+      case 'seni':
+        return Icons.palette_rounded;
+      case 'teknologi':
+        return Icons.memory_rounded;
+      default:
+        return Icons.category_rounded;
+    }
+  }
 
-    return Padding(
-      padding: const EdgeInsets.only(right: 9),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(24),
-          onTap: () {
-            setState(() {
-              kategoriAktif = text;
-            });
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: aktif ? _primary : Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: aktif ? _primary : const Color(0xFFE5EAF2),
-              ),
-              boxShadow: aktif
-                  ? [
-                      BoxShadow(
-                        color: _primary.withValues(alpha: 0.15),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ]
-                  : null,
+  Widget kategoriCard(String nama) {
+    final aktif = kategoriAktif == nama;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          setState(() {
+            // Ketuk kategori yang sama sekali lagi untuk menampilkan semua lomba.
+            kategoriAktif = aktif ? 'Semua' : nama;
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: aktif ? _primaryLight : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: aktif ? _primary : const Color(0xFFE5EAF2),
             ),
-            child: Text(
-              text,
-              style: TextStyle(
-                color: aktif ? Colors.white : _muted,
-                fontSize: 13,
-                fontWeight: aktif ? FontWeight.w700 : FontWeight.w500,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.035),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
-            ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: aktif ? Colors.white : _primaryLight,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(_iconKategori(nama), color: _primary, size: 20),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  nama,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _text,
+                    fontSize: 12,
+                    fontWeight: aktif ? FontWeight.w800 : FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: aktif ? _primary : _muted,
+                size: 21,
+              ),
+            ],
           ),
         ),
       ),
@@ -1190,17 +1231,18 @@ void _showAllNotifications() {
           );
         },
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Poster asli dari pengajuan. Gunakan ilustrasi kategori jika poster belum tersedia.
               ClipRRect(
-                borderRadius: BorderRadius.circular(17),
+                borderRadius: BorderRadius.circular(15),
                 child: SizedBox(
-                  width: 86,
-                  height: 112,
-                  child: ApiService.publicStorageUrl(lomba['poster_lomba']) == null
+                  width: 104,
+                  height: 132,
+                  child:
+                      ApiService.publicStorageUrl(lomba['poster_lomba']) == null
                       ? Container(
                           color: warnaLatarPoster,
                           child: Stack(
@@ -1225,14 +1267,16 @@ void _showAllNotifications() {
                                       kategori == 'Seni'
                                           ? Icons.palette_rounded
                                           : kategori == 'Teknologi'
-                                              ? Icons.psychology_alt_rounded
-                                              : Icons.menu_book_rounded,
+                                          ? Icons.psychology_alt_rounded
+                                          : Icons.menu_book_rounded,
                                       size: 28,
                                       color: warnaPoster,
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      kategori.isEmpty ? 'LOMBA' : kategori.toUpperCase(),
+                                      kategori.isEmpty
+                                          ? 'LOMBA'
+                                          : kategori.toUpperCase(),
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         color: warnaPoster,
@@ -1249,14 +1293,18 @@ void _showAllNotifications() {
                       : Image.network(
                           ApiService.publicStorageUrl(lomba['poster_lomba'])!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                          errorBuilder: (_, _, _) => Container(
                             color: warnaLatarPoster,
-                            child: Icon(Icons.image_not_supported_outlined, color: warnaPoster, size: 30),
+                            child: Icon(
+                              Icons.image_not_supported_outlined,
+                              color: warnaPoster,
+                              size: 30,
+                            ),
                           ),
                         ),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 13),
 
               // INFORMASI LOMBA
               Expanded(
@@ -1287,8 +1335,8 @@ void _showAllNotifications() {
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 14,
-                        height: 1.35,
+                        fontSize: 15,
+                        height: 1.3,
                         fontWeight: FontWeight.w800,
                         color: _text,
                       ),

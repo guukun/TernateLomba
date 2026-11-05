@@ -9,8 +9,8 @@ class ApiService {
   // Untuk HP fisik, gunakan IP LAN komputer yang menjalankan Laravel.
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    // defaultValue: 'http://127.0.0.1:8000/api',
-    defaultValue: 'http://10.104.22.67:8000/api',
+    defaultValue: 'http://127.0.0.1:8000/api',
+    // defaultValue: 'http://10.104.22.67:8000/api',
   );
 
   /// Membentuk URL gambar dengan merujuk path poster yang disimpan MySQL.

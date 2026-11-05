@@ -58,8 +58,9 @@ class DetailPengajuanPage extends StatelessWidget {
 
   String _kuota() {
     final value = item['kuota_peserta'];
-    if (value == null || value.toString().trim().isEmpty)
+    if (value == null || value.toString().trim().isEmpty) {
       return 'Tidak dibatasi';
+    }
     return '${value.toString()} peserta';
   }
 
@@ -140,7 +141,7 @@ class DetailPengajuanPage extends StatelessWidget {
                     ApiService.publicStorageUrl(item['poster_lomba']?.toString())!,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       color: const Color(0xFFEAF2FF),
                       child: const Icon(Icons.image_not_supported_outlined, color: _blue, size: 42),
                     ),
@@ -170,7 +171,7 @@ class DetailPengajuanPage extends StatelessWidget {
                         : Image.network(
                             ApiService.publicStorageUrl(item['poster_lomba']?.toString())!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                            errorBuilder: (_, _, _) => Container(
                               color: const Color(0xFFEAF2FF),
                               child: const Icon(
                                 Icons.image_not_supported_outlined,

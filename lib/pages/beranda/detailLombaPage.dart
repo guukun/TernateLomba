@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../config/appTheme.dart';
 import '../../services/api_service.dart';
 import 'formulirPesertaPage.dart';
 
@@ -14,6 +15,24 @@ class DetailLombaPage extends StatefulWidget {
 }
 
 class _DetailLombaPageState extends State<DetailLombaPage> {
+  // ==========================================
+  // APP THEME
+  // ==========================================
+
+  static const Color primary = AppColors.primary;
+  static const Color primaryDark = AppColors.primaryDark;
+  static const Color cream = AppColors.cream;
+  static const Color creamLight = AppColors.creamLight;
+  static const Color creamDark = AppColors.creamDark;
+  static const Color background = AppColors.background;
+  static const Color textColor = AppColors.navy;
+  static const Color muted = AppColors.grey;
+  static const Color borderColor = AppColors.fieldBorder;
+
+  // ==========================================
+  // STATE
+  // ==========================================
+
   late Map<String, String> lomba;
 
   bool isLoadingDetail = true;
@@ -23,12 +42,14 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   void initState() {
     super.initState();
 
-    // Data Beranda menjadi tampilan awal.
     lomba = Map<String, String>.from(widget.lomba);
 
-    // Setelah itu, ambil detail terbaru dari Laravel.
     _loadDetailLomba();
   }
+
+  // ==========================================
+  // LOAD DETAIL LOMBA
+  // ==========================================
 
   Future<void> _loadDetailLomba() async {
     final idLomba = int.tryParse(lomba['id_lomba'] ?? '');
@@ -40,6 +61,7 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
         errorDetail = 'ID lomba tidak valid.';
         isLoadingDetail = false;
       });
+
       return;
     }
 
@@ -94,16 +116,17 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
     }
   }
 
-  static const Color primary = Color(0xFF3478E5);
-  static const Color primaryLight = Color(0xFFEAF2FF);
-  static const Color background = Color(0xFFF5F7FB);
-  static const Color textColor = Color(0xFF202938);
-  static const Color muted = Color(0xFF667085);
-  static const Color borderColor = Color(0xFFE8EDF4);
+  // ==========================================
+  // DATA HELPERS
+  // ==========================================
 
   String getValue(String key, {String fallback = 'Belum tersedia'}) {
     final value = lomba[key]?.trim();
-    if (value == null || value.isEmpty) return fallback;
+
+    if (value == null || value.isEmpty) {
+      return fallback;
+    }
+
     return value;
   }
 
@@ -119,557 +142,943 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
     return 'Kapasitas maksimal $totalKuota peserta';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final judul = getValue('judul', fallback: 'Detail Lomba');
-    final kategori = getValue('kategori');
-    final penyelenggara = getValue('penyelenggara');
-    final deskripsi = getValue(
-      'deskripsi',
-      fallback: 'Belum ada deskripsi lomba.',
-    );
-    final persyaratan = getValue(
-      'persyaratan',
-      fallback: 'Informasi persyaratan belum tersedia.',
-    );
+  String get _posterUrl {
+    return lomba['poster_lomba'] ?? '';
+  }
 
-    return Scaffold(
-      backgroundColor: background,
-      body: isLoadingDetail
-          ? const Center(child: CircularProgressIndicator(color: primary))
-          : errorDetail != null
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Gagal memuat detail lomba.'),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: _loadDetailLomba,
-                    child: const Text('Coba Lagi'),
-                  ),
-                ],
-              ),
-            )
-          : SafeArea(
-              bottom: false,
-              child: CustomScrollView(
-                slivers: [
-                  // HEADER
-                  SliverToBoxAdapter(
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(22, 14, 22, 28),
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFFDCE9FF),
-                            Color(0xFFEAF2FF),
-                            Color(0xFFF5F7FB),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(30),
-                          bottomRight: Radius.circular(30),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              _circleButton(
-                                icon: Icons.arrow_back_rounded,
-                                onTap: () => Navigator.pop(context),
-                              ),
-                              const SizedBox(width: 14),
-                              const Expanded(
-                                child: Text(
-                                  'Detail Lomba',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                    color: textColor,
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.verified_outlined,
-                                      color: primary,
-                                      size: 16,
-                                    ),
-                                    SizedBox(width: 5),
-                                    Text(
-                                      'Lomba',
-                                      style: TextStyle(
-                                        color: primary,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 28),
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.82),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 1.5,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: primary.withValues(alpha: 0.06),
-                                  blurRadius: 22,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (ApiService.publicStorageUrl(lomba['poster_lomba']) != null) ...[
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(17),
-                                    child: AspectRatio(
-                                      aspectRatio: 16 / 9,
-                                      child: Image.network(
-                                        ApiService.publicStorageUrl(lomba['poster_lomba'])!,
-                                        width: double.infinity,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, _, _) => Container(
-                                          color: primaryLight,
-                                          child: const Icon(
-                                            Icons.image_not_supported_outlined,
-                                            color: primary,
-                                            size: 42,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                ],
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 7,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: primaryLight,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    kategori,
-                                    style: const TextStyle(
-                                      color: primary,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  judul,
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    height: 1.3,
-                                    fontWeight: FontWeight.w800,
-                                    color: textColor,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(
-                                      Icons.account_balance_outlined,
-                                      size: 18,
-                                      color: primary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        penyelenggara,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          height: 1.5,
-                                          color: muted,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+  // ==========================================
+  // CARD DECORATION
+  // ==========================================
 
-                  // ISI HALAMAN
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        _sectionTitle('Status Pendaftaran'),
-                        const SizedBox(height: 12),
-
-                        _surfaceCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Kuota peserta',
-                                          style: TextStyle(
-                                            color: muted,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          informasiKuota,
-                                          style: const TextStyle(
-                                            color: textColor,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.all(11),
-                                    decoration: BoxDecoration(
-                                      color: primaryLight,
-                                      borderRadius: BorderRadius.circular(15),
-                                    ),
-                                    child: const Icon(
-                                      Icons.people_alt_outlined,
-                                      color: primary,
-                                      size: 23,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 18),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
-                                child: LinearProgressIndicator(
-                                  value: 0,
-                                  minHeight: 8,
-                                  backgroundColor: const Color(0xFFE9EEF6),
-                                  color: primary,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                'Jumlah peserta terdaftar belum tersedia',
-                                style: const TextStyle(
-                                  color: muted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-                        _sectionTitle('Informasi Lomba'),
-                        const SizedBox(height: 12),
-
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _infoBox(
-                                icon: Icons.payments_outlined,
-                                title: 'Biaya Pendaftaran',
-                                value: getValue('biaya'),
-                                accent: const Color(0xFF21866D),
-                                iconBackground: const Color(0xFFE2F5EE),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _infoBox(
-                                icon: Icons.emoji_events_outlined,
-                                title: 'Hadiah',
-                                value: getValue('hadiah'),
-                                accent: primary,
-                                iconBackground: primaryLight,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _infoBox(
-                                icon: Icons.event_outlined,
-                                title: 'Batas Pendaftaran',
-                                value: getValue('batas_pendaftaran'),
-                                accent: const Color(0xFFB7791F),
-                                iconBackground: const Color(0xFFFFF3D9),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _infoBox(
-                                icon: Icons.calendar_month_outlined,
-                                title: 'Pelaksanaan',
-                                value: getValue('tanggal_pelaksanaan'),
-                                accent: const Color(0xFF8063C9),
-                                iconBackground: const Color(0xFFF0EAFF),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 26),
-                        _sectionTitle('Deskripsi Lomba'),
-                        const SizedBox(height: 12),
-
-                        _surfaceCard(
-                          child: Text(
-                            deskripsi,
-                            style: const TextStyle(
-                              color: muted,
-                              fontSize: 14,
-                              height: 1.8,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-                        _sectionTitle('Persyaratan Lomba'),
-                        const SizedBox(height: 12),
-
-                        _surfaceCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Row(
-                                children: [
-                                  Icon(
-                                    Icons.fact_check_outlined,
-                                    color: primary,
-                                    size: 21,
-                                  ),
-                                  SizedBox(width: 9),
-                                  Text(
-                                    'Ketentuan peserta',
-                                    style: TextStyle(
-                                      color: textColor,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              Text(
-                                persyaratan,
-                                style: const TextStyle(
-                                  color: muted,
-                                  fontSize: 14,
-                                  height: 1.8,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 22),
-                      ]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-      // TOMBOL PENDAFTARAN
-      bottomNavigationBar: Container(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          14,
-          20,
-          MediaQuery.of(context).padding.bottom + 14,
+  BoxDecoration _cardDecoration({Color color = AppColors.surface}) {
+    return BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: borderColor),
+      boxShadow: [
+        BoxShadow(
+          color: primaryDark.withValues(alpha: 0.035),
+          blurRadius: 16,
+          offset: const Offset(0, 5),
         ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: const Border(top: BorderSide(color: borderColor)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.035),
-              blurRadius: 16,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: SizedBox(
-          height: 54,
-          child: ElevatedButton(
-            // Mempertahankan perilaku tombol dari kode awal.
-            onPressed: isLoadingDetail || errorDetail != null
-                ? null
-                : () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => FormulirPesertaPage(
-                          idLomba: int.parse(lomba['id_lomba']!),
-                          token: widget.token,
-                        ),
-                      ),
-                    );
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(17),
-              ),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Daftar Sekarang',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-                ),
-                SizedBox(width: 9),
-                Icon(Icons.arrow_forward_rounded, size: 19),
-              ],
-            ),
-          ),
-        ),
-      ),
+      ],
     );
   }
 
-  Widget _circleButton({required IconData icon, required VoidCallback onTap}) {
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(icon, color: textColor, size: 21),
-        ),
-      ),
-    );
-  }
+  // ==========================================
+  // HEADER
+  // ==========================================
 
-  Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: textColor,
-        fontSize: 18,
-        fontWeight: FontWeight.w800,
-      ),
-    );
-  }
-
-  Widget _surfaceCard({required Widget child}) {
+  Widget _buildHeader() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(21),
-        border: Border.all(color: borderColor),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF344054).withValues(alpha: 0.025),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
+      padding: const EdgeInsets.fromLTRB(20, 15, 20, 25),
+      decoration: const BoxDecoration(
+        color: primaryDark,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Material(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(13),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(13),
+                  onTap: () => Navigator.pop(context),
+                  child: const SizedBox(
+                    width: 43,
+                    height: 43,
+                    child: Icon(
+                      Icons.arrow_back_rounded,
+                      color: Colors.white,
+                      size: 21,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 13),
+
+              const Expanded(
+                child: Text(
+                  'Detail Lomba',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: cream,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.emoji_events_outlined, color: primary, size: 15),
+                    SizedBox(width: 5),
+                    Text(
+                      'LOMBA',
+                      style: TextStyle(
+                        color: primary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.7,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          const Text(
+            'TEMUKAN PELUANG BERPRESTASI',
+            style: TextStyle(
+              color: cream,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.4,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          const Text(
+            'Kenali Lomba Lebih Dekat',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 25,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          const Text(
+            'Pelajari informasi, ketentuan, dan kesempatan '
+            'yang tersedia sebelum mendaftar.',
+            style: TextStyle(
+              color: Color(0xFFDCE6F0),
+              fontSize: 12,
+              height: 1.6,
+            ),
           ),
         ],
       ),
-      child: child,
     );
   }
+
+  // ==========================================
+  // POSTER
+  // ==========================================
+
+  Widget _buildPoster() {
+    final posterUrl = ApiService.publicStorageUrl(_posterUrl);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(19),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: posterUrl != null
+            ? Image.network(
+                posterUrl,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                cacheWidth: 1000,
+                gaplessPlayback: true,
+                errorBuilder: (_, _, _) => _posterFallback(),
+              )
+            : _posterFallback(),
+      ),
+    );
+  }
+
+  Widget _posterFallback() {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [creamLight, cream, creamDark],
+        ),
+      ),
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.emoji_events_rounded, color: primary, size: 47),
+          SizedBox(height: 10),
+          Text(
+            'POSTER LOMBA',
+            style: TextStyle(
+              color: primary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // INFORMASI UTAMA LOMBA
+  // ==========================================
+
+  Widget _buildMainInformation() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildPoster(),
+
+          const SizedBox(height: 17),
+
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: cream,
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Text(
+              getValue('kategori'),
+              style: const TextStyle(
+                color: primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 13),
+
+          Text(
+            getValue('judul', fallback: 'Detail Lomba'),
+            style: const TextStyle(
+              color: textColor,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              height: 1.3,
+              letterSpacing: -0.3,
+            ),
+          ),
+
+          const SizedBox(height: 13),
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.account_balance_outlined,
+                color: primary,
+                size: 19,
+              ),
+
+              const SizedBox(width: 9),
+
+              Expanded(
+                child: Text(
+                  getValue('penyelenggara'),
+                  style: const TextStyle(
+                    color: muted,
+                    fontSize: 12,
+                    height: 1.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // SECTION TITLE
+  // ==========================================
+
+  Widget _sectionTitle(String title, {String? subtitle, IconData? icon}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        if (icon != null) ...[
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: cream,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: primary, size: 20),
+          ),
+          const SizedBox(width: 11),
+        ],
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: textColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+
+              if (subtitle != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: muted,
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================
+  // STATUS / KUOTA
+  // ==========================================
+
+  Widget _buildQuotaCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(17),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Kuota Peserta',
+                      style: TextStyle(color: muted, fontSize: 12),
+                    ),
+
+                    const SizedBox(height: 7),
+
+                    Text(
+                      informasiKuota,
+                      style: const TextStyle(
+                        color: textColor,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Container(
+                width: 45,
+                height: 45,
+                decoration: BoxDecoration(
+                  color: cream,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.groups_rounded,
+                  color: primary,
+                  size: 24,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 17),
+
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: const LinearProgressIndicator(
+              value: 0,
+              minHeight: 8,
+              backgroundColor: creamDark,
+              color: primary,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          const Row(
+            children: [
+              Icon(Icons.info_outline_rounded, size: 15, color: muted),
+              SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  'Jumlah peserta terdaftar belum tersedia.',
+                  style: TextStyle(color: muted, fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // INFORMATION BOX
+  // ==========================================
 
   Widget _infoBox({
     required IconData icon,
     required String title,
     required String value,
-    required Color accent,
-    required Color iconBackground,
+    bool highlight = false,
   }) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 142),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor),
-      ),
+      constraints: const BoxConstraints(minHeight: 145),
+      padding: const EdgeInsets.all(13),
+      decoration: _cardDecoration(),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: cream,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: primary, size: 20),
+          ),
+
+          const SizedBox(height: 13),
+
+          Text(
+            title,
+            style: const TextStyle(color: muted, fontSize: 11, height: 1.4),
+          ),
+
+          const SizedBox(height: 7),
+
+          Text(
+            value,
+            style: TextStyle(
+              color: highlight ? AppColors.green : textColor,
+              fontSize: 13,
+              height: 1.45,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // INFORMASI LOMBA
+  // ==========================================
+
+  Widget _buildInformationGrid() {
+    return Column(
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _infoBox(
+                icon: Icons.payments_outlined,
+                title: 'Biaya Pendaftaran',
+                value: getValue('biaya'),
+                highlight: getValue('biaya') == 'Gratis',
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            Expanded(
+              child: _infoBox(
+                icon: Icons.emoji_events_outlined,
+                title: 'Hadiah',
+                value: getValue('hadiah'),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _infoBox(
+                icon: Icons.event_available_outlined,
+                title: 'Batas Pendaftaran',
+                value: getValue('batas_pendaftaran'),
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            Expanded(
+              child: _infoBox(
+                icon: Icons.calendar_month_outlined,
+                title: 'Tanggal Pelaksanaan',
+                value: getValue('tanggal_pelaksanaan'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ==========================================
+  // DETAIL TAMBAHAN
+  // ==========================================
+
+  Widget _buildAdditionalInformation() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(17),
+      decoration: _cardDecoration(),
+      child: Column(
+        children: [
+          _detailRow(
+            Icons.location_on_outlined,
+            'Lokasi',
+            getValue('lokasi_pendaftaran'),
+          ),
+
+          _detailDivider(),
+
+          _detailRow(
+            Icons.phone_outlined,
+            'Kontak Penyelenggara',
+            getValue('kontak_penyelenggara'),
+          ),
+
+          _detailDivider(),
+
+          _detailRow(Icons.groups_outlined, 'Kuota', informasiKuota),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String title, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 37,
             height: 37,
             decoration: BoxDecoration(
-              color: iconBackground,
-              borderRadius: BorderRadius.circular(12),
+              color: cream,
+              borderRadius: BorderRadius.circular(11),
             ),
-            child: Icon(icon, color: accent, size: 20),
+            child: Icon(icon, color: primary, size: 19),
           ),
-          const SizedBox(height: 13),
-          Text(
-            title,
-            style: const TextStyle(color: muted, fontSize: 11, height: 1.4),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              color: value == 'Belum tersedia' ? muted : accent,
-              fontSize: 13,
-              height: 1.4,
-              fontWeight: FontWeight.w800,
+
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: muted, fontSize: 11)),
+
+                const SizedBox(height: 5),
+
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: textColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    height: 1.5,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _detailDivider() {
+    return const Divider(height: 1, thickness: 0.8, color: borderColor);
+  }
+
+  // ==========================================
+  // DESKRIPSI
+  // ==========================================
+
+  Widget _buildDescription() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(17),
+      decoration: _cardDecoration(),
+      child: Text(
+        getValue('deskripsi', fallback: 'Belum ada deskripsi lomba.'),
+        style: const TextStyle(color: muted, fontSize: 13, height: 1.8),
+      ),
+    );
+  }
+
+  // ==========================================
+  // PERSYARATAN
+  // ==========================================
+
+  Widget _buildRequirements() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(17),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 37,
+                height: 37,
+                decoration: BoxDecoration(
+                  color: cream,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: const Icon(
+                  Icons.fact_check_outlined,
+                  color: primary,
+                  size: 20,
+                ),
+              ),
+
+              const SizedBox(width: 11),
+
+              const Expanded(
+                child: Text(
+                  'Ketentuan Peserta',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 15),
+
+          Text(
+            getValue(
+              'persyaratan',
+              fallback: 'Informasi persyaratan belum tersedia.',
+            ),
+            style: const TextStyle(color: muted, fontSize: 13, height: 1.8),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // TOMBOL PENDAFTARAN
+  // ==========================================
+
+  Widget _buildRegisterButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: () {
+          final idLomba = int.tryParse(lomba['id_lomba'] ?? '');
+
+          if (idLomba == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('ID lomba tidak valid.')),
+            );
+            return;
+          }
+
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  FormulirPesertaPage(idLomba: idLomba, token: widget.token),
+            ),
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Daftar Sekarang',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+            ),
+
+            SizedBox(width: 9),
+
+            Icon(Icons.arrow_forward_rounded, size: 19),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // LOADING STATE
+  // ==========================================
+
+  Widget _buildLoadingState() {
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        children: [
+          const SizedBox(height: 100),
+
+          const CircularProgressIndicator(color: primary, strokeWidth: 3),
+
+          const SizedBox(height: 20),
+
+          const Text(
+            'Memuat informasi lomba...',
+            style: TextStyle(
+              color: muted,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // ERROR STATE
+  // ==========================================
+
+  Widget _buildErrorState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(23),
+      decoration: _cardDecoration(),
+      child: Column(
+        children: [
+          Container(
+            width: 65,
+            height: 65,
+            decoration: BoxDecoration(
+              color: cream,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.cloud_off_outlined,
+              color: primary,
+              size: 32,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          const Text(
+            'Gagal Memuat Detail',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            errorDetail ?? 'Terjadi kesalahan.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: muted, fontSize: 12, height: 1.6),
+          ),
+
+          const SizedBox(height: 18),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _loadDetailLomba,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Coba Lagi'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // BUILD
+  // ==========================================
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: background,
+
+      body: SafeArea(
+        bottom: false,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // HEADER IKUT TERSCROLL
+
+              _buildHeader(),
+
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 20, 18, 35),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (isLoadingDetail)
+                      _buildLoadingState()
+                    else if (errorDetail != null)
+                      _buildErrorState()
+                    else ...[
+                      // INFORMASI UTAMA
+
+                      _buildMainInformation(),
+
+                      const SizedBox(height: 25),
+
+                      // STATUS DAN KUOTA
+                      _sectionTitle(
+                        'Status Pendaftaran',
+                        subtitle: 'Informasi kapasitas peserta lomba.',
+                        icon: Icons.groups_outlined,
+                      ),
+
+                      const SizedBox(height: 13),
+
+                      _buildQuotaCard(),
+
+                      const SizedBox(height: 25),
+
+                      // INFORMASI LOMBA
+                      _sectionTitle(
+                        'Informasi Lomba',
+                        subtitle: 'Biaya, hadiah, dan jadwal kegiatan.',
+                        icon: Icons.event_note_outlined,
+                      ),
+
+                      const SizedBox(height: 13),
+
+                      _buildInformationGrid(),
+
+                      const SizedBox(height: 25),
+
+                      // INFORMASI TAMBAHAN
+                      _sectionTitle(
+                        'Informasi Tambahan',
+                        subtitle: 'Lokasi dan kontak penyelenggara.',
+                        icon: Icons.info_outline_rounded,
+                      ),
+
+                      const SizedBox(height: 13),
+
+                      _buildAdditionalInformation(),
+
+                      const SizedBox(height: 25),
+
+                      // DESKRIPSI
+                      _sectionTitle(
+                        'Deskripsi Lomba',
+                        subtitle: 'Kenali kegiatan yang akan diikuti.',
+                        icon: Icons.description_outlined,
+                      ),
+
+                      const SizedBox(height: 13),
+
+                      _buildDescription(),
+
+                      const SizedBox(height: 25),
+
+                      // PERSYARATAN
+                      _sectionTitle(
+                        'Persyaratan Lomba',
+                        subtitle: 'Ketentuan yang harus dipenuhi peserta.',
+                        icon: Icons.fact_check_outlined,
+                      ),
+
+                      const SizedBox(height: 13),
+
+                      _buildRequirements(),
+
+                      const SizedBox(height: 25),
+
+                      // TOMBOL DAFTAR
+                      _buildRegisterButton(),
+
+                      const SizedBox(height: 18),
+
+                      const Center(
+                        child: Text(
+                          'TERNATE LOMBA • TEMUKAN PRESTASIMU',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: muted,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

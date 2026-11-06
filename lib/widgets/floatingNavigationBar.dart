@@ -30,15 +30,12 @@ class FloatingNavigationBar extends StatelessWidget {
       icon: Icons.explore_outlined,
       activeIcon: Icons.explore_rounded,
     ),
-
-    // Pengajuan khusus administrator.
     if (isAdmin)
       const _NavigationItem(
         label: 'Pengajuan',
         icon: Icons.fact_check_outlined,
         activeIcon: Icons.fact_check_rounded,
       ),
-
     const _NavigationItem(
       label: 'Profil',
       icon: Icons.person_outline_rounded,
@@ -48,7 +45,8 @@ class FloatingNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final safeIndex = currentIndex.clamp(0, _items.length - 1);
+    final items = _items;
+    final safeIndex = currentIndex.clamp(0, items.length - 1);
 
     return SafeArea(
       top: false,
@@ -57,25 +55,28 @@ class FloatingNavigationBar extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
           child: Container(
-            padding: const EdgeInsets.all(4),
+            height: 68,
+            padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(32),
+              borderRadius: BorderRadius.circular(40),
               border: Border.all(color: AppColors.fieldBorder, width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.navy.withValues(alpha: 0.08),
+                  color: AppColors.navy.withValues(alpha: 0.09),
                   blurRadius: 20,
-                  offset: const Offset(0, 5),
+                  spreadRadius: 1,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Row(
-              children: List.generate(_items.length, (index) {
-                final item = _items[index];
+              children: List.generate(items.length, (index) {
+                final item = items[index];
                 final selected = index == safeIndex;
 
                 return Expanded(
+                  flex: selected ? 24 : 15,
                   child: Semantics(
                     button: true,
                     selected: selected,
@@ -83,57 +84,56 @@ class FloatingNavigationBar extends StatelessWidget {
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(28),
+                        borderRadius: BorderRadius.circular(35),
                         onTap: () => onTap(index),
                         child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOutCubic,
-                          constraints: const BoxConstraints(minHeight: 50),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 2,
-                            vertical: 5,
-                          ),
+                          duration: const Duration(milliseconds: 280),
+                          curve: Curves.easeInOutCubic,
                           decoration: BoxDecoration(
                             color: selected
                                 ? AppColors.primary
                                 : Colors.transparent,
-                            borderRadius: BorderRadius.circular(28),
+                            borderRadius: BorderRadius.circular(35),
                           ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              AnimatedScale(
-                                scale: selected ? 1.08 : 1,
-                                duration: const Duration(milliseconds: 220),
-                                child: Icon(
-                                  selected ? item.activeIcon : item.icon,
-                                  size: 22,
-                                  color: selected
-                                      ? Colors.white
-                                      : AppColors.grey,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              AnimatedDefaultTextStyle(
-                                duration: const Duration(milliseconds: 180),
-                                style: TextStyle(
-                                  color: selected
-                                      ? Colors.white
-                                      : AppColors.grey,
-                                  fontSize: 10,
-                                  fontWeight: selected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                ),
-                                child: Text(
-                                  item.label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ],
+                          child: Center(
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              switchInCurve: Curves.easeOut,
+                              switchOutCurve: Curves.easeIn,
+                              child: selected
+                                  ? Row(
+                                      key: ValueKey('active_$index'),
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          item.activeIcon,
+                                          color: Colors.white,
+                                          size: 24,
+                                        ),
+                                        const SizedBox(width: 7),
+                                        Flexible(
+                                          child: Text(
+                                            item.label,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Icon(
+                                      item.icon,
+                                      key: ValueKey('inactive_$index'),
+                                      color: AppColors.grey,
+                                      size: 25,
+                                    ),
+                            ),
                           ),
                         ),
                       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/api_service.dart';
+import '../../config/appTheme.dart';
 import 'detailPengajuanPage.dart';
 
 class PengajuanPage extends StatefulWidget {
@@ -13,26 +14,39 @@ class PengajuanPage extends StatefulWidget {
 }
 
 class _PengajuanPageState extends State<PengajuanPage> {
-  static const _blue = Color(0xFF3478E5);
-  static const _ink = Color(0xFF1A2338);
-  static const _muted = Color(0xFF768296);
-  static const _background = Color(0xFFF4F7FC);
-  static const _outline = Color(0xFFE3E9F1);
+  // ==========================================
+  // WARNA DARI APP THEME
+  // ==========================================
+
+  static const Color _primary = AppColors.primary;
+  static const Color _primaryDark = AppColors.primaryDark;
+  static const Color _cream = AppColors.cream;
+  static const Color _creamLight = AppColors.creamLight;
+  static const Color _creamDark = AppColors.creamDark;
+  static const Color _background = AppColors.background;
+  static const Color _surface = AppColors.surface;
+  static const Color _text = AppColors.navy;
+  static const Color _muted = AppColors.grey;
+  static const Color _outline = AppColors.fieldBorder;
 
   static const List<String> _filters = [
-    'Semua',
     'Menunggu',
     'Ditolak',
     'Diterima',
     'Sedang Aktif',
   ];
 
+  // ==========================================
+  // STATE
+  // ==========================================
+
   List<Map<String, dynamic>> _items = [];
 
   bool _loading = true;
+
   String? _error;
 
-  String _activeFilter = 'Semua';
+  String? _activeFilter;
 
   @override
   void initState() {
@@ -40,9 +54,9 @@ class _PengajuanPageState extends State<PengajuanPage> {
     _load();
   }
 
-  // =========================================================
+  // ==========================================
   // MEMUAT DATA
-  // =========================================================
+  // ==========================================
 
   Future<void> _load() async {
     if (!mounted) return;
@@ -83,9 +97,9 @@ class _PengajuanPageState extends State<PengajuanPage> {
     }
   }
 
-  // =========================================================
+  // ==========================================
   // STATUS PENGAJUAN DAN PUBLIKASI
-  // =========================================================
+  // ==========================================
 
   String _status(Map<String, dynamic> item) {
     return (item['status_pengajuan'] ?? '').toString().trim().toLowerCase();
@@ -94,12 +108,10 @@ class _PengajuanPageState extends State<PengajuanPage> {
   String _lombaStatus(Map<String, dynamic> item) {
     final lomba = item['lomba'];
 
-    // Relasi lomba berbentuk object.
     if (lomba is Map) {
       return (lomba['status_lomba'] ?? '').toString().trim().toLowerCase();
     }
 
-    // Antisipasi apabila API mengirim status di level utama.
     return (item['status_lomba'] ?? '').toString().trim().toLowerCase();
   }
 
@@ -107,73 +119,64 @@ class _PengajuanPageState extends State<PengajuanPage> {
     return _status(item) == 'disetujui' && _lombaStatus(item) == 'aktif';
   }
 
-  // Menentukan label status untuk badge pada kartu pengajuan.
-  // Label ini tidak dipakai sebagai satu-satunya dasar filter karena
-  // kategori Diterima dan Sedang Aktif memang dapat saling beririsan.
   String _itemCategory(Map<String, dynamic> item) {
     final status = _status(item);
 
     if (status == 'menunggu') return 'Menunggu';
+
     if (status == 'ditolak') return 'Ditolak';
-    if (status == 'disetujui' && _isActive(item)) return 'Sedang Aktif';
+
+    if (status == 'disetujui' && _isActive(item)) {
+      return 'Sedang Aktif';
+    }
+
     if (status == 'disetujui') return 'Diterima';
 
     return 'Lainnya';
   }
 
-  // Menentukan apakah satu pengajuan masuk ke filter yang dipilih.
-  // Diterima mencakup semua pengajuan yang disetujui, termasuk yang aktif.
-  bool _matchesFilter(Map<String, dynamic> item, String filter) {
+  bool _matchesFilter(Map<String, dynamic> item, String? filter) {
     final status = _status(item);
 
+    if (filter == null) return true;
+
     switch (filter) {
-      case 'Semua':
-        return true;
       case 'Menunggu':
         return status == 'menunggu';
+
       case 'Ditolak':
         return status == 'ditolak';
+
       case 'Diterima':
         return status == 'disetujui';
+
       case 'Sedang Aktif':
         return status == 'disetujui' && _lombaStatus(item) == 'aktif';
+
       default:
-        return false;
+        return true;
     }
   }
 
-  // =========================================================
+  // ==========================================
   // FILTER DAN JUMLAH DATA
-  // =========================================================
+  // ==========================================
 
   int _count(String category) {
     return _items.where((item) => _matchesFilter(item, category)).length;
   }
 
   List<Map<String, dynamic>> get _filteredItems {
-    final list = _items
+    if (_activeFilter == null) return _items;
+
+    return _items
         .where((item) => _matchesFilter(item, _activeFilter))
-        .toList();
-
-    // Urutkan berdasarkan pengajuan terbaru.
-    list.sort((a, b) {
-      final aTime = DateTime.tryParse(
-        (a['tanggal_pengajuan'] ?? a['created_at'] ?? '').toString(),
-      );
-
-      final bTime = DateTime.tryParse(
-        (b['tanggal_pengajuan'] ?? b['created_at'] ?? '').toString(),
-      );
-
-      return (bTime ?? DateTime(1900)).compareTo(aTime ?? DateTime(1900));
-    });
-
-    return list;
+        .toList(growable: false);
   }
 
-  // =========================================================
+  // ==========================================
   // INFORMASI PENYELENGGARA
-  // =========================================================
+  // ==========================================
 
   String _organizer(Map<String, dynamic> item) {
     final organizer = item['penyelenggara'];
@@ -188,9 +191,9 @@ class _PengajuanPageState extends State<PengajuanPage> {
     return organizer?.toString() ?? 'Penyelenggara tidak tersedia';
   }
 
-  // =========================================================
-  // INFORMASI KATEGORI LOMBA
-  // =========================================================
+  // ==========================================
+  // INFORMASI KATEGORI
+  // ==========================================
 
   String _category(Map<String, dynamic> item) {
     final category = item['kategori'];
@@ -198,24 +201,18 @@ class _PengajuanPageState extends State<PengajuanPage> {
     if (category is Map) {
       final label = (category['nama_kategori'] ?? '').toString().trim();
 
-      if (label.isNotEmpty) {
-        return label;
-      }
+      if (label.isNotEmpty) return label;
     }
 
     return 'Tanpa kategori';
   }
 
   String _shortDate(dynamic value) {
-    if (value == null) {
-      return 'Belum diatur';
-    }
+    if (value == null) return 'Belum diatur';
 
     final date = DateTime.tryParse(value.toString());
 
-    if (date == null) {
-      return 'Belum diatur';
-    }
+    if (date == null) return 'Belum diatur';
 
     return '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/'
@@ -244,65 +241,75 @@ class _PengajuanPageState extends State<PengajuanPage> {
     return Icons.menu_book_rounded;
   }
 
-  // =========================================================
+  // ==========================================
+  // WARNA STATUS
+  // ==========================================
+
+  Color _statusColor(String category) {
+    switch (category) {
+      case 'Menunggu':
+        return const Color(0xFFB7791F);
+
+      case 'Ditolak':
+        return AppColors.error;
+
+      case 'Diterima':
+        return AppColors.green;
+
+      case 'Sedang Aktif':
+        return _primary;
+
+      default:
+        return _muted;
+    }
+  }
+
+  Color _statusBackground(String category) {
+    switch (category) {
+      case 'Menunggu':
+        return const Color(0xFFFFF4DF);
+
+      case 'Ditolak':
+        return const Color(0xFFFFEBEB);
+
+      case 'Diterima':
+        return const Color(0xFFE7F4EC);
+
+      case 'Sedang Aktif':
+        return _cream;
+
+      default:
+        return _creamLight;
+    }
+  }
+
+  // ==========================================
   // BADGE STATUS
-  // =========================================================
+  // ==========================================
 
   Widget _statusBadge(Map<String, dynamic> item) {
     final category = _itemCategory(item);
 
-    late Color color;
-    late Color background;
-    late String label;
-
-    switch (category) {
-      case 'Menunggu':
-        color = const Color(0xFFB66B06);
-        background = const Color(0xFFFFF3DA);
-        label = 'Menunggu';
-        break;
-
-      case 'Ditolak':
-        color = const Color(0xFFC53B47);
-        background = const Color(0xFFFFE9ED);
-        label = 'Ditolak';
-        break;
-
-      case 'Diterima':
-        color = const Color(0xFF18794E);
-        background = const Color(0xFFE5F6ED);
-        label = 'Diterima';
-        break;
-
-      case 'Sedang Aktif':
-        color = const Color(0xFF3478E5);
-        background = const Color(0xFFE8F1FF);
-        label = 'Sedang Aktif';
-        break;
-
-      default:
-        color = _muted;
-        background = const Color(0xFFE3E9F1);
-        label = category;
-    }
+    final color = _statusColor(category);
+    final background = _statusBackground(category);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 6,
-            height: 6,
+            width: 7,
+            height: 7,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 7),
           Text(
-            label,
+            category,
             style: TextStyle(
               color: color,
               fontSize: 11,
@@ -314,9 +321,9 @@ class _PengajuanPageState extends State<PengajuanPage> {
     );
   }
 
-  // =========================================================
+  // ==========================================
   // DETAIL PENGAJUAN
-  // =========================================================
+  // ==========================================
 
   Future<void> _openDetails(Map<String, dynamic> item) async {
     final result = await Navigator.of(context).push(
@@ -332,79 +339,92 @@ class _PengajuanPageState extends State<PengajuanPage> {
     }
   }
 
-  // =========================================================
+  // ==========================================
   // POSTER CADANGAN
-  // =========================================================
+  // ==========================================
 
   Widget _posterFallback(String category, String eventDate) {
-    return Stack(
-      children: [
-        Positioned(
-          top: -18,
-          right: -18,
-          child: Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: _blue.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-          ),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.creamLight, AppColors.cream],
         ),
-        Positioned(
-          bottom: -18,
-          left: -18,
-          child: Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: _blue.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 5),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(_categoryIcon(category), color: _blue, size: 30),
-              const SizedBox(height: 9),
-              const Text(
-                'LOMBA',
-                style: TextStyle(
-                  color: _blue,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -18,
+            right: -18,
+            child: Container(
+              width: 65,
+              height: 65,
+              decoration: BoxDecoration(
+                color: _primary.withValues(alpha: 0.06),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 5),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  eventDate,
-                  style: const TextStyle(
-                    color: _blue,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 10,
+            ),
+          ),
+          Positioned(
+            bottom: -18,
+            left: -18,
+            child: Container(
+              width: 65,
+              height: 65,
+              decoration: BoxDecoration(
+                color: _primary.withValues(alpha: 0.06),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(_categoryIcon(category), color: _primary, size: 30),
+                  const SizedBox(height: 9),
+                  const Text(
+                    'LOMBA',
+                    style: TextStyle(
+                      color: _primary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      letterSpacing: 1,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 5),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      eventDate,
+                      style: const TextStyle(
+                        color: _muted,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // =========================================================
+  // ==========================================
   // KARTU LOMBA
-  // =========================================================
+  // ==========================================
 
   Widget _card(Map<String, dynamic> item) {
     final name = (item['nama_lomba'] ?? 'Lomba tanpa nama').toString();
 
     final category = _category(item);
+
     final eventDate = _shortDate(item['tanggal_pelaksanaan']);
 
     final posterUrl = ApiService.publicStorageUrl(
@@ -412,68 +432,75 @@ class _PengajuanPageState extends State<PengajuanPage> {
     );
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 15),
       child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
+        color: _surface,
+        borderRadius: BorderRadius.circular(23),
         child: InkWell(
           onTap: () => _openDetails(item),
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(23),
+          splashColor: _creamDark.withValues(alpha: 0.22),
+          highlightColor: _cream.withValues(alpha: 0.35),
           child: Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(13),
             decoration: BoxDecoration(
-              border: Border.all(color: _outline),
-              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: _outline, width: 1),
+              borderRadius: BorderRadius.circular(23),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF253759).withValues(alpha: 0.025),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
+                  color: _primaryDark.withValues(alpha: 0.035),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
                 ),
               ],
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Poster lomba.
+                // POSTER
+
                 Container(
-                  width: 94,
-                  height: 122,
+                  width: 108,
+                  height: 145,
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F1FF),
-                    borderRadius: BorderRadius.circular(18),
+                    color: _cream,
+                    borderRadius: BorderRadius.circular(17),
                   ),
                   child: posterUrl == null
                       ? _posterFallback(category, eventDate)
                       : Image.network(
                           posterUrl,
-                          width: 94,
-                          height: 122,
+                          width: 108,
+                          height: 145,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              _posterFallback(category, eventDate),
+                          cacheWidth: 324,
+                          cacheHeight: 435,
+                          gaplessPlayback: true,
+                          errorBuilder: (_, _, _) {
+                            return _posterFallback(category, eventDate);
+                          },
                         ),
                 ),
 
-                const SizedBox(width: 14),
+                const SizedBox(width: 13),
 
-                // Informasi lomba.
+                // INFORMASI LOMBA
                 Expanded(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 122),
+                    constraints: const BoxConstraints(minHeight: 145),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
-                          constraints: const BoxConstraints(maxWidth: 170),
+                          constraints: const BoxConstraints(maxWidth: 160),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
-                            vertical: 5,
+                            vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE8F1FF),
+                            color: _cream,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -481,28 +508,28 @@ class _PengajuanPageState extends State<PengajuanPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: _blue,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                              color: _primary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
 
-                        const SizedBox(height: 7),
+                        const SizedBox(height: 9),
 
                         Text(
                           name,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: _ink,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            height: 1.25,
+                            color: _text,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            height: 1.3,
                           ),
                         ),
 
-                        const SizedBox(height: 5),
+                        const SizedBox(height: 8),
 
                         Row(
                           children: [
@@ -519,30 +546,28 @@ class _PengajuanPageState extends State<PengajuanPage> {
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   color: _muted,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                 ),
                               ),
                             ),
                           ],
                         ),
 
-                        const SizedBox(height: 9),
+                        const SizedBox(height: 11),
 
-                        Row(
-                          children: [
-                            Flexible(child: _statusBadge(item)),
-                            const Spacer(),
-                            const Icon(
-                              Icons.arrow_forward_rounded,
-                              color: _blue,
-                              size: 21,
-                            ),
-                          ],
-                        ),
+                        Row(children: [Flexible(child: _statusBadge(item))]),
                       ],
                     ),
                   ),
                 ),
+
+                const SizedBox(width: 5),
+
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: _primary,
+                  size: 17,
+                ),
               ],
             ),
           ),
@@ -551,136 +576,265 @@ class _PengajuanPageState extends State<PengajuanPage> {
     );
   }
 
-  // =========================================================
-  // KATEGORI FILTER BERBENTUK KAPSUL
-  // =========================================================
+  // ==========================================
+  // ICON FILTER
+  // ==========================================
+
+  IconData _filterIcon(String title) {
+    switch (title) {
+      case 'Menunggu':
+        return Icons.schedule_rounded;
+
+      case 'Ditolak':
+        return Icons.cancel_outlined;
+
+      case 'Diterima':
+        return Icons.verified_outlined;
+
+      case 'Sedang Aktif':
+        return Icons.play_circle_outline_rounded;
+
+      default:
+        return Icons.category_outlined;
+    }
+  }
+
+  // ==========================================
+  // KARTU FILTER
+  // ==========================================
 
   Widget _filter(String title) {
     final active = _activeFilter == title;
-    final count = _count(title);
 
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text('$title ($count)'),
-        selected: active,
-        onSelected: (_) {
+    final color = active ? Colors.white : _primary;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(21),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(21),
+
+        // Hover dan splash dibuat lembut.
+        hoverColor: active
+            ? _primaryDark.withValues(alpha: 0.15)
+            : _cream.withValues(alpha: 0.55),
+
+        splashColor: active
+            ? Colors.white.withValues(alpha: 0.10)
+            : _creamDark.withValues(alpha: 0.25),
+
+        highlightColor: active
+            ? Colors.white.withValues(alpha: 0.05)
+            : _cream.withValues(alpha: 0.35),
+
+        onTap: () {
           setState(() {
-            _activeFilter = title;
+            _activeFilter = _activeFilter == title ? null : title;
           });
         },
-        labelStyle: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: active ? Colors.white : _ink,
+
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+          decoration: BoxDecoration(
+            color: active ? _primary : _surface,
+            borderRadius: BorderRadius.circular(21),
+            border: Border.all(
+              color: active ? _primary : _outline,
+              width: active ? 1.3 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _primaryDark.withValues(alpha: active ? 0.10 : 0.035),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: active ? Colors.white.withValues(alpha: 0.13) : _cream,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(
+                  _filterIcon(title),
+                  color: active ? Colors.white : _primary,
+                  size: 24,
+                ),
+              ),
+
+              const SizedBox(width: 9),
+
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    Text(
+                      '${_count(title)} lomba',
+                      style: TextStyle(
+                        color: active
+                            ? Colors.white.withValues(alpha: 0.75)
+                            : _muted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        backgroundColor: Colors.white,
-        selectedColor: _blue,
-        side: BorderSide(color: active ? _blue : const Color(0xFFD8E0EC)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        showCheckmark: false,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       ),
     );
   }
 
-  // =========================================================
-  // RUANG NAVIGASI BAWAH
-  // =========================================================
-
-  double _navigationClearance(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
-    return 120.0 + bottomInset;
-  }
-
-  // =========================================================
+  // ==========================================
   // TAMPILAN KOSONG
-  // =========================================================
+  // ==========================================
 
   Widget _emptyState() {
-    return ListView(
-      padding: EdgeInsets.only(bottom: _navigationClearance(context)),
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        const SizedBox(height: 110),
-        Center(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: Color(0xFFEAF1FF),
-              shape: BoxShape.circle,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 92,
+            height: 92,
+            decoration: BoxDecoration(color: _cream, shape: BoxShape.circle),
+            child: const Icon(Icons.inbox_outlined, size: 38, color: _primary),
+          ),
+
+          const SizedBox(height: 18),
+
+          const Text(
+            'Belum ada data',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _text,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
             ),
-            child: const Icon(Icons.inbox_outlined, size: 34, color: _blue),
           ),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Belum ada data',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: _ink,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
+
+          const SizedBox(height: 8),
+
+          Text(
+            _activeFilter == null
+                ? 'Belum ada pengajuan lomba.'
+                : 'Tidak ada lomba dalam kategori $_activeFilter.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: _muted, fontSize: 13, height: 1.5),
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          _activeFilter == 'Semua'
-              ? 'Belum ada pengajuan lomba.'
-              : 'Tidak ada lomba dalam kategori $_activeFilter.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: _muted, fontSize: 12),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // =========================================================
-  // HEADER
-  // =========================================================
+  // ==========================================
+  // HEADER HALAMAN
+  // ==========================================
 
   Widget _header() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
+      padding: const EdgeInsets.fromLTRB(20, 27, 20, 30),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFE5EFFD), Color(0xFFF0F5FE)],
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(26)),
+        color: _primaryDark,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 46,
-            width: 46,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.fact_check_rounded, color: _blue, size: 25),
+          Row(
+            children: [
+              Container(
+                width: 49,
+                height: 49,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.fact_check_rounded,
+                  color: _cream,
+                  size: 26,
+                ),
+              ),
+
+              const SizedBox(width: 13),
+
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TERNATELOMBA',
+                      style: TextStyle(
+                        color: _cream,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.6,
+                      ),
+                    ),
+
+                    SizedBox(height: 5),
+
+                    Text(
+                      'Pengajuan Lomba',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 23,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pengajuan Lomba',
-                  style: TextStyle(
-                    color: _ink,
-                    fontSize: 23,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Kelola pengajuan dan publikasi lomba',
-                  style: TextStyle(color: _muted, fontSize: 12),
-                ),
-              ],
+
+          const SizedBox(height: 20),
+
+          const Text(
+            'Kelola pengajuan dan publikasi lomba',
+            style: TextStyle(
+              color: Color(0xFFE0E8F2),
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          Container(
+            width: 58,
+            height: 4,
+            decoration: BoxDecoration(
+              color: _cream,
+              borderRadius: BorderRadius.circular(10),
             ),
           ),
         ],
@@ -688,9 +842,49 @@ class _PengajuanPageState extends State<PengajuanPage> {
     );
   }
 
-  // =========================================================
+  // ==========================================
+  // HEADER DAFTAR PENGAJUAN
+  // ==========================================
+
+  Widget _listHeader(int total) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 25, 20, 13),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Daftar Pengajuan',
+              style: TextStyle(
+                color: _text,
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+            decoration: BoxDecoration(
+              color: _cream,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '$total lomba',
+              style: const TextStyle(
+                color: _primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
   // TAMPILAN ERROR
-  // =========================================================
+  // ==========================================
 
   Widget _errorState() {
     return Center(
@@ -699,17 +893,33 @@ class _PengajuanPageState extends State<PengajuanPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_rounded, size: 36, color: _muted),
-            const SizedBox(height: 12),
+            Container(
+              width: 75,
+              height: 75,
+              decoration: BoxDecoration(
+                color: _cream,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: const Icon(
+                Icons.wifi_off_rounded,
+                size: 34,
+                color: _primary,
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: _ink, fontSize: 13),
+              style: const TextStyle(color: _text, fontSize: 13, height: 1.5),
             ),
-            const SizedBox(height: 14),
+
+            const SizedBox(height: 15),
+
             OutlinedButton.icon(
               onPressed: _load,
-              icon: const Icon(Icons.refresh, size: 16),
+              icon: const Icon(Icons.refresh_rounded),
               label: const Text('Coba lagi'),
             ),
           ],
@@ -718,9 +928,9 @@ class _PengajuanPageState extends State<PengajuanPage> {
     );
   }
 
-  // =========================================================
-  // BUILD
-  // =========================================================
+  // ==========================================
+  // BUILD UTAMA
+  // ==========================================
 
   @override
   Widget build(BuildContext context) {
@@ -729,64 +939,92 @@ class _PengajuanPageState extends State<PengajuanPage> {
     return Scaffold(
       backgroundColor: _background,
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header tanpa tombol refresh.
-            _header(),
+        child: RefreshIndicator(
+          color: _primary,
+          backgroundColor: _creamLight,
+          onRefresh: _load,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              // HEADER DAN FILTER
 
-            const SizedBox(height: 16),
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _header(),
 
-            // Lima kategori filter.
-            SizedBox(
-              height: 48,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: _filters.map(_filter).toList(),
-              ),
-            ),
+                    const SizedBox(height: 24),
 
-            // Jumlah data sesuai filter.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
-              child: Text(
-                '${items.length} lomba',
-                style: const TextStyle(
-                  color: _muted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(20, 0, 20, 13),
+                      child: Text(
+                        'Kategori Pengajuan',
+                        style: TextStyle(
+                          color: _text,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: GridView.count(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 2.05,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: _filters.map(_filter).toList(),
+                      ),
+                    ),
+
+                    _listHeader(items.length),
+                  ],
                 ),
               ),
-            ),
 
-            // Daftar data.
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator(color: _blue))
-                  : _error != null
-                  ? _errorState()
-                  : RefreshIndicator(
-                      color: _blue,
-                      onRefresh: _load,
-                      child: items.isEmpty
-                          ? _emptyState()
-                          : ListView.builder(
-                              padding: EdgeInsets.fromLTRB(
-                                20,
-                                0,
-                                20,
-                                _navigationClearance(context),
-                              ),
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              itemCount: items.length,
-                              itemBuilder: (_, index) {
-                                return _card(items[index]);
-                              },
-                            ),
-                    ),
-            ),
-          ],
+              // LOADING
+              if (_loading)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: CircularProgressIndicator(color: _primary),
+                  ),
+                )
+              // ERROR
+              else if (_error != null)
+                SliverFillRemaining(hasScrollBody: false, child: _errorState())
+              // DATA KOSONG
+              else if (items.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 40),
+                    child: Center(child: _emptyState()),
+                  ),
+                )
+              // DAFTAR KARTU
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      return _card(items[index]);
+                    }, childCount: items.length),
+                  ),
+                ),
+
+              // RUANG SCROLL UNTUK NAVIGASI BAWAH
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 120 + MediaQuery.paddingOf(context).bottom,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

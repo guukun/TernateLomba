@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-
 import 'package:image_picker/image_picker.dart';
 
+import '../../config/appTheme.dart';
 import '../../widgets/appConfirmDialog.dart';
 import '../../screens/auth/authScreen.dart';
 import '../../services/api_service.dart';
-import 'editProfilePage.dart';
 import '../../widgets/appNotification.dart';
-
-import 'historyRegistrationPage.dart';
+import 'editProfilePage.dart';
 
 class ProfilePage extends StatefulWidget {
   final String username;
@@ -31,20 +29,41 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  static const Color primary = Color(0xFF3478E5);
-  static const Color background = Color(0xFFF4F7FC);
-  static const Color textColor = Color(0xFF202938);
-  static const Color muted = Color(0xFF667085);
-  static const Color borderColor = Color(0xFFE8EDF4);
-  static const Color danger = Color(0xFFD92D20);
+  // ==========================================
+  // APP THEME
+  // ==========================================
+
+  static const Color primary = AppColors.primary;
+  static const Color primaryDark = AppColors.primaryDark;
+  static const Color cream = AppColors.cream;
+  static const Color creamLight = AppColors.creamLight;
+  static const Color creamDark = AppColors.creamDark;
+  static const Color background = AppColors.background;
+  static const Color textColor = AppColors.navy;
+  static const Color muted = AppColors.grey;
+  static const Color borderColor = AppColors.fieldBorder;
+  static const Color danger = AppColors.error;
+
+  // ==========================================
+  // STATE
+  // ==========================================
 
   late String _username;
+
+  String? _fotoProfilUrl;
+
   bool _isLoggingOut = false;
+  bool _isUploadingFoto = false;
+  bool _isAvatarHovered = false;
+
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
+
     _username = widget.username;
+
     _loadCurrentUser();
   }
 
@@ -57,10 +76,9 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  final ImagePicker _imagePicker = ImagePicker();
-  String? _fotoProfilUrl;
-  bool _isUploadingFoto = false;
-  bool _isAvatarHovered = false;
+  // ==========================================
+  // LOAD USER
+  // ==========================================
 
   Future<void> _loadCurrentUser() async {
     try {
@@ -72,15 +90,19 @@ class _ProfilePageState extends State<ProfilePage> {
         _username = (user['username'] ?? _username).toString();
 
         final foto = user['foto_profil_url'];
+
         _fotoProfilUrl = foto == null || foto.toString().isEmpty
             ? null
             : foto.toString();
       });
     } catch (e) {
-      // Jika profil gagal diambil, avatar inisial tetap ditampilkan.
       debugPrint('Gagal memuat profil: $e');
     }
   }
+
+  // ==========================================
+  // UPLOAD FOTO PROFIL
+  // ==========================================
 
   Future<void> _pickAndUploadFoto() async {
     if (_isUploadingFoto) return;
@@ -92,7 +114,6 @@ class _ProfilePageState extends State<ProfilePage> {
         maxWidth: 1200,
       );
 
-      // Pengguna membatalkan pemilihan foto.
       if (foto == null || !mounted) return;
 
       setState(() {
@@ -104,12 +125,9 @@ class _ProfilePageState extends State<ProfilePage> {
         foto: foto,
       );
 
-      debugPrint('RESPONS UPLOAD FOTO: $response');
-
       final dynamic user = response['user'];
-      final dynamic fotoUrl = user is Map ? user['foto_profil_url'] : null;
 
-      debugPrint('URL FOTO DARI LARAVEL: $fotoUrl');
+      final dynamic fotoUrl = user is Map ? user['foto_profil_url'] : null;
 
       if (!mounted) return;
 
@@ -127,8 +145,6 @@ class _ProfilePageState extends State<ProfilePage> {
         message: 'Foto profil berhasil diperbarui.',
         type: NotificationType.success,
       );
-
-      widget.onProfileChanged();
 
       widget.onProfileChanged();
     } catch (e) {
@@ -149,78 +165,22 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Widget _buildProfileAvatar() {
-    final fotoUrl = _fotoProfilUrl;
+  // ==========================================
+  // INITIAL AVATAR
+  // ==========================================
 
-    return MouseRegion(
-      onEnter: (_) {
-        setState(() => _isAvatarHovered = true);
-      },
-      onExit: (_) {
-        setState(() => _isAvatarHovered = false);
-      },
-      child: Semantics(
-        button: true,
-        label: 'Ubah foto profil',
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: _isUploadingFoto ? null : _pickAndUploadFoto,
-            borderRadius: BorderRadius.circular(25),
-            child: Container(
-              width: 82,
-              height: 82,
-              decoration: BoxDecoration(
-                color: primary,
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(25),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (fotoUrl != null && fotoUrl.isNotEmpty)
-                      Image.network(
-                        fotoUrl,
-                        key: ValueKey(fotoUrl),
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return _initialAvatar();
-                        },
-                      )
-                    else
-                      _initialAvatar(),
+  String _initials(String name) {
+    final value = name.trim();
 
-                    AnimatedOpacity(
-                      opacity: _isAvatarHovered || _isUploadingFoto ? 1 : 0,
-                      duration: const Duration(milliseconds: 180),
-                      child: Container(
-                        color: Colors.black.withValues(alpha: 0.42),
-                        alignment: Alignment.center,
-                        child: _isUploadingFoto
-                            ? const SizedBox(
-                                width: 25,
-                                height: 25,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.camera_alt_rounded,
-                                color: Colors.white,
-                                size: 27,
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    if (value.isEmpty) return 'U';
+
+    final parts = value.split(RegExp(r'\s+'));
+
+    if (parts.length == 1) {
+      return parts.first.substring(0, 1).toUpperCase();
+    }
+
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
 
   Widget _initialAvatar() {
@@ -238,19 +198,85 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  String _initials(String name) {
-    final value = name.trim();
+  Widget _buildProfileAvatar() {
+    final fotoUrl = _fotoProfilUrl;
 
-    if (value.isEmpty) return 'U';
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => _isAvatarHovered = true);
+      },
+      onExit: (_) {
+        setState(() => _isAvatarHovered = false);
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _isUploadingFoto ? null : _pickAndUploadFoto,
+          borderRadius: BorderRadius.circular(25),
+          child: Container(
+            width: 86,
+            height: 86,
+            decoration: BoxDecoration(
+              color: primary,
+              borderRadius: BorderRadius.circular(25),
+              border: Border.all(color: cream, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: primary.withValues(alpha: 0.12),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (fotoUrl != null && fotoUrl.isNotEmpty)
+                    Image.network(
+                      fotoUrl,
+                      key: ValueKey(fotoUrl),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => _initialAvatar(),
+                    )
+                  else
+                    _initialAvatar(),
 
-    final parts = value.split(RegExp(r'\s+'));
-
-    if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
-    }
-
-    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+                  AnimatedOpacity(
+                    opacity: _isAvatarHovered || _isUploadingFoto ? 1 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    child: Container(
+                      color: primaryDark.withValues(alpha: 0.65),
+                      alignment: Alignment.center,
+                      child: _isUploadingFoto
+                          ? const SizedBox(
+                              width: 25,
+                              height: 25,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.camera_alt_rounded,
+                              color: Colors.white,
+                              size: 27,
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
+
+  // ==========================================
+  // UPDATE USERNAME
+  // ==========================================
 
   void _updateUsername(String usernameBaru) {
     if (!mounted) return;
@@ -261,6 +287,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
     widget.onUsernameChanged(usernameBaru);
   }
+
+  // ==========================================
+  // EDIT PROFILE
+  // ==========================================
 
   Future<void> _openEditProfile() async {
     await Navigator.of(context).push(
@@ -274,11 +304,9 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _openHistory() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const HistoryRegistrationPage()));
-  }
+  // ==========================================
+  // LOGOUT
+  // ==========================================
 
   Future<void> _logout() async {
     if (_isLoggingOut) return;
@@ -368,240 +396,227 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: background,
-      body: SafeArea(
-        bottom: false,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+  // ==========================================
+  // CARD DECORATION
+  // ==========================================
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: borderColor),
+      boxShadow: [
+        BoxShadow(
+          color: primaryDark.withValues(alpha: 0.035),
+          blurRadius: 16,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================
+  // HEADER PROFILE
+  // ==========================================
+
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(22, 28, 22, 30),
+      decoration: const BoxDecoration(
+        color: primaryDark,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              // HEADER: mengikuti gaya halaman Lomba Saya
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(22, 28, 22, 28),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFFE0ECFF), Color(0xFFF4F7FC)],
-                  ),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(36),
-                    bottomRight: Radius.circular(36),
-                  ),
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Akun Kamu',
-                      style: TextStyle(
-                        color: primary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Profil Saya',
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.8,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Kelola akun dan aktivitasmu.',
-                      style: TextStyle(color: muted, fontSize: 15),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Kartu identitas di dalam header
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.82),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white, width: 1.5),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            // Kartu identitas luar
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.82),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                _buildProfileAvatar(),
-                                // Username
-                                // Role
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _username,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: textColor,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 11,
-                                    vertical: 5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEAF2FF),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    widget.role,
-                                    style: const TextStyle(
-                                      color: primary,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.person_outline_rounded,
-                            color: primary,
-                            size: 25,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                child: const Icon(
+                  Icons.person_outline_rounded,
+                  color: Colors.white,
+                  size: 23,
                 ),
               ),
 
-              // MENU: tetap tiga fitur yang sudah ada
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 26, 20, 125),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'AKUN',
-                      style: TextStyle(
-                        color: muted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(23),
-                        border: Border.all(color: borderColor),
-                      ),
-                      child: Column(
-                        children: [
-                          _menuRow(
-                            icon: Icons.person_outline_rounded,
-                            title: 'Edit Profil',
-                            subtitle: 'Username dan kata sandi',
-                            onTap: _openEditProfile,
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(left: 76),
-                            child: Divider(height: 1, color: borderColor),
-                          ),
-                          _menuRow(
-                            icon: Icons.history_rounded,
-                            title: 'Riwayat Pendaftaran',
-                            subtitle: 'Aktivitas pendaftaran lomba',
-                            onTap: _openHistory,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    const Text(
-                      'SESI AKUN',
-                      style: TextStyle(
-                        color: muted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Material(
-                      color: const Color(0xFFFFF0EF),
-                      borderRadius: BorderRadius.circular(20),
-                      child: InkWell(
-                        onTap: _isLoggingOut ? null : _logout,
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFF8DAD7)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.logout_rounded,
-                                color: Color(0xFFD92D20),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Text(
-                                  _isLoggingOut ? 'Sedang keluar...' : 'Keluar',
-                                  style: const TextStyle(
-                                    color: Color(0xFFD92D20),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              const Icon(
-                                Icons.chevron_right_rounded,
-                                color: Color(0xFFD92D20),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+              const SizedBox(width: 12),
+
+              const Expanded(
+                child: Text(
+                  'TERNATE LOMBA',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: cream,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'AKUN',
+                  style: TextStyle(
+                    color: primary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
                 ),
               ),
             ],
           ),
+
+          const SizedBox(height: 27),
+
+          const Text(
+            'PENGATURAN AKUN',
+            style: TextStyle(
+              color: cream,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          const Text(
+            'Profil Saya',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.7,
+            ),
+          ),
+
+          const SizedBox(height: 7),
+
+          const Text(
+            'Kelola informasi dan pengaturan akunmu.',
+            style: TextStyle(
+              color: Color(0xFFDCE6F0),
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+
+          const SizedBox(height: 23),
+
+          // Kartu identitas
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: creamLight,
+              borderRadius: BorderRadius.circular(23),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+            ),
+            child: Row(
+              children: [
+                _buildProfileAvatar(),
+
+                const SizedBox(width: 15),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _username,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: textColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cream,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          widget.role,
+                          style: const TextStyle(
+                            color: primary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      const Text(
+                        'Ketuk foto untuk mengganti avatar',
+                        style: TextStyle(color: muted, fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Icon(
+                  Icons.verified_user_outlined,
+                  color: primary,
+                  size: 24,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // SECTION HEADING
+  // ==========================================
+
+  Widget _sectionHeading(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 13),
+      child: Text(
+        title,
+        style: const TextStyle(
+          color: muted,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.3,
         ),
       ),
     );
   }
+
+  // ==========================================
+  // MENU ROW
+  // ==========================================
 
   Widget _menuRow({
     required IconData icon,
@@ -613,7 +628,9 @@ class _ProfilePageState extends State<ProfilePage> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(19),
+        hoverColor: cream,
+        splashColor: creamDark.withValues(alpha: 0.3),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 17),
           child: Row(
@@ -622,13 +639,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
+                  color: cream,
                   borderRadius: BorderRadius.circular(15),
                 ),
                 alignment: Alignment.center,
                 child: Icon(icon, color: primary, size: 23),
               ),
+
               const SizedBox(width: 14),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -641,7 +660,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
+
                     const SizedBox(height: 5),
+
                     Text(
                       subtitle,
                       style: const TextStyle(
@@ -653,11 +674,111 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Color(0xFF98A2B3),
-                size: 23,
+
+              const Icon(Icons.chevron_right_rounded, color: muted, size: 23),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // MENU AKUN
+  // ==========================================
+
+  Widget _buildAccountMenu() {
+    return Container(
+      decoration: _cardDecoration(),
+      child: _menuRow(
+        icon: Icons.manage_accounts_outlined,
+        title: 'Edit Profil',
+        subtitle: 'Ubah username dan kata sandi',
+        onTap: _openEditProfile,
+      ),
+    );
+  }
+
+  // ==========================================
+  // LOGOUT BUTTON
+  // ==========================================
+
+  Widget _buildLogoutButton() {
+    return Material(
+      color: const Color(0xFFFFF0EF),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: _isLoggingOut ? null : _logout,
+        borderRadius: BorderRadius.circular(20),
+        hoverColor: const Color(0xFFFFE4E1),
+        child: Container(
+          padding: const EdgeInsets.all(17),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFF8DAD7)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.logout_rounded, color: danger, size: 22),
+
+              const SizedBox(width: 14),
+
+              Expanded(
+                child: Text(
+                  _isLoggingOut ? 'Sedang keluar...' : 'Keluar dari Akun',
+                  style: const TextStyle(
+                    color: danger,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+
+              const Icon(Icons.chevron_right_rounded, color: danger, size: 23),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // BUILD
+  // ==========================================
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: background,
+
+      body: SafeArea(
+        bottom: false,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // HEADER
+
+              _buildHeader(),
+
+              // MENU
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 27, 20, 130),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionHeading('PENGATURAN AKUN'),
+
+                    _buildAccountMenu(),
+
+                    const SizedBox(height: 28),
+
+                    _sectionHeading('SESI AKUN'),
+
+                    _buildLogoutButton(),
+                  ],
+                ),
               ),
             ],
           ),

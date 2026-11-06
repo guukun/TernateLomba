@@ -24,6 +24,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _confirm = TextEditingController();
 
   int _tab = 0;
+
   bool _hidePassword = true;
   bool _hideConfirm = true;
   bool _loading = false;
@@ -37,6 +38,10 @@ class _AuthScreenState extends State<AuthScreen> {
     _confirm.dispose();
     super.dispose();
   }
+
+  // ============================================================
+  // AUTHENTICATION
+  // ============================================================
 
   void _changeTab(int value) {
     if (_loading || _tab == value) return;
@@ -55,7 +60,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
     AppNotification.show(
       context: context,
-      title: success ? 'Berhasil!' : 'Login Gagal',
+      title: success
+          ? 'Berhasil!'
+          : (_isLogin ? 'Login Gagal' : 'Pendaftaran Gagal'),
       message: message,
       type: success ? NotificationType.success : NotificationType.error,
     );
@@ -115,10 +122,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
         final usernameLogin = user['username']?.toString().trim() ?? '';
 
-        // Normalisasi role agar tidak sensitif huruf kapital.
         final roleLogin = user['role']?.toString().trim().toLowerCase() ?? '';
 
-        // Ketiga role TernateLomba diperbolehkan login.
         const allowedRoles = {'user', 'penyelenggara', 'administrator'};
 
         if (!allowedRoles.contains(roleLogin)) {
@@ -131,8 +136,6 @@ class _AuthScreenState extends State<AuthScreen> {
           return;
         }
 
-        // Login berhasil.
-        // Dashboard khusus Administrator akan dibuat terpisah.
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => MainPage(
@@ -149,6 +152,7 @@ class _AuthScreenState extends State<AuthScreen> {
         );
 
         _formKey.currentState?.reset();
+
         _username.text = username;
         _password.clear();
         _confirm.clear();
@@ -177,9 +181,195 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  // ============================================================
+  // LOGO
+  // ============================================================
+
+  Widget _buildLogo() {
+    return Container(
+      width: 66,
+      height: 66,
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: AppColors.creamLight,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.creamDark),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: Image.asset('assets/logo/logo.png', fit: BoxFit.contain),
+      ),
+    );
+  }
+
+  // ============================================================
+  // HEADER
+  // ============================================================
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(22, 25, 22, 26),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(27),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.15),
+            blurRadius: 22,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _buildLogo(),
+
+              const SizedBox(width: 13),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'TERNATELOMBA',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    Text(
+                      'Platform Informasi Lomba',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.75),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.emoji_events_rounded,
+                  color: AppColors.cream,
+                  size: 21,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 30),
+
+          Text(
+            _isLogin ? 'Selamat Datang!' : 'Bergabung Bersama Kami!',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 25,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6,
+            ),
+          ),
+
+          const SizedBox(height: 9),
+
+          Text(
+            _isLogin
+                ? 'Temukan berbagai peluang lomba dan raih prestasi terbaikmu.'
+                : 'Buat akun dan mulai temukan kesempatan untuk mengembangkan potensimu.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.78),
+              fontSize: 12,
+              height: 1.65,
+            ),
+          ),
+
+          const SizedBox(height: 21),
+
+          Container(
+            width: 55,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.cream,
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // TAB MASUK / DAFTAR
+  // ============================================================
+
+  Widget _tabButton(String text, int index) {
+    final active = _tab == index;
+
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: active,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _loading ? null : () => _changeTab(index),
+            borderRadius: BorderRadius.circular(14),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: active ? AppColors.primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: active
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Center(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    color: active ? Colors.white : AppColors.grey,
+                    fontSize: 13,
+                    fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // LABEL INPUT
+  // ============================================================
+
   Widget _label(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 9),
       child: Text(
         text,
         style: const TextStyle(
@@ -191,47 +381,9 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _tabButton(String text, int index) {
-    final active = _tab == index;
-
-    return Expanded(
-      child: Semantics(
-        button: true,
-        selected: active,
-        child: InkWell(
-          onTap: _loading ? null : () => _changeTab(index),
-          borderRadius: BorderRadius.circular(13),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(vertical: 13),
-            decoration: BoxDecoration(
-              color: active ? Colors.white : Colors.transparent,
-              borderRadius: BorderRadius.circular(13),
-              boxShadow: active
-                  ? [
-                      BoxShadow(
-                        color: AppColors.navy.withValues(alpha: 0.06),
-                        blurRadius: 9,
-                        offset: const Offset(0, 3),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Center(
-              child: Text(
-                text,
-                style: TextStyle(
-                  color: active ? AppColors.primary : AppColors.grey,
-                  fontSize: 13,
-                  fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // ============================================================
+  // PASSWORD VISIBILITY
+  // ============================================================
 
   Widget _passwordEye(bool hidden, VoidCallback onTap) {
     return IconButton(
@@ -245,267 +397,309 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _buildLogo() {
+  // ============================================================
+  // FORM CARD
+  // ============================================================
+
+  Widget _buildFormCard() {
     return Container(
-      width: 88,
-      height: 88,
-      padding: const EdgeInsets.all(5),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: AppColors.fieldBorder),
+        border: Border.all(color: AppColors.fieldBorder, width: 1),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.09),
+            color: AppColors.primaryDeep.withValues(alpha: 0.045),
             blurRadius: 22,
             offset: const Offset(0, 7),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Image.asset('assets/logo/logo.png', fit: BoxFit.contain),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // JUDUL FORM
+            Text(
+              _isLogin ? 'Masuk ke Akun' : 'Buat Akun Baru',
+              style: const TextStyle(
+                color: AppColors.navy,
+                fontSize: 21,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
+              ),
+            ),
+
+            const SizedBox(height: 7),
+
+            Text(
+              _isLogin
+                  ? 'Silakan masukkan informasi akunmu untuk melanjutkan.'
+                  : 'Lengkapi informasi berikut untuk membuat akun TernateLomba.',
+              style: const TextStyle(
+                color: AppColors.grey,
+                fontSize: 12,
+                height: 1.6,
+              ),
+            ),
+
+            const SizedBox(height: 22),
+
+            // TAB
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: AppColors.cream,
+                borderRadius: BorderRadius.circular(17),
+                border: Border.all(color: AppColors.creamDark),
+              ),
+              child: Row(
+                children: [_tabButton('Masuk', 0), _tabButton('Daftar', 1)],
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            // USERNAME
+            _label('Nama Pengguna'),
+
+            CustomTextField(
+              controller: _username,
+              hintText: 'Masukkan nama pengguna',
+              icon: Icons.person_outline_rounded,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Nama pengguna wajib diisi';
+                }
+
+                if (!_isLogin && value.trim().length > 255) {
+                  return 'Nama pengguna maksimal 255 karakter';
+                }
+
+                return null;
+              },
+            ),
+
+            const SizedBox(height: 19),
+
+            // PASSWORD
+            _label('Password'),
+
+            CustomTextField(
+              controller: _password,
+              hintText: 'Masukkan password',
+              icon: Icons.lock_outline_rounded,
+              obscureText: _hidePassword,
+              suffixIcon: _passwordEye(_hidePassword, () {
+                setState(() {
+                  _hidePassword = !_hidePassword;
+                });
+              }),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Password wajib diisi';
+                }
+
+                if (!_isLogin && value.length < 8) {
+                  return 'Password minimal 8 karakter';
+                }
+
+                return null;
+              },
+            ),
+
+            // KONFIRMASI PASSWORD
+            if (!_isLogin) ...[
+              const SizedBox(height: 19),
+
+              _label('Konfirmasi Password'),
+
+              CustomTextField(
+                controller: _confirm,
+                hintText: 'Ulangi password',
+                icon: Icons.lock_outline_rounded,
+                obscureText: _hideConfirm,
+                suffixIcon: _passwordEye(_hideConfirm, () {
+                  setState(() {
+                    _hideConfirm = !_hideConfirm;
+                  });
+                }),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Konfirmasi password wajib diisi';
+                  }
+
+                  if (value != _password.text) {
+                    return 'Password tidak sama';
+                  }
+
+                  return null;
+                },
+              ),
+            ],
+
+            const SizedBox(height: 26),
+
+            // TOMBOL SUBMIT
+            CustomButton(
+              text: _isLogin ? 'Masuk' : 'Daftar Sekarang',
+              loading: _loading,
+              onPressed: _submit,
+            ),
+
+            const SizedBox(height: 21),
+
+            // PEMISAH
+            Row(
+              children: [
+                Expanded(
+                  child: Container(height: 1, color: AppColors.fieldBorder),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'ATAU',
+                    style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Container(height: 1, color: AppColors.fieldBorder),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 17),
+
+            // PINDAH TAB
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  _isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? ',
+                  style: const TextStyle(color: AppColors.grey, fontSize: 12),
+                ),
+
+                GestureDetector(
+                  onTap: _loading ? null : () => _changeTab(_isLogin ? 1 : 0),
+                  child: Text(
+                    _isLogin ? 'Daftar sekarang' : 'Masuk di sini',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  // ============================================================
+  // FOOTER
+  // ============================================================
+
+  Widget _buildFooter() {
+    return Column(
+      children: [
+        Container(
+          width: 38,
+          height: 3,
+          decoration: BoxDecoration(
+            color: AppColors.creamDark,
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+
+        const SizedBox(height: 13),
+
+        const Text(
+          'TERNATELOMBA',
+          style: TextStyle(
+            color: AppColors.primary,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 2,
+          ),
+        ),
+
+        const SizedBox(height: 5),
+
+        const Text(
+          'PUSAT INFORMASI LOMBA & PRESTASI MALUKU UTARA',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.muted,
+            fontSize: 9,
+            letterSpacing: 0.7,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+
+        const SizedBox(height: 5),
+
+        const Text(
+          'Temukan peluang. Kembangkan potensi. Raih prestasi.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.grey, fontSize: 10),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // MAIN BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(22, 25, 22, 30),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // LOGO DAN PENGANTAR
-                  Center(child: _buildLogo()),
-                  const SizedBox(height: 19),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
 
-                  const Text(
-                    'TernateLomba',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.navy,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.6,
-                    ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460),
+
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // HEADER NAVY
+                      _buildHeader(),
+
+                      const SizedBox(height: 23),
+
+                      // FORM
+                      _buildFormCard(),
+
+                      const SizedBox(height: 27),
+
+                      // FOOTER
+                      _buildFooter(),
+                    ],
                   ),
-
-                  const SizedBox(height: 7),
-
-                  const Text(
-                    'Cari lomba? Gas!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.grey, fontSize: 13),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // KARTU AUTENTIKASI
-                  Container(
-                    padding: const EdgeInsets.all(21),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(26),
-                      border: Border.all(color: AppColors.fieldBorder),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.navy.withValues(alpha: 0.035),
-                          blurRadius: 22,
-                          offset: const Offset(0, 7),
-                        ),
-                      ],
-                    ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            _isLogin ? 'Selamat datang!' : 'Buat akun baru',
-                            style: const TextStyle(
-                              color: AppColors.navy,
-                              fontSize: 21,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-
-                          const SizedBox(height: 7),
-
-                          Text(
-                            _isLogin ? 'Masuk untuk menemukan peluang lomba.' : 'Daftar untuk mulai menjelajahi TernateLomba.',
-                            style: const TextStyle(
-                              color: AppColors.grey,
-                              fontSize: 12,
-                              height: 1.6,
-                            ),
-                          ),
-
-                          const SizedBox(height: 23),
-
-                          // TAB MASUK / DAFTAR
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: AppColors.tabBg,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              children: [
-                                _tabButton('Masuk', 0),
-                                _tabButton('Daftar', 1),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 23),
-
-                          // USERNAME
-                          _label('Nama Pengguna'),
-
-                          CustomTextField(
-                            controller: _username,
-                            hintText: 'Masukkan nama pengguna',
-                            icon: Icons.person_outline_rounded,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Nama pengguna wajib diisi';
-                              }
-
-                              if (!_isLogin && value.trim().length > 255) {
-                                return 'Nama pengguna maksimal 255 karakter';
-                              }
-
-                              return null;
-                            },
-                          ),
-
-                          const SizedBox(height: 17),
-
-                          // PASSWORD
-                          _label('Password'),
-
-                          CustomTextField(
-                            controller: _password,
-                            hintText: 'Masukkan password',
-                            icon: Icons.lock_outline_rounded,
-                            obscureText: _hidePassword,
-                            suffixIcon: _passwordEye(_hidePassword, () {
-                              setState(() {
-                                _hidePassword = !_hidePassword;
-                              });
-                            }),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Password wajib diisi';
-                              }
-
-                              if (!_isLogin && value.length < 8) {
-                                return 'Password minimal 8 karakter';
-                              }
-
-                              return null;
-                            },
-                          ),
-
-                          // KONFIRMASI PASSWORD
-                          if (!_isLogin) ...[
-                            const SizedBox(height: 17),
-
-                            _label('Konfirmasi Password'),
-
-                            CustomTextField(
-                              controller: _confirm,
-                              hintText: 'Ulangi password',
-                              icon: Icons.lock_outline_rounded,
-                              obscureText: _hideConfirm,
-                              suffixIcon: _passwordEye(_hideConfirm, () {
-                                setState(() {
-                                  _hideConfirm = !_hideConfirm;
-                                });
-                              }),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Konfirmasi password wajib diisi';
-                                }
-
-                                if (value != _password.text) {
-                                  return 'Password tidak sama';
-                                }
-
-                                return null;
-                              },
-                            ),
-                          ],
-
-                          const SizedBox(height: 25),
-
-                          // TOMBOL SUBMIT
-                          CustomButton(
-                            text: _isLogin ? 'Masuk' : 'Daftar',
-                            loading: _loading,
-                            onPressed: _submit,
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // PINDAH TAB
-                          Wrap(
-                            alignment: WrapAlignment.center,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Text(
-                                _isLogin
-                                    ? 'Belum punya akun? '
-                                    : 'Sudah punya akun? ',
-                                style: const TextStyle(
-                                  color: AppColors.grey,
-                                  fontSize: 12,
-                                ),
-                              ),
-
-                              GestureDetector(
-                                onTap: _loading
-                                    ? null
-                                    : () => _changeTab(_isLogin ? 1 : 0),
-                                child: Text(
-                                  _isLogin ? 'Daftar sekarang' : 'Masuk',
-                                  style: const TextStyle(
-                                    color: AppColors.primary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  const Text(
-                    'PUSAT INFO LOMBA & PRESTASI MALUKU UTARA',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 9,
-                      letterSpacing: 1.1,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

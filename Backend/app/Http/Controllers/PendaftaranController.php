@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\FormField;
 use App\Models\JawabanPendaftaran;
 use App\Models\Lomba;
+use App\Models\Notifikasi;
 use App\Models\Pendaftaran;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -278,6 +279,20 @@ class PendaftaranController extends Controller
 
                 return $pendaftaran;
             });
+
+            // Beri tahu penyelenggara bahwa ada peserta baru.
+            if ($pengajuan && $pengajuan->id_user) {
+                Notifikasi::create([
+                    'id_user' => $pengajuan->id_user,
+                    'judul' => 'Peserta Baru Mendaftar',
+                    'pesan' => 'Ada peserta baru yang mendaftar pada lomba "' . $pengajuan->nama_lomba . '".',
+                    'tipe' => 'pendaftaran',
+                    'data' => [
+                        'id_pendaftaran' => $pendaftaran->id_pendaftaran,
+                        'id_lomba' => $id,
+                    ],
+                ]);
+            }
 
             return response()->json([
                 'pesan' => 'Pendaftaran berhasil dikirim.',

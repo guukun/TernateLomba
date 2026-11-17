@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\PengajuanLomba;
 use App\Models\Lomba;
 use App\Models\FormField;
+use App\Models\Notifikasi;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -272,6 +274,45 @@ class PengajuanLombaController extends Controller
             throw $exception;
         }
 
+        // Konfirmasi pengajuan juga disimpan pada kotak notifikasi penyelenggara.
+        Notifikasi::create([
+            'id_user' => $user->id_user,
+            'judul' => 'Pengajuan Lomba Berhasil Dikirim',
+            'pesan' => 'Pengajuan lomba "' . $pengajuan->nama_lomba . '" berhasil dikirim dan sedang menunggu verifikasi.',
+            'tipe' => 'pengajuan',
+            'data' => ['id_pengajuan' => $pengajuan->id_pengajuan],
+        ]);
+
+        // Kirim pemberitahuan pengajuan baru ke setiap akun Administrator.
+        // Notifikasi ditujukan langsung ke id_user admin, bukan dibagikan
+        // ke seluruh pengguna. Endpoint daftar notifikasi juga hanya mengambil
+        // baris dengan id_user milik akun yang sedang login.
+        $admins = User::query()
+            ->whereRaw("LOWER(role) = 'administrator'")
+            ->get(['id_user', 'username']);
+
+        $namaPengaju = trim((string) $user->username);
+        if ($namaPengaju === '') {
+            $namaPengaju = 'Pengguna #' . $user->id_user;
+        }
+
+        foreach ($admins as $admin) {
+            Notifikasi::create([
+                'id_user' => $admin->id_user,
+                'judul' => 'Pengajuan Lomba Baru',
+                'pesan' => 'Pengguna ' . $namaPengaju
+                    . ' sedang mengajukan lomba "' . $pengajuan->nama_lomba
+                    . '". Pengajuan menunggu verifikasi administrator.',
+                'tipe' => 'pengajuan',
+                'data' => [
+                    'id_pengajuan' => $pengajuan->id_pengajuan,
+                    'id_pengaju' => $user->id_user,
+                    'nama_pengaju' => $namaPengaju,
+                    'nama_lomba' => $pengajuan->nama_lomba,
+                ],
+            ]);
+        }
+
         return response()->json([
             'pesan' => 'Pengajuan lomba berhasil dikirim dan menunggu verifikasi admin.',
             'data' => [
@@ -474,6 +515,21 @@ class PengajuanLombaController extends Controller
                 'pesan' => $result['error']
             ], $result['status']);
         }
+
+        // Kirim hasil keputusan kepada penyelenggara yang mengajukan lomba.
+        $pengajuanDiproses = $result['pengajuan'];
+        Notifikasi::create([
+            'id_user' => $pengajuanDiproses->id_user,
+            'judul' => $data['keputusan'] === 'Disetujui'
+                ? 'Pengajuan Lomba Disetujui'
+                : 'Pengajuan Lomba Ditolak',
+            'pesan' => $data['keputusan'] === 'Disetujui'
+                ? 'Pengajuan lomba "' . $pengajuanDiproses->nama_lomba . '" telah disetujui dan diterbitkan.'
+                : 'Pengajuan lomba "' . $pengajuanDiproses->nama_lomba . '" ditolak.'
+                    . (!empty($pengajuanDiproses->catatan_admin) ? ' Catatan admin: ' . $pengajuanDiproses->catatan_admin : ''),
+            'tipe' => strtolower($data['keputusan']),
+            'data' => ['id_pengajuan' => $pengajuanDiproses->id_pengajuan],
+        ]);
 
         return response()->json([
             'pesan' => $data['keputusan'] === 'Disetujui'

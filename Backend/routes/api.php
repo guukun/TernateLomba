@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LombaController;
+use App\Http\Controllers\NotifikasiController;
 use App\Http\Controllers\PendaftaranController;
 use App\Http\Controllers\PengajuanLombaController;
 use App\Http\Controllers\PosterLombaController;
@@ -64,6 +65,12 @@ Route::get('/lomba/{id}/form-fields', [
 // ==========================================
 
 Route::middleware(AuthenticateApiToken::class)->group(function () {
+
+    // NOTIFIKASI PENGGUNA
+    Route::get('/notifikasi', [NotifikasiController::class, 'index']);
+    Route::patch('/notifikasi/{id}/baca', [NotifikasiController::class, 'read'])->whereNumber('id');
+    Route::patch('/notifikasi/baca-semua', [NotifikasiController::class, 'readAll']);
+    Route::delete('/notifikasi/{id}', [NotifikasiController::class, 'destroy'])->whereNumber('id');
 
     // PROFIL PENGGUNA
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../config/appTheme.dart';
+import '../../services/api_service.dart';
 
 class _NotificationItem {
   final int id;
@@ -19,13 +20,59 @@ class _NotificationItem {
 }
 
 class NotifikasiPage extends StatefulWidget {
-  const NotifikasiPage({super.key, String? token, String? baseApiUrl});
+  final String token;
+
+  const NotifikasiPage({super.key, required this.token});
 
   @override
   State<NotifikasiPage> createState() => _NotifikasiPageState();
 }
 
 class _NotifikasiPageState extends State<NotifikasiPage> {
+  bool isLoading = true;
+  String? loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotifications();
+  }
+
+  String _formatTime(dynamic raw) {
+    if (raw == null) return '';
+    final date = DateTime.tryParse(raw.toString())?.toLocal();
+    if (date == null) return '';
+    final difference = DateTime.now().difference(date);
+    if (difference.inMinutes < 1) return 'Baru saja';
+    if (difference.inHours < 1) return '${difference.inMinutes} menit lalu';
+    if (difference.inDays < 1) return '${difference.inHours} jam lalu';
+    if (difference.inDays == 1) return 'Kemarin';
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  Future<void> _loadNotifications() async {
+    if (mounted) setState(() { isLoading = true; loadError = null; });
+    try {
+      final rows = await ApiService.getNotifikasi(token: widget.token);
+      if (!mounted) return;
+      setState(() {
+        notifications
+          ..clear()
+          ..addAll(rows.map((row) => _NotificationItem(
+            id: int.tryParse('${row['id_notifikasi']}') ?? 0,
+            title: (row['judul'] ?? 'Notifikasi').toString(),
+            message: (row['pesan'] ?? '').toString(),
+            timeLabel: _formatTime(row['created_at']),
+            isRead: row['dibaca'] == true,
+          )));
+        isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { isLoading = false; loadError = e.toString(); });
+    }
+  }
+
   // ==========================================
   // APP THEME
   // ==========================================
@@ -44,26 +91,7 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
   // DATA NOTIFIKASI LOKAL
   // ==========================================
 
-  final List<_NotificationItem> notifications = [
-    _NotificationItem(
-      id: 1,
-      title: 'Pengajuan Lomba Disetujui',
-      message:
-          'Pengajuan lomba "Kompetisi Karya Tulis Ilmiah" '
-          'berhasil disetujui dan telah diterbitkan.',
-      timeLabel: 'Baru saja',
-      isRead: false,
-    ),
-    _NotificationItem(
-      id: 2,
-      title: 'Pengajuan Lomba Ditolak',
-      message:
-          'Pengajuan lomba "Festival Teknologi 2026" ditolak. '
-          'Catatan admin: Persyaratan belum lengkap.',
-      timeLabel: 'Kemarin',
-      isRead: false,
-    ),
-  ];
+  final List<_NotificationItem> notifications = [];
 
   // ==========================================
   // HELPER
@@ -71,40 +99,51 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
 
   int get unreadCount => notifications.where((item) => !item.isRead).length;
 
-  Future<void> _refreshDummy() async {
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-
-    if (!mounted) return;
-
-    setState(() {});
+  Future<void> _refreshNotifications() async {
+    await _loadNotifications();
   }
 
   void markAsRead(_NotificationItem item) {
     if (item.isRead) return;
 
-    setState(() {
-      item.isRead = true;
+    setState(() { item.isRead = true; });
+    ApiService.bacaNotifikasi(token: widget.token, idNotifikasi: item.id)
+        .catchError((error) {
+      if (!mounted) return;
+      setState(() => item.isRead = false);
+      _showMessage('Gagal memperbarui status notifikasi.');
     });
   }
 
   void markAllAsRead() {
     if (unreadCount == 0) return;
 
+    final previous = notifications.map((item) => item.isRead).toList();
     setState(() {
-      for (final item in notifications) {
-        item.isRead = true;
-      }
+      for (final item in notifications) { item.isRead = true; }
     });
-
-    _showMessage('Semua notifikasi sudah dibaca.');
+    ApiService.bacaSemuaNotifikasi(token: widget.token).then((_) {
+      if (mounted) _showMessage('Semua notifikasi sudah dibaca.');
+    }).catchError((error) {
+      if (!mounted) return;
+      setState(() {
+        for (var i = 0; i < notifications.length && i < previous.length; i++) {
+          notifications[i].isRead = previous[i];
+        }
+      });
+      _showMessage('Gagal memperbarui notifikasi.');
+    });
   }
 
   void deleteNotification(_NotificationItem item) {
-    setState(() {
-      notifications.removeWhere((n) => n.id == item.id);
+    setState(() { notifications.removeWhere((n) => n.id == item.id); });
+    ApiService.hapusNotifikasi(token: widget.token, idNotifikasi: item.id)
+        .catchError((error) {
+      if (mounted) {
+        _showMessage('Gagal menghapus notifikasi dari server.');
+        _loadNotifications();
+      }
     });
-
-    _showMessage('Notifikasi berhasil dihapus.');
   }
 
   void _showMessage(String message) {
@@ -633,7 +672,7 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
         child: RefreshIndicator(
           color: primary,
           backgroundColor: creamLight,
-          onRefresh: _refreshDummy,
+          onRefresh: _refreshNotifications,
 
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(
@@ -648,8 +687,35 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
               // JUDUL SECTION
               SliverToBoxAdapter(child: _buildSectionTitle()),
 
+              // STATUS PEMUATAN DAN ERROR DARI API
+              if (isLoading)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (loadError != null)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.wifi_off_rounded, size: 42, color: muted),
+                          const SizedBox(height: 12),
+                          const Text('Notifikasi gagal dimuat', style: TextStyle(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 8),
+                          Text(loadError!, textAlign: TextAlign.center, style: const TextStyle(color: muted, fontSize: 11)),
+                          const SizedBox(height: 12),
+                          TextButton(onPressed: _loadNotifications, child: const Text('Coba lagi')),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
               // EMPTY STATE
-              if (notifications.isEmpty)
+              else if (notifications.isEmpty)
                 SliverToBoxAdapter(child: _buildEmptyState())
               // NOTIFICATION LIST
               else

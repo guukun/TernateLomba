@@ -680,4 +680,79 @@ class ApiService {
 
     return data;
   }
+
+
+  // MENGAMBIL NOTIFIKASI DARI DATABASE MYSQL
+  static Future<List<Map<String, dynamic>>> getNotifikasi({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/notifikasi'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 20));
+
+    final data = _decodeResponse(response);
+    if (response.statusCode != 200) {
+      throw _responseError(response, data, 'Gagal mengambil notifikasi.');
+    }
+    final items = data['data'];
+    if (items is! List) {
+      throw Exception('Format data notifikasi tidak valid.');
+    }
+    return items.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
+  // MENANDAI SATU NOTIFIKASI SUDAH DIBACA
+  static Future<void> bacaNotifikasi({
+    required String token,
+    required int idNotifikasi,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/notifikasi/$idNotifikasi/baca'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 20));
+    final data = _decodeResponse(response);
+    if (response.statusCode != 200) {
+      throw _responseError(response, data, 'Gagal memperbarui notifikasi.');
+    }
+  }
+
+  // MENANDAI SEMUA NOTIFIKASI SUDAH DIBACA
+  static Future<void> bacaSemuaNotifikasi({required String token}) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/notifikasi/baca-semua'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 20));
+    final data = _decodeResponse(response);
+    if (response.statusCode != 200) {
+      throw _responseError(response, data, 'Gagal membaca semua notifikasi.');
+    }
+  }
+
+  // MENGHAPUS NOTIFIKASI MILIK PENGGUNA LOGIN
+  static Future<void> hapusNotifikasi({
+    required String token,
+    required int idNotifikasi,
+  }) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/notifikasi/$idNotifikasi'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 20));
+    final data = _decodeResponse(response);
+    if (response.statusCode != 200) {
+      throw _responseError(response, data, 'Gagal menghapus notifikasi.');
+    }
+  }
 }

@@ -68,18 +68,7 @@ class _HomePageState extends State<HomePage> {
   bool _isLoggingOut = false;
 
   // Data dummy notifikasi
-  final List<Map<String, String>> _notifikasiRingkas = [
-    {
-      'judul': 'Pengajuan Lomba Disetujui',
-      'isi': 'Pengajuan lomba "Kompetisi Karya Tulis Ilmiah" berhasil disetujui dan telah diterbitkan.',
-      'waktu': 'Baru saja',
-    },
-    {
-      'judul': 'Pengajuan Lomba Ditolak',
-      'isi': 'Pengajuan lomba "Festival Teknologi 2026" ditolak. Catatan admin: Persyaratan belum lengkap.',
-      'waktu': 'Kemarin',
-    },
-  ];
+  final List<Map<String, String>> _notifikasiRingkas = [];
 
   // =====================================================
   // MAPPING DATA LOMBA DARI API
@@ -197,6 +186,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _loadProfilePhoto();
     _loadDataLomba();
+    _loadNotificationPreview();
   }
 
   // =====================================================
@@ -235,6 +225,27 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
+  Future<void> _loadNotificationPreview() async {
+    try {
+      final rows = await ApiService.getNotifikasi(token: widget.token);
+      if (!mounted) return;
+      setState(() {
+        _notifikasiRingkas
+          ..clear()
+          ..addAll(rows.take(5).map((row) => {
+            'id': '${row['id_notifikasi'] ?? ''}',
+            'judul': (row['judul'] ?? 'Notifikasi').toString(),
+            'isi': (row['pesan'] ?? '').toString(),
+            'waktu': (row['created_at'] ?? '').toString(),
+            'dibaca': row['dibaca'] == true ? '1' : '0',
+          }));
+      });
+      _notificationOverlay?.markNeedsBuild();
+    } catch (e) {
+      debugPrint('Gagal memuat ringkasan notifikasi: $e');
+    }
+  }
+
   // =====================================================
   // POPUP NOTIFIKASI
   // =====================================================
@@ -246,6 +257,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     _closeProfilePopup();
+    _loadNotificationPreview();
 
     _notificationOverlay = OverlayEntry(
       builder: (overlayContext) {
@@ -468,8 +480,17 @@ class _HomePageState extends State<HomePage> {
   void _showAllNotifications() {
     _closeNotificationPopup();
 
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const NotifikasiPage()));
+    // Transisi dibuat lebih singkat agar halaman notifikasi segera terbuka.
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, __, ___) => NotifikasiPage(token: widget.token),
+        transitionDuration: const Duration(milliseconds: 120),
+        reverseTransitionDuration: const Duration(milliseconds: 100),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    ).then((_) => _loadNotificationPreview());
   }
 
   // =====================================================
@@ -944,7 +965,7 @@ final kategoriPintasan = daftarKategoriApi
                                         size: 24,
                                       ),
 
-                                      if (_notifikasiRingkas.isNotEmpty)
+                                      if (_notifikasiRingkas.any((item) => item['dibaca'] != '1'))
                                         Positioned(
                                           top: 9,
                                           right: 10,

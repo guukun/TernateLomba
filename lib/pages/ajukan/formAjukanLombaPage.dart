@@ -994,8 +994,11 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                           shape: BoxShape.circle,
                         ),
                         child: selesai
-                            ? const Icon(Icons.check_rounded,
-                                color: Colors.white, size: 18)
+                            ? const Icon(
+                                Icons.check_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              )
                             : Text(
                                 '${index + 1}',
                                 style: TextStyle(
@@ -1054,8 +1057,10 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
         children: [
           SizedBox(
             width: 118,
-            child: Text(label,
-                style: const TextStyle(color: _muted, fontSize: 12)),
+            child: Text(
+              label,
+              style: const TextStyle(color: _muted, fontSize: 12),
+            ),
           ),
           const Text(': ', style: TextStyle(color: _muted, fontSize: 12)),
           Expanded(
@@ -1090,7 +1095,10 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
             _barisRingkasan('Pelaksanaan', _formatTanggal(_tanggalPelaksanaan)),
             _barisRingkasan('Batas daftar', _formatTanggal(_batasPendaftaran)),
             _barisRingkasan('Lokasi', _lokasiController.text),
-            _barisRingkasan('Biaya', 'Rp ${_biayaController.text.trim().isEmpty ? '0' : _biayaController.text.trim()}'),
+            _barisRingkasan(
+              'Biaya',
+              'Rp ${_biayaController.text.trim().isEmpty ? '0' : _biayaController.text.trim()}',
+            ),
             _barisRingkasan('Hadiah', _hadiahController.text),
             _barisRingkasan('Kuota', _kuotaController.text),
             _barisRingkasan('Kontak', _kontakController.text),
@@ -1118,7 +1126,8 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
         _sectionCard(
           icon: Icons.dynamic_form_rounded,
           title: 'Formulir Pendaftaran Peserta',
-          subtitle: '${_formFields.length} field akan ditampilkan kepada peserta.',
+          subtitle:
+              '${_formFields.length} field akan ditampilkan kepada peserta.',
           children: [
             for (var i = 0; i < _formFields.length; i++)
               Container(
@@ -1269,8 +1278,8 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
             _tahapAktif == 0
                 ? 'Tahap 1 dari 3: lengkapi informasi umum lomba.'
                 : _tahapAktif == 1
-                    ? 'Tahap 2 dari 3: atur formulir yang akan diisi peserta.'
-                    : 'Tahap 3 dari 3: periksa ringkasan sebelum mengirim pengajuan.',
+                ? 'Tahap 2 dari 3: atur formulir yang akan diisi peserta.'
+                : 'Tahap 3 dari 3: periksa ringkasan sebelum mengirim pengajuan.',
             style: TextStyle(
               color: Color(0xFFD9E3EF),
               fontSize: 13,
@@ -1342,14 +1351,7 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
       title: 'Jadwal & Lokasi',
       subtitle: 'Tentukan waktu dan metode pelaksanaan lomba.',
       children: [
-        _tanggal(
-          label: 'Tanggal pelaksanaan *',
-          value: _tanggalPelaksanaan,
-          onTap: () {
-            _pilihTanggal(tanggalPelaksanaan: true);
-          },
-        ),
-
+        // Pertama: Batas pendaftaran
         _tanggal(
           label: 'Batas pendaftaran *',
           value: _batasPendaftaran,
@@ -1358,6 +1360,16 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
           },
         ),
 
+        // Kedua: Tanggal pelaksanaan
+        _tanggal(
+          label: 'Tanggal pelaksanaan *',
+          value: _tanggalPelaksanaan,
+          onTap: () {
+            _pilihTanggal(tanggalPelaksanaan: true);
+          },
+        ),
+
+        // Ketiga: Lokasi pendaftaran
         _teks(
           label: 'Lokasi / metode pendaftaran *',
           controller: _lokasiController,
@@ -1442,7 +1454,11 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
   Widget _tombolNavigasi() {
     final disabled = _mengirim || _loadingKategori || _errorKategori != null;
 
-    Widget tombolUtama({required VoidCallback? onPressed, required String label, bool kirim = false}) {
+    Widget tombolUtama({
+      required VoidCallback? onPressed,
+      required String label,
+      bool kirim = false,
+    }) {
       return SizedBox(
         height: 54,
         child: ElevatedButton(
@@ -1469,18 +1485,23 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                       ),
                     ),
                     SizedBox(width: 10),
-                    Text('Mengirim pengajuan...',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    Text(
+                      'Mengirim pengajuan...',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ],
                 )
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     if (kirim) const Icon(Icons.send_rounded, size: 18),
-                    if (!kirim) const Icon(Icons.arrow_forward_rounded, size: 18),
+                    if (!kirim)
+                      const Icon(Icons.arrow_forward_rounded, size: 18),
                     const SizedBox(width: 9),
-                    Text(label,
-                        style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text(
+                      label,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   ],
                 ),
         ),
@@ -1492,10 +1513,7 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
         children: [
           SizedBox(
             width: double.infinity,
-            child: tombolUtama(
-              onPressed: _lanjutTahap,
-              label: 'Selanjutnya',
-            ),
+            child: tombolUtama(onPressed: _lanjutTahap, label: 'Selanjutnya'),
           ),
           const SizedBox(height: 12),
           const Text(
@@ -1589,8 +1607,8 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                             _tahapAktif == 0
                                 ? 'Informasi Umum Lomba'
                                 : _tahapAktif == 1
-                                    ? 'Formulir Pendaftaran'
-                                    : 'Periksa Pengajuan',
+                                ? 'Formulir Pendaftaran'
+                                : 'Periksa Pengajuan',
                             style: const TextStyle(
                               color: _text,
                               fontSize: 20,
@@ -1602,8 +1620,8 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                             _tahapAktif == 0
                                 ? 'Isi informasi utama lomba yang akan diajukan.'
                                 : _tahapAktif == 1
-                                    ? 'Tentukan data yang harus diisi oleh calon peserta.'
-                                    : 'Pastikan informasi dan formulir sudah benar sebelum dikirim.',
+                                ? 'Tentukan data yang harus diisi oleh calon peserta.'
+                                : 'Pastikan informasi dan formulir sudah benar sebelum dikirim.',
                             style: const TextStyle(
                               color: _muted,
                               fontSize: 12,

@@ -30,6 +30,10 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
   static const Color _border = AppColors.fieldBorder;
 
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
+
+  // Tahap aktif: 0 = informasi umum, 1 = formulir peserta, 2 = ringkasan.
+  int _tahapAktif = 0;
 
   final _namaController = TextEditingController();
   final _deskripsiController = TextEditingController();
@@ -82,6 +86,7 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
     _hadiahController.dispose();
     _kuotaController.dispose();
     _kontakController.dispose();
+    _scrollController.dispose();
 
     super.dispose();
   }
@@ -775,31 +780,31 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
   }
 
   // ==========================================
-  // PROSES PENGAJUAN
+  // VALIDASI DATA TAHAP 1 DAN 2
   // ==========================================
 
-  Future<void> _kirim() async {
-    FocusScope.of(context).unfocus();
-
-    if (_mengirim) return;
-
-    if (!(_formKey.currentState?.validate() ?? false)) {
-      return;
-    }
-
+  bool _validasiDataUmum() {
     if (_idKategori == null) {
       _pesan('Pilih kategori lomba terlebih dahulu.');
-      return;
+      return false;
+    }
+
+    if (_namaController.text.trim().isEmpty ||
+        _deskripsiController.text.trim().isEmpty ||
+        _lokasiController.text.trim().isEmpty ||
+        _kontakController.text.trim().isEmpty) {
+      _pesan('Lengkapi seluruh informasi umum yang wajib diisi.');
+      return false;
     }
 
     if (_tanggalPelaksanaan == null || _batasPendaftaran == null) {
       _pesan('Tanggal pelaksanaan dan batas pendaftaran wajib dipilih.');
-      return;
+      return false;
     }
 
     if (_poster == null || _posterPreviewBytes == null) {
       _pesan('Poster lomba wajib diunggah.');
-      return;
+      return false;
     }
 
     final pelaksanaan = DateTime(
@@ -807,7 +812,6 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
       _tanggalPelaksanaan!.month,
       _tanggalPelaksanaan!.day,
     );
-
     final batas = DateTime(
       _batasPendaftaran!.year,
       _batasPendaftaran!.month,
@@ -816,43 +820,111 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
 
     if (batas.isAfter(pelaksanaan)) {
       _pesan('Batas pendaftaran tidak boleh setelah tanggal pelaksanaan.');
-      return;
+      return false;
     }
 
     final biaya = _biayaController.text.trim().isEmpty
         ? '0'
         : _biayaController.text.trim();
-
     final parsedBiaya = num.tryParse(biaya);
-
     if (parsedBiaya == null || parsedBiaya < 0) {
       _pesan('Biaya harus berupa angka nol atau lebih.');
-      return;
+      return false;
     }
 
     final kuota = _kuotaController.text.trim();
-
     if (kuota.isNotEmpty &&
         (int.tryParse(kuota) == null || int.parse(kuota) < 1)) {
       _pesan('Kuota harus berupa bilangan bulat minimal 1.');
-      return;
+      return false;
     }
 
+    return true;
+  }
+
+  bool _validasiFormulirPeserta() {
     if (_formFields.isEmpty) {
       _pesan('Tambahkan minimal satu field pendaftaran peserta.');
-      return;
+      return false;
     }
 
-    for (final field in _formFields) {
+    for (var i = 0; i < _formFields.length; i++) {
+      final field = _formFields[i];
       if (field['nama_field'].toString().trim().isEmpty) {
-        _pesan('Nama field pendaftaran tidak boleh kosong.');
-        return;
+        _pesan('Nama field nomor ${i + 1} tidak boleh kosong.');
+        return false;
+      }
+      if (!{'Text', 'File'}.contains(field['tipe_field'])) {
+        _pesan('Tipe field nomor ${i + 1} tidak valid.');
+        return false;
       }
     }
 
-    setState(() {
-      _mengirim = true;
+    return true;
+  }
+
+  void _keAtas() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
     });
+  }
+
+  void _lanjutTahap() {
+    FocusScope.of(context).unfocus();
+
+    if (_tahapAktif == 0) {
+      if (!(_formKey.currentState?.validate() ?? false)) return;
+      if (!_validasiDataUmum()) return;
+
+      setState(() => _tahapAktif = 1);
+      _keAtas();
+      return;
+    }
+
+    if (_tahapAktif == 1) {
+      if (!(_formKey.currentState?.validate() ?? false)) return;
+      if (!_validasiFormulirPeserta()) return;
+
+      setState(() => _tahapAktif = 2);
+      _keAtas();
+    }
+  }
+
+  void _kembaliTahap() {
+    if (_tahapAktif == 0) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() => _tahapAktif--);
+    _keAtas();
+  }
+
+  // ==========================================
+  // PROSES PENGAJUAN - HANYA TAHAP 3
+  // ==========================================
+
+  Future<void> _kirim() async {
+    FocusScope.of(context).unfocus();
+    if (_mengirim) return;
+
+    // Pemeriksaan ulang sebelum data benar-benar dikirim ke server.
+    if (!_validasiDataUmum() || !_validasiFormulirPeserta()) return;
+
+    final biaya = _biayaController.text.trim().isEmpty
+        ? '0'
+        : _biayaController.text.trim();
+    final parsedBiaya = num.parse(biaya);
+    final kuota = _kuotaController.text.trim();
+
+    setState(() => _mengirim = true);
 
     try {
       final response = await ApiService.ajukanLomba(
@@ -879,19 +951,228 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
             'Pengajuan lomba berhasil dikirim dan menunggu verifikasi admin.',
         sukses: true,
       );
-
       Navigator.of(context).pop(true);
     } catch (e) {
       _pesan(
         'Pengajuan gagal: ${e.toString().replaceFirst('Exception: ', '')}',
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _mengirim = false;
-        });
+      if (mounted) setState(() => _mengirim = false);
+    }
+  }
+
+  // ==========================================
+  // INDIKATOR TAHAP
+  // ==========================================
+
+  Widget _indikatorTahap() {
+    const labels = ['Informasi Umum', 'Formulir', 'Ringkasan'];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 16),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        children: List.generate(3, (index) {
+          final aktif = index == _tahapAktif;
+          final selesai = index < _tahapAktif;
+          return Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 31,
+                        height: 31,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: aktif || selesai ? _primary : _cream,
+                          shape: BoxShape.circle,
+                        ),
+                        child: selesai
+                            ? const Icon(Icons.check_rounded,
+                                color: Colors.white, size: 18)
+                            : Text(
+                                '${index + 1}',
+                                style: TextStyle(
+                                  color: aktif ? Colors.white : _muted,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                ),
+                              ),
+                      ),
+                      const SizedBox(height: 7),
+                      Text(
+                        labels[index],
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: aktif ? _primary : _muted,
+                          fontSize: 10,
+                          fontWeight: aktif ? FontWeight.w800 : FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (index < 2)
+                  Container(
+                    width: 18,
+                    height: 2,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    color: index < _tahapAktif ? _primary : _border,
+                  ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  // ==========================================
+  // RINGKASAN TAHAP 3
+  // ==========================================
+
+  String _namaKategoriTerpilih() {
+    for (final item in _kategori) {
+      if (int.tryParse(item['id_kategori'].toString()) == _idKategori) {
+        return item['nama_kategori']?.toString() ?? '-';
       }
     }
+    return '-';
+  }
+
+  Widget _barisRingkasan(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 118,
+            child: Text(label,
+                style: const TextStyle(color: _muted, fontSize: 12)),
+          ),
+          const Text(': ', style: TextStyle(color: _muted, fontSize: 12)),
+          Expanded(
+            child: Text(
+              value.trim().isEmpty ? '-' : value,
+              style: const TextStyle(
+                color: _text,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ringkasanPengajuan() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionCard(
+          icon: Icons.emoji_events_outlined,
+          title: 'Informasi Umum Lomba',
+          subtitle: 'Periksa kembali informasi lomba yang akan diajukan.',
+          children: [
+            _barisRingkasan('Nama lomba', _namaController.text),
+            _barisRingkasan('Kategori', _namaKategoriTerpilih()),
+            _barisRingkasan('Deskripsi', _deskripsiController.text),
+            _barisRingkasan('Persyaratan', _persyaratanController.text),
+            _barisRingkasan('Pelaksanaan', _formatTanggal(_tanggalPelaksanaan)),
+            _barisRingkasan('Batas daftar', _formatTanggal(_batasPendaftaran)),
+            _barisRingkasan('Lokasi', _lokasiController.text),
+            _barisRingkasan('Biaya', 'Rp ${_biayaController.text.trim().isEmpty ? '0' : _biayaController.text.trim()}'),
+            _barisRingkasan('Hadiah', _hadiahController.text),
+            _barisRingkasan('Kuota', _kuotaController.text),
+            _barisRingkasan('Kontak', _kontakController.text),
+          ],
+        ),
+        _sectionCard(
+          icon: Icons.image_outlined,
+          title: 'Poster Lomba',
+          subtitle: 'Poster yang akan dikirim bersama pengajuan.',
+          children: [
+            if (_posterPreviewBytes != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.memory(
+                  _posterPreviewBytes!,
+                  width: double.infinity,
+                  height: 220,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            const SizedBox(height: 8),
+            _barisRingkasan('Nama file', _poster?.name ?? '-'),
+          ],
+        ),
+        _sectionCard(
+          icon: Icons.dynamic_form_rounded,
+          title: 'Formulir Pendaftaran Peserta',
+          subtitle: '${_formFields.length} field akan ditampilkan kepada peserta.',
+          children: [
+            for (var i = 0; i < _formFields.length; i++)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: _creamLight,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: _border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${i + 1}. ${_formFields[i]['nama_field']}',
+                      style: const TextStyle(
+                        color: _text,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Tipe: ${_formFields[i]['tipe_field'] == 'File' ? 'Unggah file' : 'Teks'}  •  ${_formFields[i]['wajib'] == true ? 'Wajib diisi' : 'Opsional'}',
+                      style: const TextStyle(color: _muted, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _cream,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline_rounded, color: _primary),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Pastikan semua informasi sudah benar. Setelah dikirim, pengajuan akan masuk ke administrator untuk diverifikasi.',
+                  style: TextStyle(color: _text, fontSize: 12, height: 1.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   // ==========================================
@@ -923,9 +1204,7 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                 ),
                 child: IconButton(
                   padding: EdgeInsets.zero,
-                  onPressed: () {
-                    Navigator.of(context).maybePop();
-                  },
+                  onPressed: _kembaliTahap,
                   icon: const Icon(
                     Icons.arrow_back_rounded,
                     color: Colors.white,
@@ -986,8 +1265,12 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
 
           const SizedBox(height: 12),
 
-          const Text(
-            'Lengkapi informasi lomba dan ajukan kepada admin untuk proses verifikasi.',
+          Text(
+            _tahapAktif == 0
+                ? 'Tahap 1 dari 3: lengkapi informasi umum lomba.'
+                : _tahapAktif == 1
+                    ? 'Tahap 2 dari 3: atur formulir yang akan diisi peserta.'
+                    : 'Tahap 3 dari 3: periksa ringkasan sebelum mengirim pengajuan.',
             style: TextStyle(
               color: Color(0xFFD9E3EF),
               fontSize: 13,
@@ -1153,74 +1436,117 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
   }
 
   // ==========================================
-  // TOMBOL KIRIM
+  // TOMBOL NAVIGASI ANTAR TAHAP
   // ==========================================
 
-  Widget _tombolKirim() {
+  Widget _tombolNavigasi() {
     final disabled = _mengirim || _loadingKategori || _errorKategori != null;
+
+    Widget tombolUtama({required VoidCallback? onPressed, required String label, bool kirim = false}) {
+      return SizedBox(
+        height: 54,
+        child: ElevatedButton(
+          onPressed: disabled ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primary,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: _primary.withValues(alpha: 0.45),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          child: _mengirim && kirim
+              ? const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Text('Mengirim pengajuan...',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                  ],
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (kirim) const Icon(Icons.send_rounded, size: 18),
+                    if (!kirim) const Icon(Icons.arrow_forward_rounded, size: 18),
+                    const SizedBox(width: 9),
+                    Text(label,
+                        style: const TextStyle(fontWeight: FontWeight.w800)),
+                  ],
+                ),
+        ),
+      );
+    }
+
+    if (_tahapAktif == 0) {
+      return Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: tombolUtama(
+              onPressed: _lanjutTahap,
+              label: 'Selanjutnya',
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Berikutnya: atur formulir pendaftaran peserta.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _muted, fontSize: 11),
+          ),
+        ],
+      );
+    }
 
     return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            onPressed: disabled ? null : _kirim,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _primary,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: _primary.withValues(alpha: 0.45),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(17),
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 54,
+                child: OutlinedButton.icon(
+                  onPressed: _mengirim ? null : _kembaliTahap,
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  label: const Text('Kembali'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _primary,
+                    side: const BorderSide(color: _primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
               ),
             ),
-            child: _mengirim
-                ? const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 19,
-                        height: 19,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Text(
-                        'Mengirim pengajuan...',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  )
-                : const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.send_rounded, size: 19),
-                      SizedBox(width: 10),
-                      Text(
-                        'Kirim Pengajuan Lomba',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: tombolUtama(
+                onPressed: _tahapAktif == 1 ? _lanjutTahap : _kirim,
+                label: _tahapAktif == 1 ? 'Selanjutnya' : 'Kirim Pengajuan',
+                kirim: _tahapAktif == 2,
+              ),
+            ),
+          ],
         ),
-
-        const SizedBox(height: 15),
-
+        const SizedBox(height: 13),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.shield_outlined, size: 15, color: _muted),
-            const SizedBox(width: 6),
+          children: const [
+            Icon(Icons.shield_outlined, size: 15, color: _muted),
+            SizedBox(width: 6),
             Flexible(
               child: Text(
-                'Pengajuan akan diverifikasi oleh admin.',
+                'Pengajuan baru dikirim setelah konfirmasi di tahap 3.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: _muted, fontSize: 11),
               ),
@@ -1244,33 +1570,41 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
         child: Form(
           key: _formKey,
           child: ListView(
+            controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.zero,
             children: [
               _header(),
-
               Padding(
                 padding: const EdgeInsets.fromLTRB(18, 23, 18, 40),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.only(left: 3, bottom: 15),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 3, bottom: 15),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Lengkapi Data Lomba',
-                            style: TextStyle(
+                            _tahapAktif == 0
+                                ? 'Informasi Umum Lomba'
+                                : _tahapAktif == 1
+                                    ? 'Formulir Pendaftaran'
+                                    : 'Periksa Pengajuan',
+                            style: const TextStyle(
                               color: _text,
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
-                          SizedBox(height: 5),
+                          const SizedBox(height: 5),
                           Text(
-                            'Pastikan seluruh informasi sudah benar sebelum dikirim.',
-                            style: TextStyle(
+                            _tahapAktif == 0
+                                ? 'Isi informasi utama lomba yang akan diajukan.'
+                                : _tahapAktif == 1
+                                    ? 'Tentukan data yang harus diisi oleh calon peserta.'
+                                    : 'Pastikan informasi dan formulir sudah benar sebelum dikirim.',
+                            style: const TextStyle(
                               color: _muted,
                               fontSize: 12,
                               height: 1.5,
@@ -1279,21 +1613,20 @@ class _FormAjukanLombaPageState extends State<FormAjukanLombaPage> {
                         ],
                       ),
                     ),
-
-                    _informasiLomba(),
-
-                    _jadwalLomba(),
-
-                    _biayaHadiah(),
-
-                    _kontakPenyelenggara(),
-
-                    _posterSection(),
-
-                    _pembuatFormulir(),
-
-                    _tombolKirim(),
-
+                    _indikatorTahap(),
+                    if (_tahapAktif == 0) ...[
+                      _informasiLomba(),
+                      _jadwalLomba(),
+                      _biayaHadiah(),
+                      _kontakPenyelenggara(),
+                      _posterSection(),
+                    ] else if (_tahapAktif == 1) ...[
+                      _pembuatFormulir(),
+                    ] else ...[
+                      _ringkasanPengajuan(),
+                    ],
+                    const SizedBox(height: 8),
+                    _tombolNavigasi(),
                     const SizedBox(height: 15),
                   ],
                 ),

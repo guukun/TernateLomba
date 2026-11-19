@@ -483,10 +483,10 @@ class _HomePageState extends State<HomePage> {
     // Transisi dibuat lebih singkat agar halaman notifikasi segera terbuka.
     Navigator.of(context).push(
       PageRouteBuilder<void>(
-        pageBuilder: (_, __, ___) => NotifikasiPage(token: widget.token),
+        pageBuilder: (_, _, _) => NotifikasiPage(token: widget.token),
         transitionDuration: const Duration(milliseconds: 120),
         reverseTransitionDuration: const Duration(milliseconds: 100),
-        transitionsBuilder: (_, animation, __, child) {
+        transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
       ),

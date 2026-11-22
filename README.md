@@ -161,7 +161,7 @@ php artisan test
 
 ## Lisensi
 
-Lisensi proyek ditetapkan berdasarkan persetujuan seluruh anggota tim. Untuk menjadikannya open source dengan izin penggunaan dan modifikasi yang jelas, tersedia contoh **MIT License** pada paket dokumentasi; publikasikan sebagai `LICENSE` hanya setelah disetujui bersama.
+Lisensi proyek ditetapkan berdasarkan persetujuan seluruh anggota tim. Untuk menjadikannya open source dengan izin penggunaan dan modifikasi yang jelas.
 
 ---
 

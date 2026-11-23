@@ -1,4 +1,11 @@
+import '../../design_system/tl_playful.dart';
+import '../../widgets/app_feedback.dart';
+
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../../widgets/competition_detail_poster.dart';
 
 import '../../config/appTheme.dart';
 import '../../services/api_service.dart';
@@ -19,15 +26,15 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   // APP THEME
   // ==========================================
 
-  static const Color primary = AppColors.primary;
-  static const Color primaryDark = AppColors.primaryDark;
-  static const Color cream = AppColors.cream;
-  static const Color creamLight = AppColors.creamLight;
-  static const Color creamDark = AppColors.creamDark;
-  static const Color background = AppColors.background;
-  static const Color textColor = AppColors.navy;
-  static const Color muted = AppColors.grey;
-  static const Color borderColor = AppColors.fieldBorder;
+  Color get primary => context.tl.primary;
+  Color get primaryDark => context.tl.primaryDark;
+  Color get cream => context.tl.cream;
+  Color get creamLight => context.tl.creamLight;
+  Color get creamDark => context.tl.creamDark;
+  Color get background => context.tl.background;
+  Color get textColor => context.tl.navy;
+  Color get muted => context.tl.grey;
+  Color get borderColor => context.tl.fieldBorder;
 
   // ==========================================
   // STATE
@@ -36,11 +43,65 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   late Map<String, String> lomba;
 
   bool isLoadingDetail = true;
+  bool _isFavorite = false;
+  bool _favoriteBusy = false;
+
+  Future<void> _loadFavorite() async {
+    try {
+      final favorites = await ApiService.getFavorit(token: widget.token);
+      final id = int.tryParse(lomba['id_lomba'] ?? '');
+      if (mounted) {
+        setState(() => _isFavorite = favorites.any((e) => e['id_lomba'] == id));
+      }
+    } catch (e) {
+      debugPrint('Gagal membaca favorit: $e');
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    final id = int.tryParse(lomba['id_lomba'] ?? '');
+    if (id == null || _favoriteBusy) return;
+    final previous = _isFavorite;
+    setState(() {
+      _isFavorite = !previous;
+      _favoriteBusy = true;
+    });
+    try {
+      await ApiService.setFavorit(
+        token: widget.token,
+        idLomba: id,
+        favorite: !previous,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isFavorite = previous);
+      AppNotification.message(
+        context,
+        'Tidak dapat menyimpan favorit: $e',
+        type: NotificationType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _favoriteBusy = false);
+    }
+  }
+
   String? errorDetail;
+
+  // STATUS PENDAFTARAN
+  Map<String, dynamic>? statusPendaftaran;
+
+  bool isLoadingStatusPendaftaran = true;
+  String? errorStatusPendaftaran;
+
+  List<Map<String, dynamic>> _informasiTambahan = [];
+
+  Timer? _quotaRefreshTimer;
+  bool _isRefreshingQuota = false;
 
   @override
   void initState() {
     super.initState();
+    _loadFavorite();
 
     lomba = Map<String, String>.from(widget.lomba);
 
@@ -82,8 +143,16 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
       final penyelenggaraMap = penyelenggara is Map ? penyelenggara : {};
 
       final biaya = double.tryParse(data['biaya']?.toString() ?? '0') ?? 0;
+      final rawAdditionalInfo = data['informasi_tambahan'];
+      final additionalInfo = rawAdditionalInfo is List
+          ? rawAdditionalInfo
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList()
+          : <Map<String, dynamic>>[];
 
       setState(() {
+        _informasiTambahan = additionalInfo;
         lomba = {
           'id_lomba': data['id_lomba']?.toString() ?? '',
           'id_pengajuan': data['id_pengajuan']?.toString() ?? '',
@@ -93,25 +162,80 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
           'deskripsi': data['deskripsi']?.toString() ?? '',
           'persyaratan': data['persyaratan']?.toString() ?? '',
           'kuota': data['kuota_peserta']?.toString() ?? '',
-          'biaya': biaya == 0 ? 'Gratis' : 'Rp${biaya.toStringAsFixed(0)}',
+          'jumlah_peserta': data['jumlah_peserta']?.toString() ?? '0',
+          'biaya': biaya == 0 ? 'Gratis' : _formatAmount(biaya),
           'hadiah': data['hadiah']?.toString() ?? '',
+          'tanggal_mulai_pendaftaran':
+              data['tanggal_mulai_pendaftaran']?.toString() ?? '',
           'batas_pendaftaran': data['batas_pendaftaran']?.toString() ?? '',
           'tanggal_pelaksanaan': data['tanggal_pelaksanaan']?.toString() ?? '',
+          'metode_pelaksanaan': data['metode_pelaksanaan']?.toString() ?? '',
+          'detail_pelaksanaan': data['detail_pelaksanaan']?.toString() ?? '',
           'lokasi_pendaftaran': data['lokasi_pendaftaran']?.toString() ?? '',
           'kontak_penyelenggara':
               data['kontak_penyelenggara']?.toString() ?? '',
           'poster_lomba': data['poster_lomba']?.toString() ?? '',
           'status_lomba': data['status_lomba']?.toString() ?? '',
+          'alasan_penghentian': data['alasan_penghentian']?.toString() ?? '',
         };
 
         isLoadingDetail = false;
       });
+
+      if (lomba['status_lomba'] == 'Aktif') {
+        _startQuotaRefresh();
+      } else {
+        _quotaRefreshTimer?.cancel();
+      }
+
+      // Periksa hak pendaftaran setelah detail lomba berhasil dimuat.
+      await _loadStatusPendaftaran(idLomba);
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
         errorDetail = e.toString();
         isLoadingDetail = false;
+      });
+    }
+  }
+
+  // ==========================================
+  // LOAD STATUS PENDAFTARAN
+  // ==========================================
+
+  Future<void> _loadStatusPendaftaran(
+    int idLomba, {
+    bool showLoading = true,
+  }) async {
+    if (!mounted) return;
+
+    if (showLoading) {
+      setState(() {
+        isLoadingStatusPendaftaran = true;
+        errorStatusPendaftaran = null;
+      });
+    }
+
+    try {
+      final data = await ApiService.getStatusPendaftaranLomba(
+        idLomba: idLomba,
+        token: widget.token,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        statusPendaftaran = data;
+        isLoadingStatusPendaftaran = false;
+        errorStatusPendaftaran = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        errorStatusPendaftaran = e.toString();
+        isLoadingStatusPendaftaran = false;
       });
     }
   }
@@ -130,8 +254,33 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
     return value;
   }
 
+  String _formatAmount(double amount) {
+    final digits = amount.toStringAsFixed(0);
+    final formatted = digits.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => '.',
+    );
+    return 'Rp $formatted';
+  }
+
   int get totalKuota {
     return int.tryParse(lomba['kuota']?.trim() ?? '') ?? 0;
+  }
+
+  int get jumlahPeserta {
+    return int.tryParse(lomba['jumlah_peserta']?.trim() ?? '') ?? 0;
+  }
+
+  double get progressKuota {
+    if (totalKuota <= 0) return 0;
+
+    return (jumlahPeserta / totalKuota).clamp(0.0, 1.0).toDouble();
+  }
+
+  int get sisaKuota {
+    if (totalKuota <= 0) return 0;
+
+    return (totalKuota - jumlahPeserta).clamp(0, totalKuota).toInt();
   }
 
   String get informasiKuota {
@@ -142,6 +291,81 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
     return 'Kapasitas maksimal $totalKuota peserta';
   }
 
+  // STATUS PENGGUNA
+  bool get _sudahMendaftar => statusPendaftaran?['sudah_mendaftar'] == true;
+
+  bool get _isPenyelenggara => statusPendaftaran?['is_penyelenggara'] == true;
+
+  bool get _kuotaPenuh => statusPendaftaran?['kuota_penuh'] == true;
+
+  bool get _batasLewat => statusPendaftaran?['batas_pendaftaran_lewat'] == true;
+
+  bool get _bolehMendaftar =>
+      lomba['status_lomba'] == 'Aktif' &&
+      statusPendaftaran?['boleh_mendaftar'] == true;
+
+  bool get _lombaArsip =>
+      lomba['status_lomba']?.isNotEmpty == true &&
+      lomba['status_lomba'] != 'Aktif';
+
+  // ==========================================
+  // LIVE REFRESH KUOTA
+  // ==========================================
+
+  void _startQuotaRefresh() {
+    _quotaRefreshTimer?.cancel();
+
+    _quotaRefreshTimer = Timer.periodic(
+      Duration(seconds: 15),
+      (_) => _refreshQuota(),
+    );
+  }
+
+  Future<void> _refreshQuota() async {
+    if (!mounted || isLoadingDetail || _isRefreshingQuota) return;
+
+    final idLomba = int.tryParse(lomba['id_lomba'] ?? '');
+
+    if (idLomba == null) return;
+
+    _isRefreshingQuota = true;
+
+    try {
+      final data = await ApiService.getDetailLomba(idLomba);
+
+      if (!mounted) return;
+
+      final jumlahTerbaru =
+          int.tryParse(data['jumlah_peserta']?.toString() ?? '') ?? 0;
+
+      final kuotaTerbaru = data['kuota_peserta']?.toString() ?? '';
+
+      if (jumlahTerbaru != jumlahPeserta ||
+          (kuotaTerbaru.isNotEmpty && kuotaTerbaru != lomba['kuota'])) {
+        setState(() {
+          lomba['jumlah_peserta'] = jumlahTerbaru.toString();
+
+          if (kuotaTerbaru.isNotEmpty) {
+            lomba['kuota'] = kuotaTerbaru;
+          }
+        });
+      }
+
+      // Perbarui juga status pengguna dan ketersediaan kuota.
+      await _loadStatusPendaftaran(idLomba, showLoading: false);
+    } catch (e) {
+      debugPrint('Gagal memperbarui kuota lomba: $e');
+    } finally {
+      _isRefreshingQuota = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _quotaRefreshTimer?.cancel();
+    super.dispose();
+  }
+
   String get _posterUrl {
     return lomba['poster_lomba'] ?? '';
   }
@@ -150,16 +374,16 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   // CARD DECORATION
   // ==========================================
 
-  BoxDecoration _cardDecoration({Color color = AppColors.surface}) {
+  BoxDecoration _cardDecoration({Color? color}) {
     return BoxDecoration(
-      color: color,
+      color: color ?? context.tl.surface,
       borderRadius: BorderRadius.circular(22),
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
           color: primaryDark.withValues(alpha: 0.035),
           blurRadius: 16,
-          offset: const Offset(0, 5),
+          offset: Offset(0, 5),
         ),
       ],
     );
@@ -169,158 +393,39 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   // HEADER
   // ==========================================
 
-  Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 15, 20, 25),
-      decoration: const BoxDecoration(
-        color: primaryDark,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Material(
-                color: Colors.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(13),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(13),
-                  onTap: () => Navigator.pop(context),
-                  child: const SizedBox(
-                    width: 43,
-                    height: 43,
-                    child: Icon(
-                      Icons.arrow_back_rounded,
-                      color: Colors.white,
-                      size: 21,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 13),
-
-              const Expanded(
-                child: Text(
-                  'Detail Lomba',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: cream,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.emoji_events_outlined, color: primary, size: 15),
-                    SizedBox(width: 5),
-                    Text(
-                      'LOMBA',
-                      style: TextStyle(
-                        color: primary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.7,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          const Text(
-            'TEMUKAN PELUANG BERPRESTASI',
-            style: TextStyle(
-              color: cream,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.4,
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          const Text(
-            'Kenali Lomba Lebih Dekat',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 25,
-              fontWeight: FontWeight.w800,
-              height: 1.2,
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          const Text(
-            'Pelajari informasi, ketentuan, dan kesempatan '
-            'yang tersedia sebelum mendaftar.',
-            style: TextStyle(
-              color: Color(0xFFDCE6F0),
-              fontSize: 12,
-              height: 1.6,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildHeader() => TLPlayful.pageHeader(
+    context,
+    title: 'Know your\nchallenge.',
+    description:
+        'Detail, persyaratan, dan jadwal. Fokus pada langkah berikutnya.',
+    icon: Icons.emoji_events_rounded,
+    accent: context.tl.orange,
+    onBack: () => Navigator.of(context).pop(),
+  );
 
   // ==========================================
   // POSTER
   // ==========================================
 
   Widget _buildPoster() {
-    final posterUrl = ApiService.publicStorageUrl(_posterUrl);
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(19),
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: posterUrl != null
-            ? Image.network(
-                posterUrl,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                cacheWidth: 1000,
-                gaplessPlayback: true,
-                errorBuilder: (_, _, _) => _posterFallback(),
-              )
-            : _posterFallback(),
-      ),
+    return CompetitionDetailPoster(
+      url: ApiService.publicStorageUrl(_posterUrl),
+      radius: 19,
+      fallback: _posterFallback(),
     );
   }
 
   Widget _posterFallback() {
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [creamLight, cream, creamDark],
         ),
       ),
-      child: const Column(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.emoji_events_rounded, color: primary, size: 47),
@@ -346,24 +451,24 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   Widget _buildMainInformation() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildPoster(),
 
-          const SizedBox(height: 17),
+          SizedBox(height: 17),
 
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
               color: cream,
               borderRadius: BorderRadius.circular(30),
             ),
             child: Text(
               getValue('kategori'),
-              style: const TextStyle(
+              style: TextStyle(
                 color: primary,
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
@@ -371,36 +476,51 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
             ),
           ),
 
-          const SizedBox(height: 13),
-
-          Text(
-            getValue('judul', fallback: 'Detail Lomba'),
-            style: const TextStyle(
-              color: textColor,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              height: 1.3,
-              letterSpacing: -0.3,
-            ),
-          ),
-
-          const SizedBox(height: 13),
+          SizedBox(height: 13),
 
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.account_balance_outlined,
-                color: primary,
-                size: 19,
+              Expanded(
+                child: Text(
+                  getValue('judul', fallback: 'Competition Details'),
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    height: 1.3,
+                    letterSpacing: -0.3,
+                  ),
+                ),
               ),
+              SizedBox(width: 8),
+              IconButton(
+                tooltip: _isFavorite ? 'Hapus dari favorit' : 'Tambah favorit',
+                onPressed: _favoriteBusy ? null : _toggleFavorite,
+                icon: Icon(
+                  _isFavorite
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  color: primary,
+                  size: 26,
+                ),
+              ),
+            ],
+          ),
 
-              const SizedBox(width: 9),
+          SizedBox(height: 13),
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.account_balance_outlined, color: primary, size: 19),
+
+              SizedBox(width: 9),
 
               Expanded(
                 child: Text(
                   getValue('penyelenggara'),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: muted,
                     fontSize: 12,
                     height: 1.5,
@@ -420,50 +540,52 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   // ==========================================
 
   Widget _sectionTitle(String title, {String? subtitle, IconData? icon}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        if (icon != null) ...[
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: cream,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: primary, size: 20),
-          ),
-          const SizedBox(width: 11),
-        ],
-
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: textColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
+    final p = context.tl;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          if (icon != null) ...[
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: p.yellow.withValues(alpha: .20),
+                borderRadius: BorderRadius.circular(16),
               ),
-
-              if (subtitle != null) ...[
-                const SizedBox(height: 4),
+              child: Icon(icon, color: p.orange, size: 22),
+            ),
+            const SizedBox(width: 12),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: muted,
-                    fontSize: 11,
-                    height: 1.4,
+                  title,
+                  style: TextStyle(
+                    color: p.navy,
+                    fontSize: 17,
+                    letterSpacing: -.3,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: p.grey,
+                      fontSize: 11.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -472,9 +594,11 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   // ==========================================
 
   Widget _buildQuotaCard() {
+    final kuotaTerbatas = totalKuota > 0;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(17),
+      padding: EdgeInsets.all(17),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -485,16 +609,16 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Kuota Peserta',
                       style: TextStyle(color: muted, fontSize: 12),
                     ),
 
-                    const SizedBox(height: 7),
+                    SizedBox(height: 7),
 
                     Text(
                       informasiKuota,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: textColor,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
@@ -512,36 +636,71 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
                   color: cream,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
-                  Icons.groups_rounded,
-                  color: primary,
-                  size: 24,
-                ),
+                child: Icon(Icons.groups_rounded, color: primary, size: 24),
               ),
             ],
           ),
 
-          const SizedBox(height: 17),
+          SizedBox(height: 17),
 
           ClipRRect(
             borderRadius: BorderRadius.circular(20),
-            child: const LinearProgressIndicator(
-              value: 0,
-              minHeight: 8,
-              backgroundColor: creamDark,
-              color: primary,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: progressKuota),
+              duration: Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+              builder: (context, value, child) {
+                return LinearProgressIndicator(
+                  value: kuotaTerbatas ? value : 0,
+                  minHeight: 8,
+                  backgroundColor: creamDark,
+                  color: primary,
+                );
+              },
             ),
           ),
 
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
 
-          const Row(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                kuotaTerbatas
+                    ? '$jumlahPeserta dari $totalKuota peserta terdaftar'
+                    : '$jumlahPeserta peserta terdaftar',
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+
+              if (kuotaTerbatas)
+                Text(
+                  '$sisaKuota slot tersisa',
+                  style: TextStyle(
+                    color: muted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
+
+          SizedBox(height: 10),
+
+          Row(
             children: [
               Icon(Icons.info_outline_rounded, size: 15, color: muted),
+
               SizedBox(width: 7),
+
               Expanded(
                 child: Text(
-                  'Jumlah peserta terdaftar belum tersedia.',
+                  jumlahPeserta == 0
+                      ? 'Belum ada peserta yang mendaftar. Data diperbarui otomatis.'
+                      : 'Jumlah peserta diperbarui otomatis setiap 15 detik.',
                   style: TextStyle(color: muted, fontSize: 11),
                 ),
               ),
@@ -553,192 +712,163 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   }
 
   // ==========================================
-  // INFORMATION BOX
+  // INFORMASI LOMBA: SATU BARIS PER INFORMASI
   // ==========================================
 
-  Widget _infoBox({
-    required IconData icon,
-    required String title,
-    required String value,
-    bool highlight = false,
-  }) {
+  Widget _buildInformationSections() {
+    final groups = <String, List<Map<String, String>>>{};
+
+    void addRow(String group, String label, String value) {
+      final clean = value.trim();
+      if (clean.isEmpty || clean == 'Belum tersedia') return;
+      groups.putIfAbsent(group, () => []).add({'label': label, 'value': clean});
+    }
+
+    addRow(
+      'Pendaftaran',
+      'Mulai pendaftaran',
+      getValue('tanggal_mulai_pendaftaran', fallback: ''),
+    );
+    addRow(
+      'Pendaftaran',
+      'Batas pendaftaran',
+      getValue('batas_pendaftaran', fallback: ''),
+    );
+    addRow(
+      'Pendaftaran',
+      'Kuota peserta',
+      totalKuota > 0
+          ? '$jumlahPeserta / $totalKuota peserta'
+          : '$jumlahPeserta peserta terdaftar',
+    );
+    addRow(
+      'Pendaftaran',
+      'Biaya pendaftaran',
+      getValue('biaya', fallback: 'Gratis'),
+    );
+
+    addRow(
+      'Pelaksanaan',
+      'Tanggal pelaksanaan',
+      getValue('tanggal_pelaksanaan', fallback: ''),
+    );
+    addRow(
+      'Pelaksanaan',
+      'Metode pelaksanaan',
+      getValue('metode_pelaksanaan', fallback: ''),
+    );
+    addRow(
+      'Pelaksanaan',
+      getValue('metode_pelaksanaan', fallback: '').toLowerCase() == 'online'
+          ? 'Platform'
+          : 'Tempat',
+      getValue(
+        'detail_pelaksanaan',
+        fallback: getValue('lokasi_pendaftaran', fallback: ''),
+      ),
+    );
+
+    // Semua field bebas yang ditambahkan penyelenggara selalu berada
+    // di satu kelompok, yaitu Informasi Tambahan.
+    for (final item in _informasiTambahan) {
+      final label = item['label_informasi']?.toString().trim();
+      final value = item['nilai_informasi']?.toString().trim();
+      if (label == null || label.isEmpty || value == null || value.isEmpty) {
+        continue;
+      }
+      addRow('Informasi Tambahan', label, value);
+    }
+
+    if (getValue('kontak_penyelenggara', fallback: '').isNotEmpty) {
+      addRow(
+        'Kontak Penyelenggara',
+        'Kontak',
+        getValue('kontak_penyelenggara', fallback: ''),
+      );
+    }
+
+    if (groups.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(16),
+        decoration: _cardDecoration(),
+        child: Text(
+          'Informasi lomba belum tersedia.',
+          style: TextStyle(color: muted, fontSize: 12),
+        ),
+      );
+    }
+
+    return Column(
+      children: groups.entries
+          .map((entry) => _buildInformationGroup(entry.key, entry.value))
+          .toList(),
+    );
+  }
+
+  Widget _buildInformationGroup(String title, List<Map<String, String>> rows) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 145),
-      padding: const EdgeInsets.all(13),
+      width: double.infinity,
+      margin: EdgeInsets.only(bottom: 13),
+      padding: EdgeInsets.fromLTRB(16, 15, 16, 8),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: cream,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: primary, size: 20),
-          ),
-
-          const SizedBox(height: 13),
-
           Text(
             title,
-            style: const TextStyle(color: muted, fontSize: 11, height: 1.4),
-          ),
-
-          const SizedBox(height: 7),
-
-          Text(
-            value,
             style: TextStyle(
-              color: highlight ? AppColors.green : textColor,
+              color: primary,
               fontSize: 13,
-              height: 1.45,
               fontWeight: FontWeight.w800,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================
-  // INFORMASI LOMBA
-  // ==========================================
-
-  Widget _buildInformationGrid() {
-    return Column(
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _infoBox(
-                icon: Icons.payments_outlined,
-                title: 'Biaya Pendaftaran',
-                value: getValue('biaya'),
-                highlight: getValue('biaya') == 'Gratis',
-              ),
-            ),
-
-            const SizedBox(width: 12),
-
-            Expanded(
-              child: _infoBox(
-                icon: Icons.emoji_events_outlined,
-                title: 'Hadiah',
-                value: getValue('hadiah'),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 12),
-
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _infoBox(
-                icon: Icons.event_available_outlined,
-                title: 'Batas Pendaftaran',
-                value: getValue('batas_pendaftaran'),
-              ),
-            ),
-
-            const SizedBox(width: 12),
-
-            Expanded(
-              child: _infoBox(
-                icon: Icons.calendar_month_outlined,
-                title: 'Tanggal Pelaksanaan',
-                value: getValue('tanggal_pelaksanaan'),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // ==========================================
-  // DETAIL TAMBAHAN
-  // ==========================================
-
-  Widget _buildAdditionalInformation() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(17),
-      decoration: _cardDecoration(),
-      child: Column(
-        children: [
-          _detailRow(
-            Icons.location_on_outlined,
-            'Lokasi',
-            getValue('lokasi_pendaftaran'),
-          ),
-
-          _detailDivider(),
-
-          _detailRow(
-            Icons.phone_outlined,
-            'Kontak Penyelenggara',
-            getValue('kontak_penyelenggara'),
-          ),
-
-          _detailDivider(),
-
-          _detailRow(Icons.groups_outlined, 'Kuota', informasiKuota),
-        ],
-      ),
-    );
-  }
-
-  Widget _detailRow(IconData icon, String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 37,
-            height: 37,
-            decoration: BoxDecoration(
-              color: cream,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Icon(icon, color: primary, size: 19),
-          ),
-
-          const SizedBox(width: 12),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          SizedBox(height: 7),
+          ...List.generate(rows.length, (index) {
+            final row = rows[index];
+            return Column(
               children: [
-                Text(title, style: const TextStyle(color: muted, fontSize: 11)),
-
-                const SizedBox(height: 5),
-
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: textColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    height: 1.5,
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 11),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 5,
+                        child: Text(
+                          row['label'] ?? '',
+                          style: TextStyle(
+                            color: muted,
+                            fontSize: 12,
+                            height: 1.45,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        flex: 6,
+                        child: Text(
+                          row['value'] ?? '',
+                          textAlign: TextAlign.end,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 12,
+                            height: 1.45,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                if (index != rows.length - 1)
+                  Divider(height: 1, thickness: 0.7, color: borderColor),
               ],
-            ),
-          ),
+            );
+          }),
         ],
       ),
     );
-  }
-
-  Widget _detailDivider() {
-    return const Divider(height: 1, thickness: 0.8, color: borderColor);
   }
 
   // ==========================================
@@ -748,11 +878,11 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   Widget _buildDescription() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(17),
+      padding: EdgeInsets.all(17),
       decoration: _cardDecoration(),
       child: Text(
         getValue('deskripsi', fallback: 'Belum ada deskripsi lomba.'),
-        style: const TextStyle(color: muted, fontSize: 13, height: 1.8),
+        style: TextStyle(color: muted, fontSize: 13, height: 1.8),
       ),
     );
   }
@@ -764,7 +894,7 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   Widget _buildRequirements() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(17),
+      padding: EdgeInsets.all(17),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -778,16 +908,16 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
                   color: cream,
                   borderRadius: BorderRadius.circular(11),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.fact_check_outlined,
                   color: primary,
                   size: 20,
                 ),
               ),
 
-              const SizedBox(width: 11),
+              SizedBox(width: 11),
 
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Ketentuan Peserta',
                   style: TextStyle(
@@ -800,14 +930,14 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
             ],
           ),
 
-          const SizedBox(height: 15),
+          SizedBox(height: 15),
 
           Text(
             getValue(
               'persyaratan',
               fallback: 'Informasi persyaratan belum tersedia.',
             ),
-            style: const TextStyle(color: muted, fontSize: 13, height: 1.8),
+            style: TextStyle(color: muted, fontSize: 13, height: 1.8),
           ),
         ],
       ),
@@ -819,46 +949,120 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   // ==========================================
 
   Widget _buildRegisterButton() {
+    final bool statusSiap =
+        !isLoadingStatusPendaftaran &&
+        errorStatusPendaftaran == null &&
+        statusPendaftaran != null;
+
+    final bool bisaMendaftar = statusSiap && _bolehMendaftar;
+
+    final bool bisaCobaLagi =
+        !_lombaArsip &&
+        !isLoadingStatusPendaftaran &&
+        errorStatusPendaftaran != null;
+
+    String teksTombol;
+
+    if (_lombaArsip) {
+      teksTombol = 'Pendaftaran Ditutup';
+    } else if (isLoadingStatusPendaftaran) {
+      teksTombol = 'Memeriksa Status...';
+    } else if (errorStatusPendaftaran != null) {
+      teksTombol = 'Coba Periksa Status';
+    } else if (_isPenyelenggara) {
+      teksTombol = 'Lomba Anda Sendiri';
+    } else if (_sudahMendaftar) {
+      teksTombol = 'Sudah Terdaftar';
+    } else if (_kuotaPenuh) {
+      teksTombol = 'Kuota Penuh';
+    } else if (_batasLewat) {
+      teksTombol = 'Pendaftaran Ditutup';
+    } else {
+      teksTombol = 'Daftar Sekarang';
+    }
+
+    final int? idLomba = int.tryParse(lomba['id_lomba'] ?? '');
+
+    final bool tombolAktif = bisaMendaftar || bisaCobaLagi;
+
     return SizedBox(
       width: double.infinity,
       height: 54,
       child: ElevatedButton(
-        onPressed: () {
-          final idLomba = int.tryParse(lomba['id_lomba'] ?? '');
+        onPressed: !tombolAktif
+            ? null
+            : () async {
+                if (idLomba == null) {
+                  AppNotification.message(
+                    context,
+                    'ID lomba tidak valid.',
+                    type: NotificationType.error,
+                  );
+                  return;
+                }
 
-          if (idLomba == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('ID lomba tidak valid.')),
-            );
-            return;
-          }
+                // Jika pemeriksaan status gagal, coba periksa ulang dahulu.
+                if (bisaCobaLagi) {
+                  await _loadStatusPendaftaran(idLomba);
+                  return;
+                }
 
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) =>
-                  FormulirPesertaPage(idLomba: idLomba, token: widget.token),
-            ),
-          );
-        },
+                final berhasil = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (_) => FormulirPesertaPage(
+                      idLomba: idLomba,
+                      token: widget.token,
+                    ),
+                  ),
+                );
+
+                if (!mounted) return;
+
+                // Periksa ulang setelah kembali dari halaman formulir.
+                if (berhasil == true) {
+                  await _refreshQuota();
+                } else {
+                  await _loadStatusPendaftaran(idLomba);
+                }
+              },
         style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
+          backgroundColor: tombolAktif ? primary : context.tl.fieldBorder,
           foregroundColor: Colors.white,
+          disabledBackgroundColor: context.tl.fieldBorder,
+          disabledForegroundColor: context.tl.navy,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'Daftar Sekarang',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-            ),
+            if (isLoadingStatusPendaftaran)
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            else
+              Icon(
+                bisaCobaLagi
+                    ? Icons.refresh_rounded
+                    : bisaMendaftar
+                    ? Icons.arrow_forward_rounded
+                    : Icons.lock_outline_rounded,
+                size: 19,
+              ),
 
             SizedBox(width: 9),
 
-            Icon(Icons.arrow_forward_rounded, size: 19),
+            Text(
+              teksTombol,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+            ),
           ],
         ),
       ),
@@ -874,13 +1078,13 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
       width: double.infinity,
       child: Column(
         children: [
-          const SizedBox(height: 100),
+          SizedBox(height: 100),
 
-          const CircularProgressIndicator(color: primary, strokeWidth: 3),
+          CircularProgressIndicator(color: primary, strokeWidth: 3),
 
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
 
-          const Text(
+          Text(
             'Memuat informasi lomba...',
             style: TextStyle(
               color: muted,
@@ -889,7 +1093,7 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
             ),
           ),
 
-          const SizedBox(height: 100),
+          SizedBox(height: 100),
         ],
       ),
     );
@@ -902,7 +1106,7 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   Widget _buildErrorState() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(23),
+      padding: EdgeInsets.all(23),
       decoration: _cardDecoration(),
       child: Column(
         children: [
@@ -913,16 +1117,12 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
               color: cream,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(
-              Icons.cloud_off_outlined,
-              color: primary,
-              size: 32,
-            ),
+            child: Icon(Icons.cloud_off_outlined, color: primary, size: 32),
           ),
 
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
 
-          const Text(
+          Text(
             'Gagal Memuat Detail',
             style: TextStyle(
               color: textColor,
@@ -931,22 +1131,22 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
             ),
           ),
 
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
 
           Text(
             errorDetail ?? 'Terjadi kesalahan.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: muted, fontSize: 12, height: 1.6),
+            style: TextStyle(color: muted, fontSize: 12, height: 1.6),
           ),
 
-          const SizedBox(height: 18),
+          SizedBox(height: 18),
 
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: _loadDetailLomba,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Coba Lagi'),
+              icon: Icon(Icons.refresh_rounded),
+              label: Text('Coba Lagi'),
             ),
           ),
         ],
@@ -962,20 +1162,18 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: background,
-
       body: SafeArea(
         bottom: false,
         child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
+          physics: BouncingScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // HEADER IKUT TERSCROLL
-
               _buildHeader(),
 
               Padding(
-                padding: const EdgeInsets.fromLTRB(18, 20, 18, 35),
+                padding: EdgeInsets.fromLTRB(18, 20, 18, 35),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -985,10 +1183,53 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
                       _buildErrorState()
                     else ...[
                       // INFORMASI UTAMA
-
                       _buildMainInformation(),
 
-                      const SizedBox(height: 25),
+                      if (_lombaArsip) ...[
+                        SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: creamLight,
+                            border: Border.all(color: borderColor),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Lomba ${lomba['status_lomba']}',
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Lomba ini dapat dilihat sebagai arsip, tetapi pendaftaran sudah ditutup.',
+                                style: TextStyle(color: muted, fontSize: 12),
+                              ),
+                              if (getValue(
+                                'alasan_penghentian',
+                                fallback: '',
+                              ).isNotEmpty) ...[
+                                SizedBox(height: 10),
+                                Text(
+                                  'Alasan: ${getValue('alasan_penghentian')}',
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      SizedBox(height: 25),
 
                       // STATUS DAN KUOTA
                       _sectionTitle(
@@ -997,37 +1238,24 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
                         icon: Icons.groups_outlined,
                       ),
 
-                      const SizedBox(height: 13),
+                      SizedBox(height: 13),
 
                       _buildQuotaCard(),
 
-                      const SizedBox(height: 25),
+                      SizedBox(height: 25),
 
-                      // INFORMASI LOMBA
+                      // INFORMASI LOMBA DALAM BARIS PER KELOMPOK
                       _sectionTitle(
                         'Informasi Lomba',
-                        subtitle: 'Biaya, hadiah, dan jadwal kegiatan.',
+                        subtitle: 'Setiap informasi ditampilkan satu baris dan dikelompokkan berdasarkan header.',
                         icon: Icons.event_note_outlined,
                       ),
 
-                      const SizedBox(height: 13),
+                      SizedBox(height: 13),
 
-                      _buildInformationGrid(),
+                      _buildInformationSections(),
 
-                      const SizedBox(height: 25),
-
-                      // INFORMASI TAMBAHAN
-                      _sectionTitle(
-                        'Informasi Tambahan',
-                        subtitle: 'Lokasi dan kontak penyelenggara.',
-                        icon: Icons.info_outline_rounded,
-                      ),
-
-                      const SizedBox(height: 13),
-
-                      _buildAdditionalInformation(),
-
-                      const SizedBox(height: 25),
+                      SizedBox(height: 25),
 
                       // DESKRIPSI
                       _sectionTitle(
@@ -1036,31 +1264,37 @@ class _DetailLombaPageState extends State<DetailLombaPage> {
                         icon: Icons.description_outlined,
                       ),
 
-                      const SizedBox(height: 13),
+                      SizedBox(height: 13),
 
                       _buildDescription(),
 
-                      const SizedBox(height: 25),
+                      SizedBox(height: 25),
 
-                      // PERSYARATAN
-                      _sectionTitle(
-                        'Persyaratan Lomba',
-                        subtitle: 'Ketentuan yang harus dipenuhi peserta.',
-                        icon: Icons.fact_check_outlined,
-                      ),
+                      // PERSYARATAN LOMBA
+                      // Bagian ini berasal dari kolom lama `persyaratan`.
+                      // Tampilkan hanya untuk lomba lama yang memang memiliki isi.
+                      if (getValue(
+                        'persyaratan',
+                        fallback: '',
+                      ).trim().isNotEmpty) ...[
+                        SizedBox(height: 25),
+                        _sectionTitle(
+                          'Persyaratan Lomba',
+                          subtitle: 'Ketentuan yang harus dipenuhi peserta.',
+                          icon: Icons.fact_check_outlined,
+                        ),
+                        SizedBox(height: 13),
+                        _buildRequirements(),
+                      ],
 
-                      const SizedBox(height: 13),
-
-                      _buildRequirements(),
-
-                      const SizedBox(height: 25),
+                      SizedBox(height: 25),
 
                       // TOMBOL DAFTAR
                       _buildRegisterButton(),
 
-                      const SizedBox(height: 18),
+                      SizedBox(height: 18),
 
-                      const Center(
+                      Center(
                         child: Text(
                           'TERNATE LOMBA • TEMUKAN PRESTASIMU',
                           textAlign: TextAlign.center,

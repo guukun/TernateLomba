@@ -1,4 +1,8 @@
+import '../../design_system/tl_playful.dart';
+import '../../widgets/app_feedback.dart';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -33,18 +37,17 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
   String? _loadError;
 
   // WARNA MENGAMBIL DARI APP THEME
-  static const Color _primary = AppColors.primary;
-  static const Color _primaryDark = AppColors.primaryDark;
-  static const Color _cream = AppColors.cream;
-  static const Color _creamLight = AppColors.creamLight;
-  static const Color _creamDark = AppColors.creamDark;
-  static const Color _background = AppColors.background;
-  static const Color _surface = AppColors.surface;
-  static const Color _text = AppColors.navy;
-  static const Color _muted = AppColors.grey;
-  static const Color _border = AppColors.fieldBorder;
-  static const Color _fieldBg = AppColors.fieldBg;
-  static const Color _error = AppColors.error;
+  Color get _primary => context.tl.primary;
+  Color get _cream => context.tl.cream;
+  Color get _creamLight => context.tl.creamLight;
+  Color get _creamDark => context.tl.creamDark;
+  Color get _background => context.tl.background;
+  Color get _surface => context.tl.surface;
+  Color get _text => context.tl.navy;
+  Color get _muted => context.tl.grey;
+  Color get _border => context.tl.fieldBorder;
+  Color get _fieldBg => context.tl.fieldBg;
+  Color get _error => context.tl.error;
 
   @override
   void initState() {
@@ -83,17 +86,25 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
           throw Exception('ID salah satu kolom formulir tidak valid.');
         }
 
-        final type = (field['tipe_field']?.toString() ?? '')
+        final type = (field['tipe_field']?.toString() ?? 'Text')
             .trim()
             .toLowerCase();
 
-        if (type == 'text') {
+        const supported = {
+          'text',
+          'textarea',
+          'number',
+          'dropdown',
+          'date',
+          'file',
+          'email',
+          'phone',
+        };
+        if (!supported.contains(type)) {
+          throw Exception('Tipe formulir "$type" belum didukung.');
+        }
+        if (type != 'file') {
           _controllers[id] = TextEditingController();
-        } else if (type != 'file') {
-          throw Exception(
-            'Tipe formulir "$type" belum didukung. '
-            'Gunakan tipe Text atau File pada database.',
-          );
         }
       }
 
@@ -124,39 +135,67 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
 
   Future<void> _pilihBerkas(int idField) async {
     try {
+      // file_picker 12+ (termasuk 13.2.0) memakai API statis FilePicker.pickFile.
+      // pickFile mengembalikan PlatformFile? secara langsung, bukan FilePickerResult.
       final picked = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
       );
-
       if (picked == null) return;
 
+      // Pada file_picker 13, bytes dibaca secara asynchronous melalui PlatformFile.
       final bytes = await picked.readAsBytes();
-
+      if (bytes.isEmpty) {
+        throw Exception('Berkas tidak dapat dibaca. Silakan pilih ulang.');
+      }
       if (bytes.length > 5 * 1024 * 1024) {
         throw Exception('Ukuran berkas maksimal 5 MB.');
       }
 
       final file = XFile.fromData(bytes, name: picked.name);
-
       if (!mounted) return;
-
-      setState(() {
-        _files[idField] = file;
-      });
-
+      setState(() => _files[idField] = file);
       _formKey.currentState?.validate();
     } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memilih berkas: $e'),
-          backgroundColor: _error,
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppNotification.message(
+        context,
+        'Gagal memilih berkas: $e',
+        type: NotificationType.error,
       );
     }
+  }
+
+  Future<void> _pickDateForField(int id, String label) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: today,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(now.year + 10),
+      helpText: label,
+      cancelText: 'BATAL',
+      confirmText: 'PILIH',
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+            primary: context.tl.primary,
+            onPrimary: Colors.white,
+            surface: context.tl.surface,
+            onSurface: context.tl.navy,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (selected == null || !mounted) return;
+    _controllers[id]?.text =
+        '${selected.year.toString().padLeft(4, '0')}-'
+        '${selected.month.toString().padLeft(2, '0')}-'
+        '${selected.day.toString().padLeft(2, '0')}';
+    _formKey.currentState?.validate();
+    setState(() {});
   }
 
   // =========================================================
@@ -187,41 +226,31 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
     return InputDecoration(
       labelText: label,
       hintText: hint,
-
       prefixIcon: Icon(icon, color: _muted, size: 20),
-
       filled: true,
       fillColor: _fieldBg,
-
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
-
-      labelStyle: const TextStyle(color: _muted, fontSize: 13),
-
-      hintStyle: const TextStyle(color: AppColors.muted, fontSize: 13),
-
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 17),
+      labelStyle: TextStyle(color: _muted, fontSize: 13),
+      hintStyle: TextStyle(color: context.tl.muted, fontSize: 13),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: _border),
+        borderSide: BorderSide(color: _border),
       ),
-
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: _border),
+        borderSide: BorderSide(color: _border),
       ),
-
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: _primary, width: 1.5),
+        borderSide: BorderSide(color: _primary, width: 1.5),
       ),
-
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: _error),
+        borderSide: BorderSide(color: _error),
       ),
-
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: _error, width: 1.5),
+        borderSide: BorderSide(color: _error, width: 1.5),
       ),
     );
   }
@@ -236,27 +265,31 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
     required IconData icon,
     required TextEditingController controller,
     String? Function(String?)? validator,
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+    List<TextInputFormatter>? inputFormatters,
+    bool readOnly = false,
+    VoidCallback? onTap,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 19),
+      padding: EdgeInsets.only(bottom: 19),
       child: TextFormField(
         controller: controller,
-        keyboardType: TextInputType.text,
-        textCapitalization: TextCapitalization.words,
-        style: const TextStyle(
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        inputFormatters: inputFormatters,
+        readOnly: readOnly,
+        onTap: onTap,
+        textCapitalization: maxLines > 1
+            ? TextCapitalization.sentences
+            : TextCapitalization.words,
+        style: TextStyle(
           color: _text,
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
         decoration: _inputDecoration(label: label, hint: hint, icon: icon),
-        validator:
-            validator ??
-            (value) {
-              if (value == null || value.trim().isEmpty) {
-                return '$label wajib diisi';
-              }
-              return null;
-            },
+        validator: validator,
       ),
     );
   }
@@ -266,25 +299,41 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
   // =========================================================
 
   Widget _sectionTitle(String title, String subtitle) {
+    final p = context.tl;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Column(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: _text,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
+          Container(
+            width: 47,
+            height: 47,
+            decoration: BoxDecoration(
+              color: p.mint.withValues(alpha: .18),
+              borderRadius: BorderRadius.circular(17),
             ),
+            child: Icon(Icons.edit_note_rounded, color: p.mint, size: 25),
           ),
-
-          const SizedBox(height: 5),
-
-          Text(
-            subtitle,
-            style: const TextStyle(color: _muted, fontSize: 12, height: 1.5),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: p.navy,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  subtitle,
+                  style: TextStyle(color: p.grey, fontSize: 12, height: 1.48),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -297,44 +346,38 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
 
   Widget _buildDynamicField(Map<String, dynamic> field) {
     final id = int.parse(field['id_field'].toString());
-
     final nama = field['nama_field']?.toString() ?? 'Pertanyaan';
-
     final tipe = (field['tipe_field']?.toString() ?? 'Text')
         .trim()
         .toLowerCase();
-
+    final placeholder =
+        field['placeholder']?.toString().trim().isNotEmpty == true
+        ? field['placeholder'].toString()
+        : 'Masukkan $nama';
     final wajib =
         field['wajib'] == true || field['wajib'] == 1 || field['wajib'] == '1';
+    final controller = _controllers[id];
 
-    // FIELD BERUPA FILE
     if (tipe == 'file') {
       return Padding(
-        padding: const EdgeInsets.only(bottom: 19),
+        padding: EdgeInsets.only(bottom: 19),
         child: FormField<XFile>(
-          validator: (_) {
-            if (wajib && !_files.containsKey(id)) {
-              return '$nama wajib diunggah';
-            }
-            return null;
-          },
+          validator: (_) =>
+              wajib && !_files.containsKey(id) ? '$nama wajib diunggah' : null,
           builder: (state) {
             final selectedFile = _files[id];
-
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   wajib ? '$nama *' : nama,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: _text,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-
-                const SizedBox(height: 9),
-
+                SizedBox(height: 9),
                 Material(
                   color: _creamLight,
                   borderRadius: BorderRadius.circular(16),
@@ -343,7 +386,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                     onTap: () => _pilihBerkas(id),
                     child: Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
@@ -367,9 +410,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                               size: 23,
                             ),
                           ),
-
-                          const SizedBox(width: 13),
-
+                          SizedBox(width: 13),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,29 +419,26 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                                   selectedFile?.name ?? 'Pilih berkas',
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: _text,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-
-                                const SizedBox(height: 4),
-
-                                const Text(
+                                SizedBox(height: 4),
+                                Text(
                                   'PDF, JPG, JPEG, PNG • Maks. 5 MB',
                                   style: TextStyle(color: _muted, fontSize: 10),
                                 ),
                               ],
                             ),
                           ),
-
                           Icon(
                             selectedFile != null
                                 ? Icons.check_circle_rounded
                                 : Icons.add_circle_outline_rounded,
                             color: selectedFile != null
-                                ? AppColors.green
+                                ? context.tl.green
                                 : _primary,
                             size: 23,
                           ),
@@ -409,12 +447,11 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                     ),
                   ),
                 ),
-
                 if (state.hasError) ...[
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   Text(
                     state.errorText!,
-                    style: const TextStyle(color: _error, fontSize: 11),
+                    style: TextStyle(color: _error, fontSize: 11),
                   ),
                 ],
               ],
@@ -424,15 +461,105 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
       );
     }
 
-    // FIELD BERUPA TEXT
+    if (tipe == 'dropdown') {
+      final rawOptions = field['opsi_field'];
+      final options = rawOptions is List
+          ? rawOptions
+                .map((value) => value.toString())
+                .where((value) => value.trim().isNotEmpty)
+                .toList()
+          : <String>[];
+      return Padding(
+        padding: EdgeInsets.only(bottom: 19),
+        child: DropdownButtonFormField<String>(
+          initialValue: options.contains(controller?.text)
+              ? controller!.text
+              : null,
+          isExpanded: true,
+          decoration: _inputDecoration(
+            label: wajib ? '$nama *' : nama,
+            hint: placeholder,
+            icon: Icons.list_alt_outlined,
+          ),
+          items: options
+              .map(
+                (option) => DropdownMenuItem(
+                  value: option,
+                  child: Text(option, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value != null) {
+              controller?.text = value;
+            }
+          },
+          validator: (value) => wajib && (value == null || value.isEmpty)
+              ? '$nama wajib dipilih'
+              : null,
+        ),
+      );
+    }
+
+    if (tipe == 'date') {
+      return _buildField(
+        label: wajib ? '$nama *' : nama,
+        hint: placeholder,
+        icon: Icons.calendar_month_outlined,
+        controller: controller!,
+        readOnly: true,
+        onTap: () => _pickDateForField(id, nama),
+        validator: (value) => wajib && (value == null || value.trim().isEmpty)
+            ? '$nama wajib diisi'
+            : null,
+      );
+    }
+
+    TextInputType keyboard = TextInputType.text;
+    int maxLines = 1;
+    List<TextInputFormatter>? formatters;
+    if (tipe == 'textarea') {
+      maxLines = 4;
+      keyboard = TextInputType.multiline;
+    } else if (tipe == 'number') {
+      keyboard = TextInputType.number;
+      formatters = [_ThousandsSeparatorInputFormatter()];
+    } else if (tipe == 'email') {
+      keyboard = TextInputType.emailAddress;
+    } else if (tipe == 'phone') {
+      keyboard = TextInputType.phone;
+      formatters = [FilteringTextInputFormatter.allow(RegExp(r'[0-9+()\-\s]'))];
+    }
+
     return _buildField(
       label: wajib ? '$nama *' : nama,
-      hint: 'Masukkan $nama',
-      icon: Icons.edit_outlined,
-      controller: _controllers[id]!,
+      hint: placeholder,
+      icon: tipe == 'email'
+          ? Icons.email_outlined
+          : tipe == 'phone'
+          ? Icons.phone_outlined
+          : tipe == 'number'
+          ? Icons.numbers_outlined
+          : Icons.edit_outlined,
+      controller: controller!,
+      keyboardType: keyboard,
+      maxLines: maxLines,
+      inputFormatters: formatters,
       validator: (value) {
         if (wajib && (value == null || value.trim().isEmpty)) {
           return '$nama wajib diisi';
+        }
+        if (value == null || value.trim().isEmpty) return null;
+        if (tipe == 'email' &&
+            !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value.trim())) {
+          return 'Format email tidak valid';
+        }
+        if (tipe == 'number' &&
+            !RegExp(r'^\d{1,3}(\.\d{3})*$|^\d+$').hasMatch(value.trim())) {
+          return 'Masukkan angka saja';
+        }
+        if (tipe == 'phone' && value.replaceAll(RegExp(r'\D'), '').length < 6) {
+          return 'Nomor telepon tidak valid';
         }
         return null;
       },
@@ -446,7 +573,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
   Widget _buildInfoCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _creamLight,
         borderRadius: BorderRadius.circular(17),
@@ -462,16 +589,10 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
               color: _cream,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.info_outline_rounded,
-              color: _primary,
-              size: 21,
-            ),
+            child: Icon(Icons.info_outline_rounded, color: _primary, size: 21),
           ),
-
-          const SizedBox(width: 12),
-
-          const Expanded(
+          SizedBox(width: 12),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -483,9 +604,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-
                 SizedBox(height: 5),
-
                 Text(
                   'Pastikan seluruh informasi yang Anda '
                   'masukkan sudah benar sebelum mengirim '
@@ -505,7 +624,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
   // =========================================================
 
   Widget _buildLoading() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.symmetric(vertical: 45),
       child: Center(
         child: Column(
@@ -529,7 +648,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
   Widget _buildError() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: _creamLight,
         borderRadius: BorderRadius.circular(18),
@@ -544,12 +663,10 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
               color: _error.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.cloud_off_rounded, color: _error, size: 26),
+            child: Icon(Icons.cloud_off_rounded, color: _error, size: 26),
           ),
-
-          const SizedBox(height: 13),
-
-          const Text(
+          SizedBox(height: 13),
+          Text(
             'Formulir tidak dapat dimuat',
             style: TextStyle(
               color: _text,
@@ -557,21 +674,17 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
               fontWeight: FontWeight.w800,
             ),
           ),
-
-          const SizedBox(height: 8),
-
+          SizedBox(height: 8),
           Text(
             _loadError ?? 'Terjadi kesalahan.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: _muted, fontSize: 12, height: 1.5),
+            style: TextStyle(color: _muted, fontSize: 12, height: 1.5),
           ),
-
-          const SizedBox(height: 17),
-
+          SizedBox(height: 17),
           OutlinedButton.icon(
             onPressed: _loadFormFields,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Coba Lagi'),
+            icon: Icon(Icons.refresh_rounded),
+            label: Text('Coba Lagi'),
           ),
         ],
       ),
@@ -585,18 +698,16 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
   Widget _buildEmpty() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+      padding: EdgeInsets.symmetric(vertical: 30, horizontal: 20),
       decoration: BoxDecoration(
         color: _creamLight,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: _creamDark),
       ),
-      child: const Column(
+      child: Column(
         children: [
           Icon(Icons.assignment_outlined, color: _primary, size: 42),
-
           SizedBox(height: 12),
-
           Text(
             'Formulir belum tersedia',
             style: TextStyle(
@@ -605,9 +716,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
               fontSize: 14,
             ),
           ),
-
           SizedBox(height: 6),
-
           Text(
             'Penyelenggara belum menyediakan '
             'pertanyaan pendaftaran untuk lomba ini.',
@@ -632,6 +741,15 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
       return;
     }
 
+    final confirmed = await AppConfirmDialog.show(
+      context: context,
+      title: 'Kirim pendaftaran?',
+      message: 'Periksa kembali seluruh jawaban dan berkas. Pendaftaran akan dikirim kepada penyelenggara lomba.',
+      confirmText: 'Daftar',
+      cancelText: 'Batal',
+    );
+    if (!mounted || confirmed != true) return;
+
     setState(() {
       _isSubmitting = true;
     });
@@ -643,7 +761,14 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
         final value = entry.value.text.trim();
 
         if (value.isNotEmpty) {
-          jawaban[entry.key] = value;
+          final field = _fields.firstWhere(
+            (item) => int.tryParse(item['id_field'].toString()) == entry.key,
+            orElse: () => <String, dynamic>{},
+          );
+          final type = (field['tipe_field']?.toString() ?? '').toLowerCase();
+          jawaban[entry.key] = type == 'number'
+              ? value.replaceAll('.', '')
+              : value;
         }
       }
 
@@ -656,31 +781,23 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(
-              response['pesan']?.toString() ?? 'Pendaftaran berhasil dikirim.',
-            ),
-            backgroundColor: _primaryDark,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-
-      Navigator.of(context).pop();
+      await AppNotification.show(
+        context: context,
+        title: 'Berhasil!',
+        message:
+            response['pesan']?.toString() ?? 'Pendaftaran berhasil dikirim.',
+        type: NotificationType.success,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text('Gagal mengirim pendaftaran: $e'),
-            backgroundColor: _error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      AppNotification.message(
+        context,
+        'Gagal mengirim pendaftaran: $e',
+        type: NotificationType.error,
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -694,106 +811,14 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
   // HEADER
   // =========================================================
 
-  Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 17, 20, 27),
-      decoration: const BoxDecoration(
-        color: _primary,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Material(
-                color: Colors.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(13),
-                child: InkWell(
-                  onTap: () => Navigator.pop(context),
-                  borderRadius: BorderRadius.circular(13),
-                  child: const SizedBox(
-                    width: 43,
-                    height: 43,
-                    child: Icon(
-                      Icons.arrow_back_rounded,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 13),
-
-              const Expanded(
-                child: Text(
-                  'Pendaftaran Lomba',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: const Icon(
-                  Icons.assignment_turned_in_outlined,
-                  color: Colors.white,
-                  size: 21,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 28),
-
-          const Text(
-            'Formulir Peserta',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 27,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            'Lengkapi informasi yang diperlukan '
-            'untuk mengikuti kompetisi.',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.78),
-              fontSize: 13,
-              height: 1.6,
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          Container(
-            width: 65,
-            height: 5,
-            decoration: BoxDecoration(
-              color: _cream,
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildHeader() => TLPlayful.pageHeader(
+    context,
+    title: 'Make your\nnext move.',
+    description: 'Isi data dengan teliti. Fokus satu langkah sampai selesai.',
+    icon: Icons.edit_note_rounded,
+    accent: context.tl.mint,
+    onBack: () => Navigator.of(context).pop(),
+  );
 
   // =========================================================
   // TOMBOL KIRIM
@@ -818,7 +843,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
           ),
         ),
         child: _isSubmitting
-            ? const SizedBox(
+            ? SizedBox(
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(
@@ -826,7 +851,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                   color: Colors.white,
                 ),
               )
-            : const Row(
+            : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
@@ -849,21 +874,18 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _background,
-
       body: SafeArea(
         bottom: true,
         child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: AlwaysScrollableScrollPhysics(),
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // HEADER
               _buildHeader(),
-
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 23, 20, 35),
+                padding: EdgeInsets.fromLTRB(20, 23, 20, 35),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -871,8 +893,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                     children: [
                       // INFORMASI
                       _buildInfoCard(),
-
-                      const SizedBox(height: 27),
+                      SizedBox(height: 27),
 
                       // JUDUL FORMULIR
                       _sectionTitle(
@@ -891,7 +912,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                       else
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(18),
+                          padding: EdgeInsets.all(18),
                           decoration: BoxDecoration(
                             color: _surface,
                             borderRadius: BorderRadius.circular(22),
@@ -900,7 +921,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                               BoxShadow(
                                 color: _primary.withValues(alpha: 0.035),
                                 blurRadius: 18,
-                                offset: const Offset(0, 6),
+                                offset: Offset(0, 6),
                               ),
                             ],
                           ),
@@ -916,16 +937,14 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                                       color: _cream,
                                       borderRadius: BorderRadius.circular(11),
                                     ),
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.assignment_outlined,
                                       color: _primary,
                                       size: 20,
                                     ),
                                   ),
-
-                                  const SizedBox(width: 11),
-
-                                  const Expanded(
+                                  SizedBox(width: 11),
+                                  Expanded(
                                     child: Text(
                                       'Pertanyaan Lomba',
                                       style: TextStyle(
@@ -935,9 +954,8 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                                       ),
                                     ),
                                   ),
-
                                   Container(
-                                    padding: const EdgeInsets.symmetric(
+                                    padding: EdgeInsets.symmetric(
                                       horizontal: 10,
                                       vertical: 6,
                                     ),
@@ -947,7 +965,7 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                                     ),
                                     child: Text(
                                       '${_fields.length} kolom',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         color: _primary,
                                         fontSize: 10,
                                         fontWeight: FontWeight.w700,
@@ -956,34 +974,26 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
                                   ),
                                 ],
                               ),
-
-                              const SizedBox(height: 20),
-
-                              const Divider(color: _border, height: 1),
-
-                              const SizedBox(height: 20),
-
+                              SizedBox(height: 20),
+                              Divider(color: _border, height: 1),
+                              SizedBox(height: 20),
                               ..._fields.map(_buildDynamicField),
                             ],
                           ),
                         ),
-
-                      const SizedBox(height: 25),
+                      SizedBox(height: 25),
 
                       // TOMBOL KIRIM
                       _buildSubmitButton(),
-
-                      const SizedBox(height: 15),
-
-                      const Center(
+                      SizedBox(height: 15),
+                      Center(
                         child: Text(
                           'Pastikan semua informasi telah sesuai.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: _muted, fontSize: 11),
                         ),
                       ),
-
-                      const SizedBox(height: 10),
+                      SizedBox(height: 10),
                     ],
                   ),
                 ),
@@ -992,6 +1002,41 @@ class _FormulirPesertaPageState extends State<FormulirPesertaPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return TextEditingValue(text: '');
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(digits[i]);
+    }
+    final text = buffer.toString();
+    final before = newValue.text
+        .substring(
+          0,
+          newValue.selection.end.clamp(0, newValue.text.length).toInt(),
+        )
+        .replaceAll(RegExp(r'\D'), '')
+        .length;
+    var cursor = 0;
+    var counted = 0;
+    while (cursor < text.length && counted < before) {
+      if (RegExp(r'\d').hasMatch(text[cursor])) counted++;
+      cursor++;
+    }
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: cursor),
+      composing: TextRange.empty,
     );
   }
 }

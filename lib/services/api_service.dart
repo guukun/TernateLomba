@@ -1,9 +1,18 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 class ApiService {
+  /// Sinyal perubahan data lintas halaman dalam satu sesi aplikasi.
+  /// Untuk perubahan dari perangkat lain, halaman juga melakukan polling API.
+  static final ValueNotifier<int> dataRevision = ValueNotifier<int>(0);
+
+  static void notifyDataChanged() {
+    dataRevision.value++;
+  }
+
   // URL API dapat diganti tanpa mengedit kode:
   // flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api
   // Untuk HP fisik, gunakan IP LAN komputer yang menjalankan Laravel.
@@ -12,6 +21,20 @@ class ApiService {
     defaultValue: 'http://127.0.0.1:8000/api',
     // defaultValue: 'http://10.104.22.67:8000/api',
   );
+
+  /// Pesan terarah untuk masalah koneksi saat API lokal tidak dapat dijangkau.
+  /// Kegagalan jaringan tidak berarti pendaftaran atau pengajuan hilang.
+  static String readableError(Object error) {
+    final raw = error.toString().replaceFirst('Exception: ', '');
+    if (raw.contains('ClientLoad failed') ||
+        raw.contains('Failed host lookup') ||
+        raw.contains('Connection refused') ||
+        raw.contains('XMLHttpRequest error') ||
+        raw.contains('SocketException')) {
+      return 'Server Laravel belum terhubung. Jalankan backend dan pastikan alamat API sesuai perangkat. Di emulator Android gunakan 10.0.2.2, di HP gunakan IP LAN komputer.';
+    }
+    return raw;
+  }
 
   /// Membentuk URL gambar dengan merujuk path poster yang disimpan MySQL.
   ///
@@ -29,9 +52,9 @@ class ApiService {
       final segments = parsed != null && parsed.hasScheme
           ? parsed.pathSegments.where((segment) => segment.isNotEmpty).toList()
           : normalized
-              .split('/')
-              .where((segment) => segment.isNotEmpty)
-              .toList();
+                .split('/')
+                .where((segment) => segment.isNotEmpty)
+                .toList();
 
       if (segments.isEmpty) return null;
 
@@ -40,8 +63,10 @@ class ApiService {
           filename == '..' ||
           filename.contains('/') ||
           filename.contains('\\') ||
-          !RegExp(r'\.(jpg|jpeg|png)$', caseSensitive: false)
-              .hasMatch(filename)) {
+          !RegExp(
+            r'\.(jpg|jpeg|png)$',
+            caseSensitive: false,
+          ).hasMatch(filename)) {
         return null;
       }
 
@@ -395,6 +420,40 @@ class ApiService {
     return Map<String, dynamic>.from(item);
   }
 
+  // MEMERIKSA STATUS PENDAFTARAN PENGGUNA PADA LOMBA
+  static Future<Map<String, dynamic>> getStatusPendaftaranLomba({
+    required int idLomba,
+    required String token,
+  }) async {
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/lomba/$idLomba/status-pendaftaran'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 20));
+
+    final data = _decodeResponse(response);
+
+    if (response.statusCode != 200) {
+      throw _responseError(
+        response,
+        data,
+        'Gagal memeriksa status pendaftaran.',
+      );
+    }
+
+    final item = data['data'];
+
+    if (item is! Map) {
+      throw Exception('Format status pendaftaran tidak valid.');
+    }
+
+    return Map<String, dynamic>.from(item);
+  }
+
   // MENGAMBIL PERTANYAAN FORMULIR LOMBA
   static Future<List<Map<String, dynamic>>> getFormFields(int idLomba) async {
     if (idLomba <= 0) {
@@ -466,6 +525,126 @@ class ApiService {
     return data;
   }
 
+  // MENGAMBIL DETAIL LOMBA YANG SUDAH DIIKUTI OLEH PENGGUNA
+  static Future<Map<String, dynamic>> getDetailPendaftaran({
+    required String token,
+    required int idPendaftaran,
+  }) async {
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/pendaftaran/$idPendaftaran'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 25));
+
+    final data = _decodeResponse(response);
+    if (response.statusCode != 200) {
+      throw _responseError(
+        response,
+        data,
+        'Gagal mengambil detail lomba yang diikuti.',
+      );
+    }
+    if (data['data'] is! Map) {
+      throw Exception('Format detail lomba yang diikuti tidak valid.');
+    }
+    return Map<String, dynamic>.from(data['data']);
+  }
+
+  // MENGAMBIL PESERTA PADA LOMBA MILIK PENYELENGGARA
+  static Future<Map<String, dynamic>> getPesertaPenyelenggara({
+    required String token,
+    required int idLomba,
+  }) async {
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/penyelenggara/lomba/$idLomba/peserta'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 25));
+
+    final data = _decodeResponse(response);
+    if (response.statusCode != 200) {
+      throw _responseError(
+        response,
+        data,
+        'Gagal mengambil daftar peserta lomba.',
+      );
+    }
+    if (data['data'] is! Map) {
+      throw Exception('Format data peserta lomba tidak valid.');
+    }
+    return Map<String, dynamic>.from(data['data']);
+  }
+
+  // MENGAMBIL JAWABAN LENGKAP SATU PESERTA UNTUK DIREVIEW PENYELENGGARA
+  static Future<Map<String, dynamic>> getDetailPesertaPenyelenggara({
+    required String token,
+    required int idPendaftaran,
+  }) async {
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/penyelenggara/pendaftaran/$idPendaftaran'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 25));
+
+    final data = _decodeResponse(response);
+    if (response.statusCode != 200) {
+      throw _responseError(response, data, 'Gagal mengambil jawaban peserta.');
+    }
+    if (data['data'] is! Map) {
+      throw Exception('Format detail peserta tidak valid.');
+    }
+    return Map<String, dynamic>.from(data['data']);
+  }
+
+  // PENYELENGGARA MENERIMA ATAU MENOLAK PENDAFTARAN PESERTA
+  static Future<Map<String, dynamic>> putuskanPendaftaranPeserta({
+    required String token,
+    required int idPendaftaran,
+    required String keputusan,
+    String? catatan,
+  }) async {
+    final response = await http
+        .patch(
+          Uri.parse(
+            '$baseUrl/penyelenggara/pendaftaran/$idPendaftaran/keputusan',
+          ),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'keputusan': keputusan,
+            if (catatan != null && catatan.trim().isNotEmpty)
+              'catatan': catatan.trim(),
+          }),
+        )
+        .timeout(const Duration(seconds: 25));
+
+    final data = _decodeResponse(response);
+    if (response.statusCode != 200) {
+      throw _responseError(
+        response,
+        data,
+        'Gagal memproses pendaftaran peserta.',
+      );
+    }
+    notifyDataChanged();
+    return data;
+  }
+
   // MENGAMBIL DAFTAR LOMBA YANG DIBUAT OLEH PENGGUNA LOGIN
   static Future<Map<String, dynamic>> getPengajuanLombaSaya({
     required String token,
@@ -494,21 +673,25 @@ class ApiService {
     return data;
   }
 
-  // MENGIRIM PENGAJUAN LOMBA KE LARAVEL
+  // MENGIRIM PENGAJUAN LOMBA KE LARAVEL.
+  // Tahap 1 mengirim informasi umum + informasi tambahan semi-dinamis.
+  // Tahap 2 mengirim konfigurasi formulir peserta yang sepenuhnya dinamis.
+  // Tahap 3 memanggil method ini setelah pengguna memeriksa ringkasan.
   static Future<Map<String, dynamic>> ajukanLomba({
     required String token,
     required int idKategori,
     required String namaLomba,
     required String deskripsi,
-    required String tanggalPelaksanaan,
+    required String tanggalMulaiPendaftaran,
     required String batasPendaftaran,
-    required String lokasiPendaftaran,
+    required String tanggalPelaksanaan,
+    required String tanggalSelesaiPelaksanaan,
+    required String metodePelaksanaan,
+    required String detailPelaksanaan,
     required String biaya,
-    required String kontakPenyelenggara,
-    String? persyaratan,
-    String? hadiah,
     String? kuotaPeserta,
     required XFile poster,
+    required List<Map<String, dynamic>> informasiTambahan,
     required List<Map<String, dynamic>> formFields,
   }) async {
     final request = http.MultipartRequest(
@@ -525,40 +708,60 @@ class ApiService {
       'id_kategori': idKategori.toString(),
       'nama_lomba': namaLomba.trim(),
       'deskripsi': deskripsi.trim(),
-      'tanggal_pelaksanaan': tanggalPelaksanaan,
+      'tanggal_mulai_pendaftaran': tanggalMulaiPendaftaran,
       'batas_pendaftaran': batasPendaftaran,
-      'lokasi_pendaftaran': lokasiPendaftaran.trim(),
-      'biaya': biaya.trim().isEmpty ? '0' : biaya.trim(),
-      'kontak_penyelenggara': kontakPenyelenggara.trim(),
+      'tanggal_pelaksanaan': tanggalPelaksanaan,
+      'tanggal_selesai_pelaksanaan': tanggalSelesaiPelaksanaan,
+      'metode_pelaksanaan': metodePelaksanaan,
+      'detail_pelaksanaan': detailPelaksanaan.trim(),
+      // Biaya dikirim sebagai angka tanpa pemisah ribuan.
+      'biaya': biaya.replaceAll('.', '').trim().isEmpty
+          ? '0'
+          : biaya.replaceAll('.', '').trim(),
     });
 
-    if (persyaratan != null && persyaratan.trim().isNotEmpty) {
-      request.fields['persyaratan'] = persyaratan.trim();
-    }
-    if (hadiah != null && hadiah.trim().isNotEmpty) {
-      request.fields['hadiah'] = hadiah.trim();
-    }
     if (kuotaPeserta != null && kuotaPeserta.trim().isNotEmpty) {
       request.fields['kuota_peserta'] = kuotaPeserta.trim();
     }
 
+    for (var i = 0; i < informasiTambahan.length; i++) {
+      final info = informasiTambahan[i];
+      request.fields['informasi_tambahan[$i][kelompok_informasi]'] =
+          (info['kelompok_informasi'] ?? '').toString().trim();
+      request.fields['informasi_tambahan[$i][label_informasi]'] =
+          (info['label_informasi'] ?? '').toString().trim();
+      request.fields['informasi_tambahan[$i][nilai_informasi]'] =
+          (info['nilai_informasi'] ?? '').toString().trim();
+      request.fields['informasi_tambahan[$i][urutan]'] =
+          (info['urutan'] ?? (i + 1)).toString();
+    }
+
     for (var i = 0; i < formFields.length; i++) {
       final field = formFields[i];
-      request.fields['form_fields[$i][nama_field]'] = field['nama_field']
-          .toString()
-          .trim();
-      request.fields['form_fields[$i][tipe_field]'] = field['tipe_field']
-          .toString();
+      request.fields['form_fields[$i][nama_field]'] =
+          (field['nama_field'] ?? '').toString().trim();
+      request.fields['form_fields[$i][tipe_field]'] =
+          (field['tipe_field'] ?? 'Text').toString();
+      request.fields['form_fields[$i][placeholder]'] =
+          (field['placeholder'] ?? '').toString();
       request.fields['form_fields[$i][wajib]'] = field['wajib'] == true
           ? '1'
           : '0';
+
+      final options = field['opsi_field'];
+      if (options is List) {
+        for (var j = 0; j < options.length; j++) {
+          request.fields['form_fields[$i][opsi_field][$j]'] = options[j]
+              .toString();
+        }
+      }
     }
 
-    // Poster wajib dikirim sebagai file multipart, bukan hanya nama/path.
     final posterBytes = await poster.readAsBytes();
     if (posterBytes.isEmpty) {
       throw Exception('File poster kosong atau tidak dapat dibaca.');
     }
+
     request.files.add(
       http.MultipartFile.fromBytes(
         'poster_lomba',
@@ -578,6 +781,7 @@ class ApiService {
       throw _responseError(response, data, 'Pengajuan lomba gagal dikirim.');
     }
 
+    notifyDataChanged();
     return data;
   }
 
@@ -632,6 +836,8 @@ class ApiService {
     if (response.statusCode != 200) {
       throw _responseError(response, data, 'Gagal memproses pengajuan lomba.');
     }
+
+    notifyDataChanged();
     return data;
   }
 
@@ -678,21 +884,23 @@ class ApiService {
       throw _responseError(response, data, 'Pendaftaran gagal dikirim.');
     }
 
+    notifyDataChanged();
     return data;
   }
-
 
   // MENGAMBIL NOTIFIKASI DARI DATABASE MYSQL
   static Future<List<Map<String, dynamic>>> getNotifikasi({
     required String token,
   }) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/notifikasi'),
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    ).timeout(const Duration(seconds: 20));
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/notifikasi'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 20));
 
     final data = _decodeResponse(response);
     if (response.statusCode != 200) {
@@ -710,13 +918,15 @@ class ApiService {
     required String token,
     required int idNotifikasi,
   }) async {
-    final response = await http.patch(
-      Uri.parse('$baseUrl/notifikasi/$idNotifikasi/baca'),
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    ).timeout(const Duration(seconds: 20));
+    final response = await http
+        .patch(
+          Uri.parse('$baseUrl/notifikasi/$idNotifikasi/baca'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 20));
     final data = _decodeResponse(response);
     if (response.statusCode != 200) {
       throw _responseError(response, data, 'Gagal memperbarui notifikasi.');
@@ -725,13 +935,15 @@ class ApiService {
 
   // MENANDAI SEMUA NOTIFIKASI SUDAH DIBACA
   static Future<void> bacaSemuaNotifikasi({required String token}) async {
-    final response = await http.patch(
-      Uri.parse('$baseUrl/notifikasi/baca-semua'),
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    ).timeout(const Duration(seconds: 20));
+    final response = await http
+        .patch(
+          Uri.parse('$baseUrl/notifikasi/baca-semua'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 20));
     final data = _decodeResponse(response);
     if (response.statusCode != 200) {
       throw _responseError(response, data, 'Gagal membaca semua notifikasi.');
@@ -743,16 +955,238 @@ class ApiService {
     required String token,
     required int idNotifikasi,
   }) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/notifikasi/$idNotifikasi'),
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    ).timeout(const Duration(seconds: 20));
+    final response = await http
+        .delete(
+          Uri.parse('$baseUrl/notifikasi/$idNotifikasi'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 20));
     final data = _decodeResponse(response);
     if (response.statusCode != 200) {
       throw _responseError(response, data, 'Gagal menghapus notifikasi.');
     }
+  }
+
+  // Favorit bersifat privat per akun, termasuk administrator dan penyelenggara.
+  static Future<List<Map<String, dynamic>>> getFavorit({
+    required String token,
+  }) async {
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/favorit'),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 15));
+    final decoded = _decodeResponse(response);
+    if (response.statusCode != 200) {
+      throw _responseError(
+        response,
+        decoded,
+        'Gagal mengambil daftar favorit.',
+      );
+    }
+    final items = decoded['data'];
+    if (items is! List) return [];
+    return items
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  static Future<void> setFavorit({
+    required String token,
+    required int idLomba,
+    required bool favorite,
+  }) async {
+    final url = Uri.parse('$baseUrl/favorit/$idLomba');
+    final headers = {
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+    final response = favorite
+        ? await http
+              .post(url, headers: headers)
+              .timeout(const Duration(seconds: 15))
+        : await http
+              .delete(url, headers: headers)
+              .timeout(const Duration(seconds: 15));
+    final decoded = _decodeResponse(response);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _responseError(response, decoded, 'Gagal mengubah status favorit.');
+    }
+    notifyDataChanged();
+  }
+
+  // ==================== CHAT KHUSUS LOMBA ====================
+  static Map<String, String> _authHeaders(String token) => {
+    'Accept': 'application/json',
+    'Authorization': 'Bearer $token',
+  };
+
+  static Future<Map<String, dynamic>> _secureJson(
+    String token,
+    String path, {
+    String method = 'GET',
+    Map<String, dynamic>? body,
+  }) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final headers = _authHeaders(token);
+    if (body != null) headers['Content-Type'] = 'application/json';
+    late final http.Response response;
+    switch (method) {
+      case 'POST':
+        response = await http
+            .post(uri, headers: headers, body: jsonEncode(body))
+            .timeout(const Duration(seconds: 20));
+        break;
+      case 'PATCH':
+        response = await http
+            .patch(
+              uri,
+              headers: headers,
+              body: body == null ? null : jsonEncode(body),
+            )
+            .timeout(const Duration(seconds: 20));
+        break;
+      case 'PUT':
+        response = await http
+            .put(uri, headers: headers, body: jsonEncode(body))
+            .timeout(const Duration(seconds: 20));
+        break;
+      case 'DELETE':
+        response = await http
+            .delete(uri, headers: headers)
+            .timeout(const Duration(seconds: 20));
+        break;
+      default:
+        response = await http
+            .get(uri, headers: headers)
+            .timeout(const Duration(seconds: 20));
+    }
+    final result = _decodeResponse(response);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _responseError(response, result, 'Permintaan gagal.');
+    }
+    return result;
+  }
+
+  static List<Map<String, dynamic>> _listData(Map<String, dynamic> data) {
+    final list = data['data'];
+    if (list is! List) return [];
+    return list
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  static Future<List<Map<String, dynamic>>> getChatRooms({
+    required String token,
+  }) async {
+    return _listData(await _secureJson(token, '/chat/rooms'));
+  }
+
+  static Future<Map<String, dynamic>> getChatMessages({
+    required String token,
+    required int idLomba,
+    int afterId = 0,
+  }) async =>
+      _secureJson(token, '/chat/rooms/$idLomba/messages?after_id=$afterId');
+
+  static Future<void> sendChatMessage({
+    required String token,
+    required int idLomba,
+    required String message,
+  }) async {
+    await _secureJson(
+      token,
+      '/chat/rooms/$idLomba/messages',
+      method: 'POST',
+      body: {'isi_pesan': message},
+    );
+    notifyDataChanged();
+  }
+
+  // ==================== PANEL ADMIN ====================
+  static Future<Map<String, dynamic>> getAdminOverview({
+    required String token,
+  }) async {
+    final result = await _secureJson(token, '/admin/panel');
+    return Map<String, dynamic>.from(result['data'] as Map);
+  }
+
+  static Future<List<Map<String, dynamic>>> getAdminCategories({
+    required String token,
+  }) async => _listData(await _secureJson(token, '/admin/kategori'));
+
+  static Future<void> saveAdminCategory({
+    required String token,
+    int? id,
+    required String nama,
+    String deskripsi = '',
+  }) async {
+    await _secureJson(
+      token,
+      id == null ? '/admin/kategori' : '/admin/kategori/$id',
+      method: id == null ? 'POST' : 'PUT',
+      body: {'nama_kategori': nama, 'deskripsi_kategori': deskripsi},
+    );
+    notifyDataChanged();
+  }
+
+  static Future<void> deleteAdminCategory({
+    required String token,
+    required int id,
+  }) async {
+    await _secureJson(token, '/admin/kategori/$id', method: 'DELETE');
+    notifyDataChanged();
+  }
+
+  static Future<List<Map<String, dynamic>>> getAdminUsers({
+    required String token,
+  }) async => _listData(await _secureJson(token, '/admin/pengguna'));
+
+  static Future<List<Map<String, dynamic>>> getAdminLomba({
+    required String token,
+  }) async => _listData(await _secureJson(token, '/admin/semua-lomba'));
+  static Future<Map<String, dynamic>> getAdminLombaDetail({
+    required String token,
+    required int id,
+  }) async {
+    final result = await _secureJson(token, '/admin/semua-lomba/$id');
+    return Map<String, dynamic>.from(result['data'] as Map);
+  }
+
+  static Future<void> cancelAdminLomba({
+    required String token,
+    required int id,
+    required String alasan,
+  }) async {
+    await _secureJson(
+      token,
+      '/admin/semua-lomba/$id/batalkan',
+      method: 'PATCH',
+      body: {'alasan': alasan},
+    );
+    notifyDataChanged();
+  }
+
+  static Future<void> stopAdminLomba({
+    required String token,
+    required int id,
+    required String alasan,
+  }) async {
+    await _secureJson(
+      token,
+      '/admin/semua-lomba/$id/hentikan',
+      method: 'PATCH',
+      body: {'alasan': alasan},
+    );
+    notifyDataChanged();
   }
 }

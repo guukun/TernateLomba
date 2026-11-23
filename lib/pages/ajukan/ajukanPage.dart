@@ -1,35 +1,40 @@
+import '../../widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
-
 import '../../config/appTheme.dart';
+import '../../design_system/tl_playful.dart';
 import 'formAjukanLombaPage.dart';
 
-class AjukanPage extends StatelessWidget {
+// AjukanPage
+class AjukanPage extends StatefulWidget {
   final String? token;
   final VoidCallback? onLombaDiajukan;
 
   const AjukanPage({super.key, this.token, this.onLombaDiajukan});
 
+  @override
+  State<AjukanPage> createState() => _AjukanPageState();
+}
+
+class _AjukanPageState extends State<AjukanPage> {
   // Warna mengikuti AppTheme aplikasi.
-  static const Color darkBlue = AppColors.primaryDark;
-  static const Color primaryBlue = AppColors.primary;
-  static const Color cream = AppColors.cream;
-  static const Color creamLight = AppColors.creamLight;
-  static const Color creamDark = AppColors.creamDark;
-  static const Color background = AppColors.background;
-  static const Color textColor = AppColors.navy;
-  static const Color mutedColor = AppColors.grey;
-  static const Color borderColor = AppColors.fieldBorder;
+  Color get darkBlue => context.tl.primaryDark;
+  Color get primaryBlue => context.tl.primary;
+  Color get cream => context.tl.cream;
+  Color get creamLight => context.tl.creamLight;
+  Color get creamDark => context.tl.creamDark;
+  Color get background => context.tl.background;
+  Color get textColor => context.tl.navy;
+  Color get mutedColor => context.tl.grey;
+  Color get borderColor => context.tl.fieldBorder;
 
   Future<void> _bukaFormPengajuan(BuildContext context) async {
-    final apiToken = token?.trim();
+    final apiToken = widget.token?.trim();
 
     if (apiToken == null || apiToken.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Silakan login terlebih dahulu untuk mengajukan lomba.',
-          ),
-        ),
+      AppNotification.message(
+        context,
+        'Silakan login terlebih dahulu untuk mengajukan lomba.',
+        type: NotificationType.info,
       );
       return;
     }
@@ -41,7 +46,7 @@ class AjukanPage extends StatelessWidget {
     if (!context.mounted) return;
 
     if (berhasil == true) {
-      onLombaDiajukan?.call();
+      widget.onLombaDiajukan?.call();
     }
   }
 
@@ -52,7 +57,7 @@ class AjukanPage extends StatelessWidget {
       body: SafeArea(
         bottom: false,
         child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
+          physics: BouncingScrollPhysics(),
           padding: EdgeInsets.only(
             bottom: 125 + MediaQuery.of(context).padding.bottom,
           ),
@@ -62,20 +67,20 @@ class AjukanPage extends StatelessWidget {
               _buildHeader(),
 
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                padding: EdgeInsets.fromLTRB(20, 24, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildIntroCard(),
 
-                    const SizedBox(height: 28),
+                    SizedBox(height: 28),
 
                     _buildSectionHeading(
                       'Syarat dan Ketentuan',
                       'Pastikan pengajuan memenuhi ketentuan berikut.',
                     ),
 
-                    const SizedBox(height: 17),
+                    SizedBox(height: 17),
 
                     _buildSyaratItem(
                       number: '01',
@@ -101,7 +106,7 @@ class AjukanPage extends StatelessWidget {
                       text: 'Akan melalui proses verifikasi tim admin TernateLomba (1x24 jam).',
                     ),
 
-                    const SizedBox(height: 18),
+                    SizedBox(height: 18),
 
                     _buildCallToAction(context),
                   ],
@@ -118,120 +123,14 @@ class AjukanPage extends StatelessWidget {
   // HEADER
   // ============================================================
 
-  Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 30, 24, 35),
-      decoration: const BoxDecoration(
-        color: darkBlue,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(34),
-          bottomRight: Radius.circular(34),
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -28,
-            top: -45,
-            child: Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.045),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-
-          Positioned(
-            right: 28,
-            bottom: -65,
-            child: Container(
-              width: 105,
-              height: 105,
-              decoration: BoxDecoration(
-                color: cream.withValues(alpha: 0.07),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: cream.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.lightbulb_outline_rounded,
-                      size: 15,
-                      color: cream,
-                    ),
-                    SizedBox(width: 7),
-                    Text(
-                      'Kembangkan Peluang',
-                      style: TextStyle(
-                        color: cream,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 17),
-
-              const Text(
-                'Ajukan Lomba',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 29,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.6,
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              Text(
-                'Punya ide kompetisi? Bagikan kesempatan '
-                'dan jangkau lebih banyak peserta melalui TernateLomba.',
-                style: TextStyle(
-                  color: creamLight.withValues(alpha: 0.88),
-                  fontSize: 13,
-                  height: 1.7,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-
-              const SizedBox(height: 23),
-
-              Container(
-                width: 62,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: cream,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildHeader() => TLPlayful.decoratedHeading(
+    context,
+    title: 'Make your\nidea real.',
+    subtitle:
+        'Buka peluang untuk banyak talenta melalui kompetisi yang kamu buat.',
+    accent: context.tl.mint,
+    icon: Icons.rocket_launch_rounded,
+  );
 
   // ============================================================
   // INTRO CARD
@@ -240,7 +139,7 @@ class AjukanPage extends StatelessWidget {
   Widget _buildIntroCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(21),
+      padding: EdgeInsets.all(21),
       decoration: BoxDecoration(
         color: creamLight,
         borderRadius: BorderRadius.circular(25),
@@ -249,7 +148,7 @@ class AjukanPage extends StatelessWidget {
           BoxShadow(
             color: darkBlue.withValues(alpha: 0.045),
             blurRadius: 18,
-            offset: const Offset(0, 6),
+            offset: Offset(0, 6),
           ),
         ],
       ),
@@ -265,20 +164,16 @@ class AjukanPage extends StatelessWidget {
                   color: darkBlue,
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: const Icon(
-                  Icons.emoji_events_rounded,
-                  color: cream,
-                  size: 29,
-                ),
+                child: Icon(Icons.emoji_events_rounded, color: cream, size: 29),
               ),
 
-              const SizedBox(width: 14),
+              SizedBox(width: 14),
 
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'TERNATELOMBA',
                       style: TextStyle(
                         color: darkBlue,
@@ -288,7 +183,7 @@ class AjukanPage extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 5),
+                    SizedBox(height: 5),
 
                     Text(
                       'Platform Informasi Lomba',
@@ -304,9 +199,9 @@ class AjukanPage extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 22),
+          SizedBox(height: 22),
 
-          const Text(
+          Text(
             'Publikasikan kompetisimu!',
             style: TextStyle(
               color: textColor,
@@ -316,7 +211,7 @@ class AjukanPage extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 9),
+          SizedBox(height: 9),
 
           Text(
             'Ajukan informasi lomba yang kamu selenggarakan. '
@@ -325,19 +220,19 @@ class AjukanPage extends StatelessWidget {
             style: TextStyle(color: mutedColor, fontSize: 13, height: 1.8),
           ),
 
-          const SizedBox(height: 18),
+          SizedBox(height: 18),
 
           Container(
-            padding: const EdgeInsets.all(13),
+            padding: EdgeInsets.all(13),
             decoration: BoxDecoration(
               color: cream,
               borderRadius: BorderRadius.circular(15),
             ),
             child: Row(
               children: [
-                const Icon(Icons.shield_outlined, color: darkBlue, size: 21),
+                Icon(Icons.shield_outlined, color: darkBlue, size: 21),
 
-                const SizedBox(width: 11),
+                SizedBox(width: 11),
 
                 Expanded(
                   child: Text(
@@ -368,14 +263,14 @@ class AjukanPage extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             color: textColor,
             fontSize: 19,
             fontWeight: FontWeight.w800,
           ),
         ),
 
-        const SizedBox(height: 7),
+        SizedBox(height: 7),
 
         Text(
           subtitle,
@@ -396,8 +291,8 @@ class AjukanPage extends StatelessWidget {
   }) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(15),
+      margin: EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: creamLight,
         borderRadius: BorderRadius.circular(19),
@@ -406,7 +301,7 @@ class AjukanPage extends StatelessWidget {
           BoxShadow(
             color: darkBlue.withValues(alpha: 0.025),
             blurRadius: 10,
-            offset: const Offset(0, 3),
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -423,7 +318,7 @@ class AjukanPage extends StatelessWidget {
             child: Icon(icon, color: darkBlue, size: 21),
           ),
 
-          const SizedBox(width: 13),
+          SizedBox(width: 13),
 
           Expanded(
             child: Column(
@@ -431,7 +326,7 @@ class AjukanPage extends StatelessWidget {
               children: [
                 Text(
                   'KETENTUAN $number',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: darkBlue,
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
@@ -439,11 +334,11 @@ class AjukanPage extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 5),
+                SizedBox(height: 5),
 
                 Text(
                   text,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: textColor,
                     fontSize: 12,
                     height: 1.65,
@@ -454,9 +349,9 @@ class AjukanPage extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(width: 5),
+          SizedBox(width: 5),
 
-          const Icon(Icons.check_circle_rounded, color: darkBlue, size: 18),
+          Icon(Icons.check_circle_rounded, color: darkBlue, size: 18),
         ],
       ),
     );
@@ -469,7 +364,7 @@ class AjukanPage extends StatelessWidget {
   Widget _buildCallToAction(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: darkBlue,
         borderRadius: BorderRadius.circular(25),
@@ -477,18 +372,18 @@ class AjukanPage extends StatelessWidget {
           BoxShadow(
             color: darkBlue.withValues(alpha: 0.15),
             blurRadius: 17,
-            offset: const Offset(0, 7),
+            offset: Offset(0, 7),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.rocket_launch_rounded, color: cream, size: 29),
+          Icon(Icons.rocket_launch_rounded, color: cream, size: 29),
 
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
 
-          const Text(
+          Text(
             'Siap mengajukan lomba?',
             style: TextStyle(
               color: Colors.white,
@@ -497,7 +392,7 @@ class AjukanPage extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 7),
+          SizedBox(height: 7),
 
           Text(
             'Lengkapi informasi lomba dan kirimkan '
@@ -509,7 +404,7 @@ class AjukanPage extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 19),
+          SizedBox(height: 19),
 
           SizedBox(
             width: double.infinity,
@@ -524,8 +419,8 @@ class AjukanPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(15),
                 ),
               ),
-              icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
-              label: const Text(
+              icon: Icon(Icons.add_circle_outline_rounded, size: 20),
+              label: Text(
                 'Mulai Pengajuan',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
               ),

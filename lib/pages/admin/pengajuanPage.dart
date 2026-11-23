@@ -1,4 +1,10 @@
+import '../../design_system/tl_playful.dart';
+
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../../widgets/competition_poster_card.dart';
 
 import '../../services/api_service.dart';
 import '../../config/appTheme.dart';
@@ -13,21 +19,20 @@ class PengajuanPage extends StatefulWidget {
   State<PengajuanPage> createState() => _PengajuanPageState();
 }
 
-class _PengajuanPageState extends State<PengajuanPage> {
+class _PengajuanPageState extends State<PengajuanPage>
+    with WidgetsBindingObserver {
   // ==========================================
   // WARNA DARI APP THEME
   // ==========================================
 
-  static const Color _primary = AppColors.primary;
-  static const Color _primaryDark = AppColors.primaryDark;
-  static const Color _cream = AppColors.cream;
-  static const Color _creamLight = AppColors.creamLight;
-  static const Color _creamDark = AppColors.creamDark;
-  static const Color _background = AppColors.background;
-  static const Color _surface = AppColors.surface;
-  static const Color _text = AppColors.navy;
-  static const Color _muted = AppColors.grey;
-  static const Color _outline = AppColors.fieldBorder;
+  Color get _primary => context.tl.primary;
+  Color get _primaryDark => context.tl.primaryDark;
+  Color get _cream => context.tl.cream;
+  Color get _creamLight => context.tl.creamLight;
+  Color get _background => context.tl.background;
+  Color get _text => context.tl.navy;
+  Color get _muted => context.tl.grey;
+  Color get _outline => context.tl.fieldBorder;
 
   static const List<String> _filters = [
     'Menunggu',
@@ -47,24 +52,38 @@ class _PengajuanPageState extends State<PengajuanPage> {
   String? _error;
 
   String? _activeFilter;
+  bool _isFetching = false;
+  bool _appIsResumed = true;
+  int _requestVersion = 0;
+  Timer? _syncTimer;
+
+  static const Duration _realtimeInterval = Duration(seconds: 5);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    ApiService.dataRevision.addListener(_onRealtimeDataChanged);
     _load();
+    _startRealtimePolling();
   }
 
   // ==========================================
-  // MEMUAT DATA
+  // MEMUAT DAN MENYINKRONKAN DATA
   // ==========================================
 
-  Future<void> _load() async {
-    if (!mounted) return;
+  Future<void> _load({bool showLoading = true}) async {
+    if (!mounted || _isFetching) return;
 
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    _isFetching = true;
+    final requestVersion = ++_requestVersion;
+
+    if (showLoading) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     try {
       final response = await ApiService.getPengajuanLombaAdmin(
@@ -72,29 +91,75 @@ class _PengajuanPageState extends State<PengajuanPage> {
       );
 
       final raw = response['data'];
-
       if (raw is! List) {
-        throw const FormatException('Format daftar pengajuan tidak valid.');
+        throw FormatException('Format daftar pengajuan tidak valid.');
       }
 
       final items = raw
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
 
-      if (!mounted) return;
+      if (!mounted || requestVersion != _requestVersion) return;
 
       setState(() {
         _items = items;
         _loading = false;
+        _error = null;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || requestVersion != _requestVersion) return;
 
       setState(() {
-        _error = error.toString().replaceFirst('Exception: ', '');
+        // Ketika sinkronisasi latar gagal, daftar yang sudah tampil tetap dipakai.
+        if (showLoading || _items.isEmpty) {
+          _error = ApiService.readableError(error);
+        }
         _loading = false;
       });
+      debugPrint('Sinkronisasi pengajuan admin gagal: $error');
+    } finally {
+      _isFetching = false;
     }
+  }
+
+  void _onRealtimeDataChanged() {
+    if (!mounted) return;
+    _load(showLoading: false);
+  }
+
+  void _startRealtimePolling() {
+    _syncTimer?.cancel();
+    if (!_appIsResumed) return;
+
+    _syncTimer = Timer.periodic(_realtimeInterval, (_) {
+      if (mounted && _appIsResumed) {
+        _load(showLoading: false);
+      }
+    });
+  }
+
+  void _stopRealtimePolling() {
+    _syncTimer?.cancel();
+    _syncTimer = null;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appIsResumed = state == AppLifecycleState.resumed;
+    if (_appIsResumed) {
+      _load(showLoading: false);
+      _startRealtimePolling();
+    } else {
+      _stopRealtimePolling();
+    }
+  }
+
+  @override
+  void dispose() {
+    _stopRealtimePolling();
+    WidgetsBinding.instance.removeObserver(this);
+    ApiService.dataRevision.removeListener(_onRealtimeDataChanged);
+    super.dispose();
   }
 
   // ==========================================
@@ -148,7 +213,7 @@ class _PengajuanPageState extends State<PengajuanPage> {
         return status == 'ditolak';
 
       case 'Diterima':
-        return status == 'disetujui';
+        return status == 'disetujui' && _lombaStatus(item) != 'aktif';
 
       case 'Sedang Aktif':
         return status == 'disetujui' && _lombaStatus(item) == 'aktif';
@@ -219,108 +284,6 @@ class _PengajuanPageState extends State<PengajuanPage> {
         '${date.year}';
   }
 
-  IconData _categoryIcon(String category) {
-    final lower = category.toLowerCase();
-
-    if (lower.contains('olahraga')) {
-      return Icons.sports_soccer_rounded;
-    }
-
-    if (lower.contains('teknologi')) {
-      return Icons.computer_rounded;
-    }
-
-    if (lower.contains('seni')) {
-      return Icons.palette_outlined;
-    }
-
-    if (lower.contains('musik')) {
-      return Icons.music_note_rounded;
-    }
-
-    return Icons.menu_book_rounded;
-  }
-
-  // ==========================================
-  // WARNA STATUS
-  // ==========================================
-
-  Color _statusColor(String category) {
-    switch (category) {
-      case 'Menunggu':
-        return const Color(0xFFB7791F);
-
-      case 'Ditolak':
-        return AppColors.error;
-
-      case 'Diterima':
-        return AppColors.green;
-
-      case 'Sedang Aktif':
-        return _primary;
-
-      default:
-        return _muted;
-    }
-  }
-
-  Color _statusBackground(String category) {
-    switch (category) {
-      case 'Menunggu':
-        return const Color(0xFFFFF4DF);
-
-      case 'Ditolak':
-        return const Color(0xFFFFEBEB);
-
-      case 'Diterima':
-        return const Color(0xFFE7F4EC);
-
-      case 'Sedang Aktif':
-        return _cream;
-
-      default:
-        return _creamLight;
-    }
-  }
-
-  // ==========================================
-  // BADGE STATUS
-  // ==========================================
-
-  Widget _statusBadge(Map<String, dynamic> item) {
-    final category = _itemCategory(item);
-
-    final color = _statusColor(category);
-    final background = _statusBackground(category);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 7),
-          Text(
-            category,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ==========================================
   // DETAIL PENGAJUAN
   // ==========================================
@@ -335,244 +298,28 @@ class _PengajuanPageState extends State<PengajuanPage> {
     if (!mounted) return;
 
     if (result != null) {
-      await _load();
+      await _load(showLoading: false);
     }
-  }
-
-  // ==========================================
-  // POSTER CADANGAN
-  // ==========================================
-
-  Widget _posterFallback(String category, String eventDate) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.creamLight, AppColors.cream],
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -18,
-            right: -18,
-            child: Container(
-              width: 65,
-              height: 65,
-              decoration: BoxDecoration(
-                color: _primary.withValues(alpha: 0.06),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -18,
-            left: -18,
-            child: Container(
-              width: 65,
-              height: 65,
-              decoration: BoxDecoration(
-                color: _primary.withValues(alpha: 0.06),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 5),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(_categoryIcon(category), color: _primary, size: 30),
-                  const SizedBox(height: 9),
-                  const Text(
-                    'LOMBA',
-                    style: TextStyle(
-                      color: _primary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      eventDate,
-                      style: const TextStyle(
-                        color: _muted,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   // ==========================================
   // KARTU LOMBA
   // ==========================================
 
+  // All competition lists share the same poster-led card.
   Widget _card(Map<String, dynamic> item) {
-    final name = (item['nama_lomba'] ?? 'Lomba tanpa nama').toString();
-
-    final category = _category(item);
-
-    final eventDate = _shortDate(item['tanggal_pelaksanaan']);
-
-    final posterUrl = ApiService.publicStorageUrl(
-      item['poster_lomba']?.toString(),
-    );
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 15),
-      child: Material(
-        color: _surface,
-        borderRadius: BorderRadius.circular(23),
-        child: InkWell(
-          onTap: () => _openDetails(item),
-          borderRadius: BorderRadius.circular(23),
-          splashColor: _creamDark.withValues(alpha: 0.22),
-          highlightColor: _cream.withValues(alpha: 0.35),
-          child: Container(
-            padding: const EdgeInsets.all(13),
-            decoration: BoxDecoration(
-              border: Border.all(color: _outline, width: 1),
-              borderRadius: BorderRadius.circular(23),
-              boxShadow: [
-                BoxShadow(
-                  color: _primaryDark.withValues(alpha: 0.035),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // POSTER
-
-                Container(
-                  width: 108,
-                  height: 145,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: _cream,
-                    borderRadius: BorderRadius.circular(17),
-                  ),
-                  child: posterUrl == null
-                      ? _posterFallback(category, eventDate)
-                      : Image.network(
-                          posterUrl,
-                          width: 108,
-                          height: 145,
-                          fit: BoxFit.cover,
-                          cacheWidth: 324,
-                          cacheHeight: 435,
-                          gaplessPlayback: true,
-                          errorBuilder: (_, _, _) {
-                            return _posterFallback(category, eventDate);
-                          },
-                        ),
-                ),
-
-                const SizedBox(width: 13),
-
-                // INFORMASI LOMBA
-                Expanded(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 145),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          constraints: const BoxConstraints(maxWidth: 160),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _cream,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            category,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: _primary,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 9),
-
-                        Text(
-                          name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _text,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            height: 1.3,
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.account_balance_outlined,
-                              color: _muted,
-                              size: 15,
-                            ),
-                            const SizedBox(width: 5),
-                            Expanded(
-                              child: Text(
-                                _organizer(item),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: _muted,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 11),
-
-                        Row(children: [Flexible(child: _statusBadge(item))]),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: 5),
-
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: _primary,
-                  size: 17,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return CompetitionPosterCard(
+      compact: true,
+      height: 278,
+      title: '${item['nama_lomba'] ?? 'Lomba tanpa nama'}',
+      posterUrl: ApiService.publicStorageUrl(item['poster_lomba']?.toString()),
+      category: _category(item),
+      organizer: _organizer(item),
+      date: _shortDate(item['tanggal_pelaksanaan']),
+      status: _itemCategory(item),
+      meta: 'Status: ${_itemCategory(item)}',
+      secondaryMeta: 'Buka detail untuk verifikasi',
+      onTap: () => _openDetails(item),
     );
   }
 
@@ -605,100 +352,47 @@ class _PengajuanPageState extends State<PengajuanPage> {
 
   Widget _filter(String title) {
     final active = _activeFilter == title;
-
-    final color = active ? Colors.white : _primary;
-
+    final foreground = active ? Colors.white : _primaryDark;
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(21),
       child: InkWell(
-        borderRadius: BorderRadius.circular(21),
-
-        // Hover dan splash dibuat lembut.
-        hoverColor: active
-            ? _primaryDark.withValues(alpha: 0.15)
-            : _cream.withValues(alpha: 0.55),
-
-        splashColor: active
-            ? Colors.white.withValues(alpha: 0.10)
-            : _creamDark.withValues(alpha: 0.25),
-
-        highlightColor: active
-            ? Colors.white.withValues(alpha: 0.05)
-            : _cream.withValues(alpha: 0.35),
-
-        onTap: () {
-          setState(() {
-            _activeFilter = _activeFilter == title ? null : title;
-          });
-        },
-
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => setState(() {
+          _activeFilter = active ? null : title;
+        }),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+          duration: Duration(milliseconds: 180),
+          height: 88,
+          padding: EdgeInsets.symmetric(horizontal: 3, vertical: 9),
           decoration: BoxDecoration(
-            color: active ? _primary : _surface,
-            borderRadius: BorderRadius.circular(21),
-            border: Border.all(
-              color: active ? _primary : _outline,
-              width: active ? 1.3 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: _primaryDark.withValues(alpha: active ? 0.10 : 0.035),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            color: active ? _primaryDark : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: active ? _primaryDark : _outline),
           ),
-          child: Row(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: active ? Colors.white.withValues(alpha: 0.13) : _cream,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Icon(
-                  _filterIcon(title),
-                  color: active ? Colors.white : _primary,
-                  size: 24,
+              Icon(_filterIcon(title), color: foreground, size: 21),
+              SizedBox(height: 6),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-
-              const SizedBox(width: 9),
-
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    Text(
-                      '${_count(title)} lomba',
-                      style: TextStyle(
-                        color: active
-                            ? Colors.white.withValues(alpha: 0.75)
-                            : _muted,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+              SizedBox(height: 3),
+              Text(
+                '${_count(title)}',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: active ? Colors.white70 : _muted,
                 ),
               ),
             ],
@@ -712,135 +406,57 @@ class _PengajuanPageState extends State<PengajuanPage> {
   // TAMPILAN KOSONG
   // ==========================================
 
-  Widget _emptyState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 92,
-            height: 92,
-            decoration: BoxDecoration(color: _cream, shape: BoxShape.circle),
-            child: const Icon(Icons.inbox_outlined, size: 38, color: _primary),
-          ),
-
-          const SizedBox(height: 18),
-
-          const Text(
-            'Belum ada data',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: _text,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            _activeFilter == null
-                ? 'Belum ada pengajuan lomba.'
-                : 'Tidak ada lomba dalam kategori $_activeFilter.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: _muted, fontSize: 13, height: 1.5),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _emptyState() => TLPlayful.empty(
+    context,
+    title: 'Belum ada pengajuan',
+    message: _activeFilter == null
+        ? 'Belum ada pengajuan lomba yang perlu diperiksa.'
+        : 'Tidak ada lomba dengan status $_activeFilter.',
+    icon: Icons.fact_check_outlined,
+    accent: context.tl.mint,
+  );
 
   // ==========================================
   // HEADER HALAMAN
   // ==========================================
 
-  Widget _header() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 27, 20, 30),
-      decoration: const BoxDecoration(
-        color: _primaryDark,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+  Widget _header() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      TLPlayful.decoratedHeading(
+        context,
+        title: 'Review\napplications.',
+        subtitle: 'Pantau, tinjau, dan putuskan pengajuan lomba dengan mudah.',
+        icon: Icons.fact_check_rounded,
+        accent: context.tl.mint,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 49,
-                height: 49,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.fact_check_rounded,
-                  color: _cream,
-                  size: 26,
+      Container(
+        margin: const EdgeInsets.fromLTRB(20, 10, 20, 2),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: BoxDecoration(
+          color: context.tl.primary,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.verified_outlined, color: Colors.white, size: 19),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'REVIEW WITH PURPOSE.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11,
+                  letterSpacing: 1.0,
                 ),
               ),
-
-              const SizedBox(width: 13),
-
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TERNATELOMBA',
-                      style: TextStyle(
-                        color: _cream,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.6,
-                      ),
-                    ),
-
-                    SizedBox(height: 5),
-
-                    Text(
-                      'Pengajuan Lomba',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 23,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          const Text(
-            'Kelola pengajuan dan publikasi lomba',
-            style: TextStyle(
-              color: Color(0xFFE0E8F2),
-              fontSize: 13,
-              height: 1.5,
             ),
-          ),
-
-          const SizedBox(height: 20),
-
-          Container(
-            width: 58,
-            height: 4,
-            decoration: BoxDecoration(
-              color: _cream,
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
+    ],
+  );
 
   // ==========================================
   // HEADER DAFTAR PENGAJUAN
@@ -848,10 +464,10 @@ class _PengajuanPageState extends State<PengajuanPage> {
 
   Widget _listHeader(int total) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 25, 20, 13),
+      padding: EdgeInsets.fromLTRB(20, 25, 20, 13),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
               'Daftar Pengajuan',
               style: TextStyle(
@@ -863,14 +479,14 @@ class _PengajuanPageState extends State<PengajuanPage> {
           ),
 
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: 13, vertical: 8),
             decoration: BoxDecoration(
               color: _cream,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               '$total lomba',
-              style: const TextStyle(
+              style: TextStyle(
                 color: _primary,
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
@@ -889,7 +505,7 @@ class _PengajuanPageState extends State<PengajuanPage> {
   Widget _errorState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -900,27 +516,23 @@ class _PengajuanPageState extends State<PengajuanPage> {
                 color: _cream,
                 borderRadius: BorderRadius.circular(22),
               ),
-              child: const Icon(
-                Icons.wifi_off_rounded,
-                size: 34,
-                color: _primary,
-              ),
+              child: Icon(Icons.wifi_off_rounded, size: 34, color: _primary),
             ),
 
-            const SizedBox(height: 15),
+            SizedBox(height: 15),
 
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: _text, fontSize: 13, height: 1.5),
+              style: TextStyle(color: _text, fontSize: 13, height: 1.5),
             ),
 
-            const SizedBox(height: 15),
+            SizedBox(height: 15),
 
             OutlinedButton.icon(
               onPressed: _load,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Coba lagi'),
+              icon: Icon(Icons.refresh_rounded),
+              label: Text('Coba lagi'),
             ),
           ],
         ),
@@ -944,7 +556,7 @@ class _PengajuanPageState extends State<PengajuanPage> {
           backgroundColor: _creamLight,
           onRefresh: _load,
           child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: AlwaysScrollableScrollPhysics(),
             slivers: [
               // HEADER DAN FILTER
 
@@ -954,9 +566,9 @@ class _PengajuanPageState extends State<PengajuanPage> {
                   children: [
                     _header(),
 
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24),
 
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.fromLTRB(20, 0, 20, 13),
                       child: Text(
                         'Kategori Pengajuan',
@@ -969,15 +581,14 @@ class _PengajuanPageState extends State<PengajuanPage> {
                     ),
 
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: GridView.count(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 2.05,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: _filters.map(_filter).toList(),
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          for (var i = 0; i < _filters.length; i++) ...[
+                            if (i > 0) SizedBox(width: 7),
+                            Expanded(child: _filter(_filters[i])),
+                          ],
+                        ],
                       ),
                     ),
 
@@ -988,7 +599,7 @@ class _PengajuanPageState extends State<PengajuanPage> {
 
               // LOADING
               if (_loading)
-                const SliverFillRemaining(
+                SliverFillRemaining(
                   hasScrollBody: false,
                   child: Center(
                     child: CircularProgressIndicator(color: _primary),
@@ -1002,18 +613,30 @@ class _PengajuanPageState extends State<PengajuanPage> {
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: 40),
+                    padding: EdgeInsets.only(bottom: 40),
                     child: Center(child: _emptyState()),
                   ),
                 )
               // DAFTAR KARTU
               else
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      return _card(items[index]);
-                    }, childCount: items.length),
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverLayoutBuilder(
+                    builder: (context, constraints) {
+                      final twoColumns = constraints.crossAxisExtent >= 300;
+                      return SliverGrid(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: twoColumns ? 2 : 1,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          mainAxisExtent: twoColumns ? 278 : 288,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _card(items[index]),
+                          childCount: items.length,
+                        ),
+                      );
+                    },
                   ),
                 ),
 

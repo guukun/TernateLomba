@@ -1,10 +1,16 @@
+import '../../design_system/tl_playful.dart';
+import '../../widgets/app_feedback.dart';
+
 import 'package:flutter/material.dart';
+
+import '../../widgets/competition_detail_poster.dart';
+
 import 'package:intl/intl.dart';
 
 import '../../config/appTheme.dart';
 import '../../services/api_service.dart';
 
-class DetailPengajuanPage extends StatelessWidget {
+class DetailPengajuanPage extends StatefulWidget {
   final String token;
   final Map<String, dynamic> item;
 
@@ -14,19 +20,36 @@ class DetailPengajuanPage extends StatelessWidget {
     required this.item,
   });
 
+  @override
+  State<DetailPengajuanPage> createState() => _DetailPengajuanPageState();
+}
+
+class _DetailPengajuanPageState extends State<DetailPengajuanPage> {
+  String _statusPengajuan = 'Menunggu';
+  bool _decisionChanged = false;
+
+  bool get _isPending => _statusPengajuan.trim().toLowerCase() == 'menunggu';
+
+  @override
+  void initState() {
+    super.initState();
+    _statusPengajuan =
+        widget.item['status_pengajuan']?.toString() ?? 'Menunggu';
+  }
+
   // ==========================================
   // WARNA APP THEME
   // ==========================================
 
-  static const Color _primary = AppColors.primary;
-  static const Color _primaryDark = AppColors.primaryDark;
-  static const Color _cream = AppColors.cream;
-  static const Color _creamLight = AppColors.creamLight;
-  static const Color _creamDark = AppColors.creamDark;
-  static const Color _background = AppColors.background;
-  static const Color _text = AppColors.navy;
-  static const Color _muted = AppColors.grey;
-  static const Color _outline = AppColors.fieldBorder;
+  Color get _primary => context.tl.primary;
+  Color get _primaryDark => context.tl.primaryDark;
+  Color get _cream => context.tl.cream;
+  Color get _creamLight => context.tl.creamLight;
+  Color get _creamDark => context.tl.creamDark;
+  Color get _background => context.tl.background;
+  Color get _text => context.tl.navy;
+  Color get _muted => context.tl.grey;
+  Color get _outline => context.tl.fieldBorder;
 
   // ==========================================
   // FORMAT DATA
@@ -42,7 +65,7 @@ class DetailPengajuanPage extends StatelessWidget {
   }
 
   String _value(String key, {String fallback = 'Belum diisi'}) {
-    final value = item[key];
+    final value = widget.item[key];
 
     if (value == null || value.toString().trim().isEmpty) {
       return fallback;
@@ -52,7 +75,7 @@ class DetailPengajuanPage extends StatelessWidget {
   }
 
   String _tanggal(String key) {
-    final raw = item[key]?.toString();
+    final raw = widget.item[key]?.toString();
 
     if (raw == null || raw.trim().isEmpty) {
       return 'Belum diisi';
@@ -62,7 +85,7 @@ class DetailPengajuanPage extends StatelessWidget {
   }
 
   String _kategori() {
-    final raw = item['kategori'];
+    final raw = widget.item['kategori'];
 
     if (raw is Map) {
       final nama = raw['nama_kategori']?.toString();
@@ -76,7 +99,7 @@ class DetailPengajuanPage extends StatelessWidget {
   }
 
   String _biaya() {
-    final value = num.tryParse(item['biaya']?.toString() ?? '');
+    final value = num.tryParse(widget.item['biaya']?.toString() ?? '');
 
     if (value == null) return 'Belum diisi';
 
@@ -90,7 +113,7 @@ class DetailPengajuanPage extends StatelessWidget {
   }
 
   String _kuota() {
-    final value = item['kuota_peserta'];
+    final value = widget.item['kuota_peserta'];
 
     if (value == null || value.toString().trim().isEmpty) {
       return 'Tidak dibatasi';
@@ -100,14 +123,14 @@ class DetailPengajuanPage extends StatelessWidget {
   }
 
   String _getPenyelenggara() {
-    if (item['penyelenggara'] is Map) {
-      final organizer = item['penyelenggara'] as Map;
+    if (widget.item['penyelenggara'] is Map) {
+      final organizer = widget.item['penyelenggara'] as Map;
 
       return (organizer['username'] ?? organizer['nama'] ?? 'Tidak diketahui')
           .toString();
     }
 
-    return item['penyelenggara']?.toString() ?? 'Tidak diketahui';
+    return widget.item['penyelenggara']?.toString() ?? 'Tidak diketahui';
   }
 
   // ==========================================
@@ -115,34 +138,19 @@ class DetailPengajuanPage extends StatelessWidget {
   // ==========================================
 
   Widget _poster(String? posterUrl) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: posterUrl == null
-            ? _posterFallback()
-            : Image.network(
-                posterUrl,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                cacheWidth: 1000,
-                gaplessPlayback: true,
-                errorBuilder: (_, _, _) => _posterFallback(),
-              ),
-      ),
-    );
+    return CompetitionDetailPoster(url: posterUrl, fallback: _posterFallback());
   }
 
   Widget _posterFallback() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.creamLight, AppColors.cream],
+          colors: [context.tl.creamLight, context.tl.cream],
         ),
       ),
-      child: const Center(
+      child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -169,12 +177,12 @@ class DetailPengajuanPage extends StatelessWidget {
 
   Widget _buildLombaCard(BuildContext context) {
     final posterUrl = ApiService.publicStorageUrl(
-      item['poster_lomba']?.toString(),
+      widget.item['poster_lomba']?.toString(),
     );
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,18 +191,18 @@ class DetailPengajuanPage extends StatelessWidget {
 
           _poster(posterUrl),
 
-          const SizedBox(height: 18),
+          SizedBox(height: 18),
 
           // Kategori
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
               color: _cream,
               borderRadius: BorderRadius.circular(30),
             ),
             child: Text(
               _kategori(),
-              style: const TextStyle(
+              style: TextStyle(
                 color: _primary,
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
@@ -202,12 +210,12 @@ class DetailPengajuanPage extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
 
           // Nama lomba
           Text(
             _value('nama_lomba', fallback: 'Nama lomba tidak tersedia'),
-            style: const TextStyle(
+            style: TextStyle(
               color: _text,
               fontSize: 21,
               fontWeight: FontWeight.w800,
@@ -215,21 +223,17 @@ class DetailPengajuanPage extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
 
           // Penyelenggara
           Row(
             children: [
-              const Icon(
-                Icons.account_balance_outlined,
-                size: 17,
-                color: _primary,
-              ),
-              const SizedBox(width: 7),
+              Icon(Icons.account_balance_outlined, size: 17, color: _primary),
+              SizedBox(width: 7),
               Expanded(
                 child: Text(
                   _getPenyelenggara(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: _muted,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -239,16 +243,16 @@ class DetailPengajuanPage extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
 
           // Deskripsi
           _sectionHeading('Deskripsi Lomba', Icons.description_outlined),
 
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
 
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(14),
+            padding: EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: _creamLight,
               borderRadius: BorderRadius.circular(15),
@@ -256,22 +260,21 @@ class DetailPengajuanPage extends StatelessWidget {
             ),
             child: Text(
               _value('deskripsi'),
-              style: const TextStyle(color: _muted, fontSize: 13, height: 1.65),
+              style: TextStyle(color: _muted, fontSize: 13, height: 1.65),
             ),
           ),
 
-          const SizedBox(height: 22),
+          SizedBox(height: 22),
 
           // Detail informasi
           _sectionHeading('Informasi Pelaksanaan', Icons.event_note_rounded),
 
-          const SizedBox(height: 15),
+          SizedBox(height: 15),
 
           _infoRow(
-            'Biaya Pendaftaran',
-            _biaya(),
-            icon: Icons.payments_outlined,
-            isFree: _biaya() == 'Gratis',
+            'Mulai Pendaftaran',
+            _tanggal('tanggal_mulai_pendaftaran'),
+            icon: Icons.event_available_outlined,
           ),
 
           _infoDivider(),
@@ -279,7 +282,7 @@ class DetailPengajuanPage extends StatelessWidget {
           _infoRow(
             'Batas Pendaftaran',
             _tanggal('batas_pendaftaran'),
-            icon: Icons.event_available_outlined,
+            icon: Icons.event_busy_outlined,
           ),
 
           _infoDivider(),
@@ -292,39 +295,100 @@ class DetailPengajuanPage extends StatelessWidget {
 
           _infoDivider(),
 
-          _infoRow('Total Kuota', _kuota(), icon: Icons.groups_outlined),
-
-          _infoDivider(),
-
           _infoRow(
-            'Kontak Panitia',
-            _value('kontak_penyelenggara'),
-            icon: Icons.phone_outlined,
+            'Metode Pelaksanaan',
+            _value('metode_pelaksanaan'),
+            icon: Icons.public_outlined,
           ),
 
           _infoDivider(),
 
           _infoRow(
-            'Lokasi',
-            _value('lokasi_pendaftaran'),
+            _value('metode_pelaksanaan', fallback: '').toLowerCase() == 'online'
+                ? 'Platform / Tautan'
+                : 'Tempat Pelaksanaan',
+            _value(
+              'detail_pelaksanaan',
+              fallback: _value('lokasi_pendaftaran'),
+            ),
             icon: Icons.location_on_outlined,
           ),
 
           _infoDivider(),
 
           _infoRow(
-            'Hadiah',
-            _value('hadiah'),
-            icon: Icons.emoji_events_outlined,
+            'Biaya Pendaftaran',
+            _biaya(),
+            icon: Icons.payments_outlined,
+            isFree: _biaya() == 'Gratis',
           ),
 
           _infoDivider(),
 
-          _infoRow(
-            'Persyaratan',
-            _value('persyaratan'),
-            icon: Icons.checklist_rounded,
+          _infoRow('Total Kuota', _kuota(), icon: Icons.groups_outlined),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // INFORMASI TAMBAHAN SEMI-DINAMIS
+  // ==========================================
+
+  Widget _buildAdditionalInfoCard() {
+    final raw = widget.item['informasi_tambahan'];
+    final rows = raw is List ? raw.whereType<Map>().toList() : <Map>[];
+    if (rows.isEmpty) return SizedBox.shrink();
+
+    final groups = <String, List<Map>>{};
+    for (final row in rows) {
+      final header = row['kelompok_informasi']?.toString().trim();
+      final label = row['label_informasi']?.toString().trim();
+      final value = row['nilai_informasi']?.toString().trim();
+      if (header == null ||
+          header.isEmpty ||
+          label == null ||
+          label.isEmpty ||
+          value == null ||
+          value.isEmpty) {
+        continue;
+      }
+      groups.putIfAbsent(header, () => []).add(row);
+    }
+    if (groups.isEmpty) return SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(18),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeading(
+            'Informasi Tambahan',
+            Icons.playlist_add_check_circle_outlined,
           ),
+          SizedBox(height: 14),
+          for (final group in groups.entries) ...[
+            Text(
+              group.key,
+              style: TextStyle(
+                color: _primary,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            SizedBox(height: 5),
+            for (var index = 0; index < group.value.length; index++) ...[
+              _infoRow(
+                group.value[index]['label_informasi']?.toString() ?? '-',
+                group.value[index]['nilai_informasi']?.toString() ?? '-',
+                icon: Icons.info_outline_rounded,
+              ),
+              if (index != group.value.length - 1) _infoDivider(),
+            ],
+            SizedBox(height: 9),
+          ],
         ],
       ),
     );
@@ -336,14 +400,14 @@ class DetailPengajuanPage extends StatelessWidget {
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      color: AppColors.surface,
+      color: context.tl.surface,
       borderRadius: BorderRadius.circular(23),
       border: Border.all(color: _outline),
       boxShadow: [
         BoxShadow(
           color: _primaryDark.withValues(alpha: 0.035),
           blurRadius: 16,
-          offset: const Offset(0, 5),
+          offset: Offset(0, 5),
         ),
       ],
     );
@@ -354,27 +418,26 @@ class DetailPengajuanPage extends StatelessWidget {
   // ==========================================
 
   Widget _sectionHeading(String title, IconData icon) {
+    final p = context.tl;
     return Row(
       children: [
         Container(
-          width: 35,
-          height: 35,
+          width: 43,
+          height: 43,
           decoration: BoxDecoration(
-            color: _cream,
-            borderRadius: BorderRadius.circular(11),
+            color: p.lavender.withValues(alpha: .19),
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: Icon(icon, color: _primary, size: 19),
+          child: Icon(icon, color: p.lavender, size: 22),
         ),
-
-        const SizedBox(width: 10),
-
+        const SizedBox(width: 12),
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
-              color: _text,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
+            style: TextStyle(
+              color: p.navy,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ),
@@ -393,7 +456,7 @@ class DetailPengajuanPage extends StatelessWidget {
     bool isFree = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 11),
+      padding: EdgeInsets.symmetric(vertical: 11),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -407,7 +470,7 @@ class DetailPengajuanPage extends StatelessWidget {
             child: Icon(icon, color: _primary, size: 17),
           ),
 
-          const SizedBox(width: 11),
+          SizedBox(width: 11),
 
           Expanded(
             child: Column(
@@ -415,19 +478,19 @@ class DetailPengajuanPage extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: _muted,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
 
-                const SizedBox(height: 5),
+                SizedBox(height: 5),
 
                 Text(
                   value,
                   style: TextStyle(
-                    color: isFree ? AppColors.green : _text,
+                    color: isFree ? context.tl.green : _text,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     height: 1.4,
@@ -442,7 +505,7 @@ class DetailPengajuanPage extends StatelessWidget {
   }
 
   Widget _infoDivider() {
-    return const Divider(color: _outline, height: 1, thickness: 0.8);
+    return Divider(color: _outline, height: 1, thickness: 0.8);
   }
 
   // ==========================================
@@ -450,13 +513,13 @@ class DetailPengajuanPage extends StatelessWidget {
   // ==========================================
 
   Widget _buildFormulirCard(BuildContext context) {
-    final raw = item['form_fields'];
+    final raw = widget.item['form_fields'];
 
     final fields = raw is List ? raw.whereType<Map>().toList() : <Map>[];
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(18),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,14 +529,14 @@ class DetailPengajuanPage extends StatelessWidget {
             Icons.assignment_outlined,
           ),
 
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
 
-          const Text(
+          Text(
             'Daftar informasi yang harus diisi peserta ketika mendaftar lomba.',
             style: TextStyle(color: _muted, fontSize: 12, height: 1.5),
           ),
 
-          const SizedBox(height: 17),
+          SizedBox(height: 17),
 
           if (raw is! List)
             _formEmpty(
@@ -496,7 +559,7 @@ class DetailPengajuanPage extends StatelessWidget {
   Widget _formEmpty(IconData icon, String message) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding: EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: _creamLight,
         borderRadius: BorderRadius.circular(14),
@@ -506,11 +569,11 @@ class DetailPengajuanPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: _primary, size: 20),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: _muted, fontSize: 12, height: 1.5),
+              style: TextStyle(color: _muted, fontSize: 12, height: 1.5),
             ),
           ),
         ],
@@ -527,10 +590,19 @@ class DetailPengajuanPage extends StatelessWidget {
         field['wajib'] == true ||
         field['wajib'] == 1 ||
         field['wajib']?.toString() == '1';
+    final isDefault =
+        field['is_default'] == true ||
+        field['is_default'] == 1 ||
+        field['is_default']?.toString() == '1';
+    final placeholder = field['placeholder']?.toString() ?? '';
+    final rawOptions = field['opsi_field'];
+    final options = rawOptions is List
+        ? rawOptions.map((option) => option.toString()).toList()
+        : <String>[];
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(13),
+      margin: EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: _creamLight,
         borderRadius: BorderRadius.circular(15),
@@ -549,7 +621,7 @@ class DetailPengajuanPage extends StatelessWidget {
             ),
             child: Text(
               '${index + 1}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
@@ -557,7 +629,7 @@ class DetailPengajuanPage extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(width: 11),
+          SizedBox(width: 11),
 
           Expanded(
             child: Column(
@@ -565,35 +637,49 @@ class DetailPengajuanPage extends StatelessWidget {
               children: [
                 Text(
                   nama,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: _text,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
 
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
 
                 Text(
-                  'Tipe: $tipe',
-                  style: const TextStyle(color: _muted, fontSize: 11),
+                  'Tipe: $tipe${isDefault ? ' • Field bawaan' : ''}',
+                  style: TextStyle(color: _muted, fontSize: 11),
                 ),
+                if (placeholder.trim().isNotEmpty) ...[
+                  SizedBox(height: 4),
+                  Text(
+                    'Petunjuk: $placeholder',
+                    style: TextStyle(color: _muted, fontSize: 10),
+                  ),
+                ],
+                if (tipe.toLowerCase() == 'dropdown' && options.isNotEmpty) ...[
+                  SizedBox(height: 4),
+                  Text(
+                    'Pilihan: ${options.join(', ')}',
+                    style: TextStyle(color: _muted, fontSize: 10, height: 1.4),
+                  ),
+                ],
               ],
             ),
           ),
 
-          const SizedBox(width: 7),
+          SizedBox(width: 7),
 
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            padding: EdgeInsets.symmetric(horizontal: 9, vertical: 6),
             decoration: BoxDecoration(
-              color: wajib ? const Color(0xFFFFEEEE) : _cream,
+              color: wajib ? context.tl.statusBadBg : _cream,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               wajib ? 'Wajib' : 'Opsional',
               style: TextStyle(
-                color: wajib ? AppColors.error : _primary,
+                color: wajib ? context.tl.error : _primary,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
@@ -611,9 +697,9 @@ class DetailPengajuanPage extends StatelessWidget {
   Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 25),
-      decoration: const BoxDecoration(
-        color: _primaryDark,
+      padding: EdgeInsets.fromLTRB(20, 12, 20, 25),
+      decoration: BoxDecoration(
+        color: context.tl.background,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(27)),
       ),
       child: Column(
@@ -622,30 +708,30 @@ class DetailPengajuanPage extends StatelessWidget {
           Row(
             children: [
               Material(
-                color: Colors.white.withValues(alpha: 0.12),
+                color: context.tl.tabBg,
                 borderRadius: BorderRadius.circular(13),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(13),
-                  onTap: () => Navigator.pop(context),
-                  child: const SizedBox(
+                  onTap: () => Navigator.pop(context, _decisionChanged),
+                  child: SizedBox(
                     width: 42,
                     height: 42,
                     child: Icon(
                       Icons.arrow_back_rounded,
-                      color: Colors.white,
+                      color: context.tl.navy,
                       size: 21,
                     ),
                   ),
                 ),
               ),
 
-              const SizedBox(width: 13),
+              SizedBox(width: 13),
 
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Detail Pengajuan',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: context.tl.navy,
                     fontSize: 19,
                     fontWeight: FontWeight.w800,
                   ),
@@ -653,15 +739,12 @@ class DetailPengajuanPage extends StatelessWidget {
               ),
 
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 7,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 11, vertical: 7),
                 decoration: BoxDecoration(
-                  color: _cream,
+                  color: context.tl.primary,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text(
+                child: Text(
                   'ADMIN',
                   style: TextStyle(
                     color: _primary,
@@ -674,27 +757,23 @@ class DetailPengajuanPage extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
 
-          const Text(
+          Text(
             'TINJAUAN PENGAJUAN',
             style: TextStyle(
-              color: _cream,
+              color: context.tl.primary,
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.5,
             ),
           ),
 
-          const SizedBox(height: 7),
+          SizedBox(height: 7),
 
-          const Text(
+          Text(
             'Periksa informasi lomba sebelum mengambil keputusan.',
-            style: TextStyle(
-              color: Color(0xFFE2EAF3),
-              fontSize: 12,
-              height: 1.5,
-            ),
+            style: TextStyle(color: context.tl.grey, fontSize: 12, height: 1.5),
           ),
         ],
       ),
@@ -706,63 +785,153 @@ class DetailPengajuanPage extends StatelessWidget {
   // ==========================================
 
   Widget _buildBottomActions(BuildContext context) {
+    final locked = !_isPending;
+    final approved = _statusPengajuan.trim().toLowerCase() == 'disetujui';
+    final rejected = _statusPengajuan.trim().toLowerCase() == 'ditolak';
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      padding: EdgeInsets.fromLTRB(16, 14, 16, 16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: const Border(top: BorderSide(color: _outline)),
+        color: context.tl.surface,
+        border: Border(top: BorderSide(color: _outline)),
         boxShadow: [
           BoxShadow(
             color: _primaryDark.withValues(alpha: 0.06),
             blurRadius: 15,
-            offset: const Offset(0, -4),
+            offset: Offset(0, -4),
           ),
         ],
       ),
       child: SafeArea(
         top: false,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  _showRejectDialog(context);
-                },
-                icon: const Icon(Icons.close_rounded, size: 18),
-                label: const Text('Tolak'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  backgroundColor: Colors.white,
-                  side: const BorderSide(color: Color(0xFFE8CACA), width: 1.2),
-                  minimumSize: const Size(0, 50),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+            if (locked) ...[
+              Container(
+                width: double.infinity,
+                margin: EdgeInsets.only(bottom: 12),
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: approved
+                      ? context.tl.statusGoodBg
+                      : rejected
+                      ? context.tl.statusBadBg
+                      : context.tl.statusNeutralBg,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(
+                    color: approved
+                        ? context.tl.statusGoodBg
+                        : rejected
+                        ? context.tl.statusBadBg
+                        : _outline,
                   ),
                 ),
-              ),
-            ),
-
-            const SizedBox(width: 11),
-
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  _showApproveDialog(context);
-                },
-                icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
-                label: const Text('Setujui', maxLines: 1),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primary,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(0, 50),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
+                child: Row(
+                  children: [
+                    Icon(
+                      approved
+                          ? Icons.check_circle_rounded
+                          : rejected
+                          ? Icons.cancel_rounded
+                          : Icons.lock_rounded,
+                      color: approved
+                          ? context.tl.green
+                          : rejected
+                          ? context.tl.error
+                          : _muted,
+                      size: 19,
+                    ),
+                    SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        approved
+                            ? 'Pengajuan telah disetujui. Keputusan terkunci.'
+                            : rejected
+                            ? 'Pengajuan telah ditolak. Keputusan terkunci.'
+                            : 'Pengajuan sudah diproses dan tidak dapat diubah.',
+                        style: TextStyle(
+                          color: approved
+                              ? context.tl.green
+                              : rejected
+                              ? context.tl.error
+                              : _muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: locked ? null : () => _showRejectDialog(context),
+                    icon: Icon(Icons.close_rounded, size: 18),
+                    label: Text(locked ? 'Terkunci' : 'Tolak'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: locked ? _muted : context.tl.error,
+                      disabledForegroundColor: _muted,
+                      backgroundColor: locked
+                          ? context.tl.statusNeutralBg
+                          : Colors.white,
+                      side: BorderSide(
+                        color: locked
+                            ? context.tl.fieldBorder
+                            : context.tl.statusBadBg,
+                        width: 1.2,
+                      ),
+                      minimumSize: Size(0, 50),
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 11),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: locked
+                        ? null
+                        : () => _showApproveDialog(context),
+                    icon: Icon(
+                      locked
+                          ? Icons.lock_rounded
+                          : Icons.check_circle_outline_rounded,
+                      size: 18,
+                    ),
+                    label: Text(
+                      locked
+                          ? (approved
+                                ? 'Disetujui'
+                                : rejected
+                                ? 'Ditolak'
+                                : 'Terkunci')
+                          : 'Setujui',
+                      maxLines: 1,
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: locked
+                          ? context.tl.fieldBorder
+                          : _primary,
+                      foregroundColor: locked ? _muted : Colors.white,
+                      disabledBackgroundColor: context.tl.fieldBorder,
+                      disabledForegroundColor: _muted,
+                      minimumSize: Size(0, 50),
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -782,184 +951,87 @@ class DetailPengajuanPage extends StatelessWidget {
     _showDecisionDialog(context, 'Ditolak');
   }
 
+  bool _decisionBusy = false;
+
   Future<void> _showDecisionDialog(
     BuildContext context,
     String keputusan,
   ) async {
-    final idPengajuan = int.tryParse(item['id_pengajuan']?.toString() ?? '');
-
-    if (idPengajuan == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ID pengajuan tidak valid.')),
+    if (_decisionBusy) return;
+    if (!_isPending) {
+      AppNotification.message(
+        context,
+        'Pengajuan ini sudah diproses dan terkunci.',
+        type: NotificationType.warning,
       );
       return;
     }
 
-    final disetujui = keputusan == 'Disetujui';
-
-    bool sedangMengirim = false;
-
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            return AlertDialog(
-              backgroundColor: AppColors.surface,
-              surfaceTintColor: Colors.transparent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(22),
-              ),
-              titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 10),
-              contentPadding: const EdgeInsets.fromLTRB(22, 5, 22, 10),
-              actionsPadding: const EdgeInsets.fromLTRB(16, 5, 16, 16),
-
-              // Ikon dialog
-              title: Row(
-                children: [
-                  Container(
-                    width: 43,
-                    height: 43,
-                    decoration: BoxDecoration(
-                      color: disetujui
-                          ? const Color(0xFFE7F4EC)
-                          : const Color(0xFFFFEBEB),
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: Icon(
-                      disetujui
-                          ? Icons.verified_rounded
-                          : Icons.cancel_outlined,
-                      color: disetujui ? AppColors.green : AppColors.error,
-                      size: 23,
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    child: Text(
-                      disetujui ? 'Setujui Pengajuan' : 'Tolak Pengajuan',
-                      style: const TextStyle(
-                        color: _text,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              content: Text(
-                disetujui
-                    ? 'Apakah Anda yakin ingin menyetujui pengajuan lomba ini?'
-                    : 'Apakah Anda yakin ingin menolak pengajuan lomba ini?',
-                style: const TextStyle(
-                  color: _muted,
-                  fontSize: 13,
-                  height: 1.6,
-                ),
-              ),
-
-              actions: [
-                TextButton(
-                  onPressed: sedangMengirim
-                      ? null
-                      : () => Navigator.pop(dialogContext),
-                  child: const Text('Batal'),
-                ),
-
-                ElevatedButton(
-                  onPressed: sedangMengirim
-                      ? null
-                      : () async {
-                          setDialogState(() {
-                            sedangMengirim = true;
-                          });
-
-                          try {
-                            await ApiService.putuskanPengajuanLomba(
-                              token: token,
-                              idPengajuan: idPengajuan,
-                              keputusan: keputusan,
-                            );
-
-                            if (!dialogContext.mounted || !context.mounted) {
-                              return;
-                            }
-
-                            final messenger = ScaffoldMessenger.of(context);
-
-                            // Tutup dialog.
-
-                            Navigator.pop(dialogContext);
-
-                            // Kembali ke daftar pengajuan.
-                            // Nilai true memicu refresh halaman sebelumnya.
-
-                            Navigator.pop(context, true);
-
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  disetujui
-                                      ? 'Pengajuan berhasil disetujui.'
-                                      : 'Pengajuan berhasil ditolak.',
-                                ),
-                                backgroundColor: disetujui
-                                    ? AppColors.green
-                                    : AppColors.error,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(13),
-                                ),
-                              ),
-                            );
-                          } catch (error) {
-                            if (!dialogContext.mounted) return;
-
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Gagal memproses pengajuan: $error',
-                                ),
-                                backgroundColor: AppColors.error,
-                              ),
-                            );
-                          } finally {
-                            if (dialogContext.mounted) {
-                              setDialogState(() {
-                                sedangMengirim = false;
-                              });
-                            }
-                          }
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: disetujui ? _primary : AppColors.error,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: sedangMengirim
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(disetujui ? 'Setujui' : 'Tolak'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    final idPengajuan = int.tryParse(
+      widget.item['id_pengajuan']?.toString() ?? '',
     );
+    if (idPengajuan == null) {
+      AppNotification.message(
+        context,
+        'ID pengajuan tidak valid.',
+        type: NotificationType.error,
+      );
+      return;
+    }
+
+    final approved = keputusan == 'Disetujui';
+    final confirmed = await AppConfirmDialog.show(
+      context: context,
+      title: approved ? 'Setujui pengajuan?' : 'Tolak pengajuan?',
+      message: approved
+          ? 'Lomba akan disetujui dan dapat dilanjutkan sesuai proses yang berlaku.'
+          : 'Lomba akan ditolak. Periksa kembali detail pengajuan sebelum melanjutkan.',
+      confirmText: approved ? 'Setujui' : 'Tolak',
+      confirmColor: approved ? context.tl.green : context.tl.error,
+    );
+    if (!mounted || !context.mounted || confirmed != true || _decisionBusy) {
+      return;
+    }
+
+    setState(() => _decisionBusy = true);
+    AppPopup.loading(context, message: 'Memproses pengajuan...');
+    String? failure;
+    try {
+      await ApiService.putuskanPengajuanLomba(
+        token: widget.token,
+        idPengajuan: idPengajuan,
+        keputusan: keputusan,
+      );
+      if (!mounted || !context.mounted) return;
+
+      setState(() {
+        _statusPengajuan = keputusan;
+        _decisionChanged = true;
+      });
+    } catch (error) {
+      failure = error.toString().replaceFirst('Exception: ', '');
+    } finally {
+      if (mounted && context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      if (mounted) {
+        setState(() => _decisionBusy = false);
+      }
+    }
+    if (!mounted || !context.mounted) return;
+
+    if (failure != null) {
+      AppNotification.message(context, failure, type: NotificationType.error);
+    } else {
+      AppNotification.message(
+        context,
+        approved
+            ? 'Pengajuan berhasil disetujui.'
+            : 'Pengajuan berhasil ditolak.',
+        type: NotificationType.success,
+      );
+    }
   }
 
   // ==========================================
@@ -973,25 +1045,40 @@ class DetailPengajuanPage extends StatelessWidget {
 
       body: Column(
         children: [
-          // Header
-
-          _buildHeader(context),
-
-          // Konten yang dapat di-scroll
+          // Header menjadi bagian dari area scroll, bukan elemen fixed.
           Expanded(
             child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 25),
+              physics: BouncingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildLombaCard(context),
+                  _buildHeader(context),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 25),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TLPlayful.decoratedHeading(
+                          context,
+                          title: 'Review before\nyou decide.',
+                          subtitle: 'Tinjau detail dan formulir sebelum memberikan keputusan.',
+                          icon: Icons.fact_check_rounded,
+                          accent: context.tl.mint,
+                        ),
+                        _buildLombaCard(context),
 
-                  const SizedBox(height: 16),
+                        SizedBox(height: 16),
 
-                  _buildFormulirCard(context),
+                        _buildAdditionalInfoCard(),
 
-                  const SizedBox(height: 15),
+                        SizedBox(height: 16),
+
+                        _buildFormulirCard(context),
+
+                        SizedBox(height: 15),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

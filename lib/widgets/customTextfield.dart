@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-// tarik file apptheme
+
 import '../config/appTheme.dart';
 
+/// Reusable input for login, registration and account forms.
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
@@ -22,17 +23,16 @@ class CustomTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.tl;
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
       validator: validator,
+      style: TextStyle(color: p.navy, fontWeight: FontWeight.w600),
+      cursorColor: p.primary,
       decoration: InputDecoration(
         hintText: hintText,
-        prefixIcon: Icon(
-          icon,
-          size: 20,
-          color: AppColors.grey,
-        ),
+        prefixIcon: Icon(icon, size: 20, color: p.grey),
         suffixIcon: suffixIcon,
       ),
     );

@@ -14,149 +14,181 @@ class FloatingNavigationBar extends StatelessWidget {
     this.isAdmin = false,
   });
 
-  List<_NavigationItem> get _items => [
-    const _NavigationItem(
-      label: 'Beranda',
-      icon: Icons.home_outlined,
-      activeIcon: Icons.home_rounded,
-    ),
-    const _NavigationItem(
-      label: 'Lomba Saya',
-      icon: Icons.card_giftcard_outlined,
-      activeIcon: Icons.card_giftcard_rounded,
-    ),
-    const _NavigationItem(
-      label: 'Ajukan',
-      icon: Icons.explore_outlined,
-      activeIcon: Icons.explore_rounded,
-    ),
-    if (isAdmin)
-      const _NavigationItem(
-        label: 'Pengajuan',
-        icon: Icons.fact_check_outlined,
-        activeIcon: Icons.fact_check_rounded,
-      ),
-    const _NavigationItem(
-      label: 'Profil',
-      icon: Icons.person_outline_rounded,
-      activeIcon: Icons.person_rounded,
-    ),
-  ];
+  List<({String label, IconData icon, IconData active})> get _tabs => isAdmin
+      ? [
+          (
+            label: 'Home',
+            icon: Icons.home_outlined,
+            active: Icons.home_rounded,
+          ),
+          (
+            label: 'Favorit',
+            icon: Icons.favorite_border_rounded,
+            active: Icons.favorite_rounded,
+          ),
+          (
+            label: 'Lomba',
+            icon: Icons.emoji_events_outlined,
+            active: Icons.emoji_events_rounded,
+          ),
+          (
+            label: 'Pengajuan',
+            icon: Icons.fact_check_outlined,
+            active: Icons.fact_check_rounded,
+          ),
+          (
+            label: 'Chat',
+            icon: Icons.forum_outlined,
+            active: Icons.forum_rounded,
+          ),
+          (
+            label: 'Profil',
+            icon: Icons.person_outline_rounded,
+            active: Icons.person_rounded,
+          ),
+        ]
+      : [
+          (
+            label: 'Home',
+            icon: Icons.home_outlined,
+            active: Icons.home_rounded,
+          ),
+          (
+            label: 'Favorit',
+            icon: Icons.favorite_border_rounded,
+            active: Icons.favorite_rounded,
+          ),
+          (
+            label: 'Lomba',
+            icon: Icons.emoji_events_outlined,
+            active: Icons.emoji_events_rounded,
+          ),
+          (
+            label: 'Chat',
+            icon: Icons.forum_outlined,
+            active: Icons.forum_rounded,
+          ),
+          (
+            label: 'Profil',
+            icon: Icons.person_outline_rounded,
+            active: Icons.person_rounded,
+          ),
+        ];
 
+  // TERNATELOMBA_SMOOTH_MOTION_V1
   @override
   Widget build(BuildContext context) {
-    final items = _items;
-    final safeIndex = currentIndex.clamp(0, items.length - 1);
-
+    final p = context.tl;
+    final tabs = _tabs;
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Container(
-            height: 68,
-            padding: const EdgeInsets.all(5),
+      minimum: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        heightFactor: 1,
+        child: SizedBox(
+          width: double.infinity,
+          child: DecoratedBox(
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(40),
-              border: Border.all(color: AppColors.fieldBorder, width: 1),
+              color: p.surface,
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: p.fieldBorder),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.navy.withValues(alpha: 0.09),
-                  blurRadius: 20,
-                  spreadRadius: 1,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withValues(alpha: .16),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
                 ),
               ],
             ),
-            child: Row(
-              children: List.generate(items.length, (index) {
-                final item = items[index];
-                final selected = index == safeIndex;
-
-                return Expanded(
-                  flex: selected ? 24 : 15,
-                  child: Semantics(
-                    button: true,
-                    selected: selected,
-                    label: item.label,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(35),
-                        onTap: () => onTap(index),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 280),
-                          curve: Curves.easeInOutCubic,
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? AppColors.primary
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(35),
-                          ),
-                          child: Center(
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 200),
-                              switchInCurve: Curves.easeOut,
-                              switchOutCurve: Curves.easeIn,
-                              child: selected
-                                  ? Row(
-                                      key: ValueKey('active_$index'),
+            child: Padding(
+              padding: const EdgeInsets.all(7),
+              child: SizedBox(
+                height: 78,
+                child: Row(
+                  children: List.generate(tabs.length, (index) {
+                    final item = tabs[index];
+                    final selected = currentIndex == index;
+                    return Expanded(
+                      flex: selected ? 18 : 10,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: Center(
+                          child: SizedBox(
+                            height: 68, // Tall selector, proportional to the Ajukan Lomba CTA.
+                            width: double.infinity,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(23),
+                                onTap: () => onTap(index),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 210),
+                                  curve: Curves.easeOutCubic,
+                                  width: double.infinity,
+                                  height: 68,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: selected
+                                        ? p.primary
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(23),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 3,
+                                    ),
+                                    child: Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(
-                                          item.activeIcon,
-                                          color: Colors.white,
-                                          size: 24,
-                                        ),
-                                        const SizedBox(width: 7),
-                                        Flexible(
-                                          child: Text(
-                                            item.label,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                            ),
+                                        AnimatedScale(
+                                          scale: selected ? 1.0 : 0.92,
+                                          duration: const Duration(
+                                            milliseconds: 180,
+                                          ),
+                                          curve: Curves.easeOutCubic,
+                                          child: Icon(
+                                            selected ? item.active : item.icon,
+                                            color: selected
+                                                ? Colors.white
+                                                : p.navy,
+                                            size: selected ? 24 : 23,
                                           ),
                                         ),
+                                        if (selected) ...[
+                                          const SizedBox(width: 7),
+                                          Flexible(
+                                            child: Text(
+                                              item.label,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ],
-                                    )
-                                  : Icon(
-                                      item.icon,
-                                      key: ValueKey('inactive_$index'),
-                                      color: AppColors.grey,
-                                      size: 25,
                                     ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                );
-              }),
+                    );
+                  }),
+                ),
+              ),
             ),
           ),
         ),
       ),
     );
   }
-}
-
-class _NavigationItem {
-  final String label;
-  final IconData icon;
-  final IconData activeIcon;
-
-  const _NavigationItem({
-    required this.label,
-    required this.icon,
-    required this.activeIcon,
-  });
 }

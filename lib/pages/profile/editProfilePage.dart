@@ -1,8 +1,10 @@
+import '../../design_system/tl_playful.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../config/appTheme.dart';
-import '../../widgets/appNotification.dart';
-import '../../widgets/appConfirmDialog.dart';
+import '../../widgets/app_feedback.dart';
+import '../../screens/auth/authScreen.dart';
 import '../../services/api_service.dart';
 
 class EditProfilePage extends StatefulWidget {
@@ -26,16 +28,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // APP THEME
   // ==========================================
 
-  static const Color primary = AppColors.primary;
-  static const Color primaryDark = AppColors.primaryDark;
-  static const Color cream = AppColors.cream;
-  static const Color creamLight = AppColors.creamLight;
-  static const Color creamDark = AppColors.creamDark;
-  static const Color background = AppColors.background;
-  static const Color textColor = AppColors.navy;
-  static const Color muted = AppColors.grey;
-  static const Color borderColor = AppColors.fieldBorder;
-  static const Color danger = AppColors.error;
+  Color get primary => context.tl.primary;
+  Color get primaryDark => context.tl.primaryDark;
+  Color get cream => context.tl.cream;
+  Color get creamLight => context.tl.creamLight;
+  Color get creamDark => context.tl.creamDark;
+  Color get background => context.tl.background;
+  Color get textColor => context.tl.navy;
+  Color get muted => context.tl.grey;
+  Color get borderColor => context.tl.fieldBorder;
+  Color get danger => context.tl.error;
 
   // ==========================================
   // FORM STATE
@@ -102,11 +104,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     if (!_validateForm()) return;
 
+    final passwordChanged = passwordController.text.isNotEmpty;
     final confirmed = await AppConfirmDialog.show(
       context: context,
-      title: 'Simpan perubahan?',
-      message: 'Apakah kamu yakin ingin menyimpan perubahan profil ini?',
-      confirmText: 'Simpan',
+      title: passwordChanged ? 'Ubah kata sandi?' : 'Simpan perubahan?',
+      message: passwordChanged
+          ? 'Yakin ingin mengganti kata sandi akun? Setelah berhasil disimpan, kamu akan keluar otomatis dan harus login kembali menggunakan kata sandi baru.'
+          : 'Apakah kamu yakin ingin menyimpan perubahan username?',
+      confirmText: passwordChanged ? 'Ubah Sandi' : 'Simpan',
       cancelText: 'Batal',
       confirmColor: primary,
     );
@@ -170,14 +175,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       final passwordBerubah = passwordBaru.isNotEmpty;
 
-      _showMessage(
-        passwordBerubah
-            ? 'Username dan kata sandi berhasil diperbarui.'
+      await AppNotification.show(
+        context: context,
+        title: 'Berhasil!',
+        message: passwordBerubah
+            ? 'Kata sandi berhasil diperbarui. Silakan masuk kembali demi keamanan akun.'
             : (hasil['pesan'] ?? 'Profil berhasil diperbarui').toString(),
-        success: true,
+        type: NotificationType.success,
       );
-
-      Navigator.of(context).pop();
+      if (!mounted) return;
+      if (passwordBerubah) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthScreen()),
+          (route) => false,
+        );
+      } else {
+        Navigator.of(context).pop();
+      }
     } catch (e) {
       _showMessage(e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -195,14 +209,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      color: AppColors.surface,
+      color: context.tl.surface,
       borderRadius: BorderRadius.circular(23),
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
           color: primaryDark.withValues(alpha: 0.035),
           blurRadius: 16,
-          offset: const Offset(0, 5),
+          offset: Offset(0, 5),
         ),
       ],
     );
@@ -212,175 +226,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // HEADER
   // ==========================================
 
-  Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 17, 22, 28),
-      decoration: const BoxDecoration(
-        color: primaryDark,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Material(
-                color: Colors.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(13),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(13),
-                  onTap: loading ? null : () => Navigator.of(context).pop(),
-                  child: const SizedBox(
-                    width: 43,
-                    height: 43,
-                    child: Icon(
-                      Icons.arrow_back_rounded,
-                      color: Colors.white,
-                      size: 21,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 13),
-
-              const Expanded(
-                child: Text(
-                  'Edit Profil',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: cream,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'AKUN',
-                  style: TextStyle(
-                    color: primary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 25),
-
-          const Text(
-            'PENGATURAN AKUN',
-            style: TextStyle(
-              color: cream,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.5,
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          const Text(
-            'Kelola Profilmu',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.6,
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          const Text(
-            'Perbarui informasi akun dan jaga keamanan aksesmu.',
-            style: TextStyle(
-              color: Color(0xFFDCE6F0),
-              fontSize: 12,
-              height: 1.6,
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Identitas akun
-          Container(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: creamLight,
-              borderRadius: BorderRadius.circular(19),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: cream,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(
-                    Icons.person_outline_rounded,
-                    color: primary,
-                    size: 25,
-                  ),
-                ),
-
-                const SizedBox(width: 13),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Username saat ini',
-                        style: TextStyle(color: muted, fontSize: 11),
-                      ),
-
-                      const SizedBox(height: 5),
-
-                      Text(
-                        widget.username,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: textColor,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Icon(
-                  Icons.verified_user_outlined,
-                  color: primary,
-                  size: 22,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildHeader() => TLPlayful.pageHeader(
+    context,
+    title: 'Keep your\nprofile sharp.',
+    description: 'Perbarui identitas dan keamanan akunmu di sini.',
+    icon: Icons.manage_accounts_rounded,
+    accent: context.tl.lavender,
+    onBack: () {
+      if (!loading) Navigator.of(context).pop();
+    },
+  );
 
   // ==========================================
   // SECTION HEADING
@@ -391,39 +246,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
     required String subtitle,
     required IconData icon,
   }) {
+    final p = context.tl;
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: 47,
+          height: 47,
           decoration: BoxDecoration(
-            color: cream,
-            borderRadius: BorderRadius.circular(12),
+            color: p.lavender.withValues(alpha: .20),
+            borderRadius: BorderRadius.circular(17),
           ),
-          child: Icon(icon, color: primary, size: 21),
+          child: Icon(icon, color: p.lavender, size: 24),
         ),
-
         const SizedBox(width: 12),
-
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: textColor,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                  color: p.navy,
                 ),
               ),
-
-              const SizedBox(height: 4),
-
+              const SizedBox(height: 5),
               Text(
                 subtitle,
-                style: const TextStyle(color: muted, fontSize: 11, height: 1.4),
+                style: TextStyle(color: p.grey, fontSize: 12, height: 1.45),
               ),
             ],
           ),
@@ -438,10 +289,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Widget _fieldLabel(String label) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+      padding: EdgeInsets.only(bottom: 9),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           color: textColor,
           fontSize: 12,
           fontWeight: FontWeight.w800,
@@ -462,7 +313,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return InputDecoration(
       hintText: hint,
 
-      hintStyle: const TextStyle(color: AppColors.muted, fontSize: 12),
+      hintStyle: TextStyle(color: context.tl.muted, fontSize: 12),
 
       prefixIcon: Icon(icon, color: primary, size: 20),
 
@@ -471,31 +322,31 @@ class _EditProfilePageState extends State<EditProfilePage> {
       filled: true,
       fillColor: creamLight,
 
-      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 17),
+      contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 17),
 
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: borderColor),
+        borderSide: BorderSide(color: borderColor),
       ),
 
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: borderColor),
+        borderSide: BorderSide(color: borderColor),
       ),
 
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: primary, width: 1.5),
+        borderSide: BorderSide(color: primary, width: 1.5),
       ),
 
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: danger),
+        borderSide: BorderSide(color: danger),
       ),
 
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: danger, width: 1.5),
+        borderSide: BorderSide(color: danger, width: 1.5),
       ),
     );
   }
@@ -554,9 +405,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
           },
         ),
 
-        const SizedBox(height: 7),
+        SizedBox(height: 7),
 
-        const Text(
+        Text(
           'Username digunakan sebagai identitas akunmu.',
           style: TextStyle(color: muted, fontSize: 10),
         ),
@@ -677,38 +528,39 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // ==========================================
 
   Widget _buildSecurityInfo() {
+    final p = context.tl;
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: creamLight,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: creamDark),
-      ),
-      child: const Row(
+      padding: const EdgeInsets.all(17),
+      decoration: TLPlayful.card(context, tint: p.yellow, radius: 22),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: primary, size: 20),
-
-          SizedBox(width: 11),
-
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: p.yellow.withValues(alpha: .18),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(Icons.lock_person_rounded, color: p.orange, size: 23),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Informasi Keamanan',
+                  'Tetap aman, tetap nyaman',
                   style: TextStyle(
-                    color: textColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
+                    color: p.navy,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
                   ),
                 ),
-
-                SizedBox(height: 5),
-
+                const SizedBox(height: 6),
                 Text(
-                  'Kosongkan kedua kolom password jika kamu hanya ingin mengubah username. Gunakan password minimal 8 karakter.',
-                  style: TextStyle(color: muted, fontSize: 11, height: 1.6),
+                  'Kosongkan kedua kolom kata sandi jika kamu hanya ingin mengubah username. Gunakan minimal 8 karakter untuk kata sandi baru.',
+                  style: TextStyle(color: p.grey, fontSize: 11.5, height: 1.55),
                 ),
               ],
             ),
@@ -741,7 +593,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ),
 
         child: loading
-            ? const Row(
+            ? Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(
@@ -761,7 +613,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                 ],
               )
-            : const Row(
+            : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.check_circle_outline_rounded, size: 20),
@@ -790,7 +642,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       body: SafeArea(
         bottom: false,
         child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
+          physics: BouncingScrollPhysics(),
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Form(
             key: _formKey,
@@ -801,7 +653,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 _buildHeader(),
 
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 23, 20, 35),
+                  padding: EdgeInsets.fromLTRB(20, 23, 20, 35),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -813,16 +665,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         icon: Icons.manage_accounts_outlined,
                       ),
 
-                      const SizedBox(height: 17),
+                      SizedBox(height: 17),
 
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(18),
+                        padding: EdgeInsets.all(18),
                         decoration: _cardDecoration(),
                         child: _buildUsernameField(),
                       ),
 
-                      const SizedBox(height: 25),
+                      SizedBox(height: 25),
 
                       // KEAMANAN AKUN
                       _sectionHeading(
@@ -831,36 +683,36 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         icon: Icons.shield_outlined,
                       ),
 
-                      const SizedBox(height: 17),
+                      SizedBox(height: 17),
 
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(18),
+                        padding: EdgeInsets.all(18),
                         decoration: _cardDecoration(),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildPasswordField(),
 
-                            const SizedBox(height: 22),
+                            SizedBox(height: 22),
 
                             _buildConfirmPasswordField(),
 
-                            const SizedBox(height: 22),
+                            SizedBox(height: 22),
 
                             _buildSecurityInfo(),
                           ],
                         ),
                       ),
 
-                      const SizedBox(height: 25),
+                      SizedBox(height: 25),
 
                       // TOMBOL SIMPAN
                       _buildSaveButton(),
 
-                      const SizedBox(height: 15),
+                      SizedBox(height: 15),
 
-                      const Center(
+                      Center(
                         child: Text(
                           'TERNATE LOMBA • PENGELOLAAN AKUN',
                           textAlign: TextAlign.center,

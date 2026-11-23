@@ -1,11 +1,12 @@
+import '../../widgets/app_feedback.dart';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../config/appTheme.dart';
-import '../../widgets/appConfirmDialog.dart';
+import '../../design_system/tl_playful.dart';
 import '../../screens/auth/authScreen.dart';
 import '../../services/api_service.dart';
-import '../../widgets/appNotification.dart';
 import 'editProfilePage.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -33,16 +34,16 @@ class _ProfilePageState extends State<ProfilePage> {
   // APP THEME
   // ==========================================
 
-  static const Color primary = AppColors.primary;
-  static const Color primaryDark = AppColors.primaryDark;
-  static const Color cream = AppColors.cream;
-  static const Color creamLight = AppColors.creamLight;
-  static const Color creamDark = AppColors.creamDark;
-  static const Color background = AppColors.background;
-  static const Color textColor = AppColors.navy;
-  static const Color muted = AppColors.grey;
-  static const Color borderColor = AppColors.fieldBorder;
-  static const Color danger = AppColors.error;
+  Color get primary => context.tl.primary;
+  Color get primaryDark => context.tl.primaryDark;
+  Color get cream => context.tl.cream;
+  Color get creamLight => context.tl.creamLight;
+  Color get creamDark => context.tl.creamDark;
+  Color get background => context.tl.background;
+  Color get textColor => context.tl.navy;
+  Color get muted => context.tl.grey;
+  Color get borderColor => context.tl.fieldBorder;
+  Color get danger => context.tl.error;
 
   // ==========================================
   // STATE
@@ -189,7 +190,7 @@ class _ProfilePageState extends State<ProfilePage> {
       alignment: Alignment.center,
       child: Text(
         _initials(_username),
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
           fontSize: 30,
           fontWeight: FontWeight.w800,
@@ -222,9 +223,9 @@ class _ProfilePageState extends State<ProfilePage> {
               border: Border.all(color: cream, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: primary.withValues(alpha: 0.12),
+                  color: Colors.black.withValues(alpha: 0.06),
                   blurRadius: 12,
-                  offset: const Offset(0, 5),
+                  offset: Offset(0, 5),
                 ),
               ],
             ),
@@ -245,12 +246,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   AnimatedOpacity(
                     opacity: _isAvatarHovered || _isUploadingFoto ? 1 : 0,
-                    duration: const Duration(milliseconds: 180),
+                    duration: Duration(milliseconds: 180),
                     child: Container(
                       color: primaryDark.withValues(alpha: 0.65),
                       alignment: Alignment.center,
                       child: _isUploadingFoto
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 25,
                               height: 25,
                               child: CircularProgressIndicator(
@@ -258,7 +259,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Icon(
+                          : Icon(
                               Icons.camera_alt_rounded,
                               color: Colors.white,
                               size: 27,
@@ -326,39 +327,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _isLoggingOut = true;
     });
 
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) {
-        return const PopScope(
-          canPop: false,
-          child: Center(
-            child: Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.all(Radius.circular(20)),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: primary, strokeWidth: 3),
-                    SizedBox(height: 18),
-                    Text(
-                      'Sedang keluar...',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
+    AppPopup.loading(context, message: 'Sedang keluar...');
 
     try {
       await ApiService.logout(token: widget.token);
@@ -368,7 +337,7 @@ class _ProfilePageState extends State<ProfilePage> {
       Navigator.of(context, rootNavigator: true).pop();
 
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const AuthScreen()),
+        MaterialPageRoute(builder: (_) => AuthScreen()),
         (route) => false,
       );
     } catch (_) {
@@ -380,19 +349,11 @@ class _ProfilePageState extends State<ProfilePage> {
         _isLoggingOut = false;
       });
 
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: const Text('Logout gagal. Silakan coba lagi.'),
-            backgroundColor: danger,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+      AppNotification.message(
+        context,
+        'Logout gagal. Silakan coba lagi.',
+        type: NotificationType.error,
+      );
     }
   }
 
@@ -402,14 +363,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      color: AppColors.surface,
+      color: context.tl.surface,
       borderRadius: BorderRadius.circular(22),
       border: Border.all(color: borderColor),
       boxShadow: [
         BoxShadow(
           color: primaryDark.withValues(alpha: 0.035),
           blurRadius: 16,
-          offset: const Offset(0, 5),
+          offset: Offset(0, 5),
         ),
       ],
     );
@@ -420,172 +381,140 @@ class _ProfilePageState extends State<ProfilePage> {
   // ==========================================
 
   Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 28, 22, 30),
-      decoration: const BoxDecoration(
-        color: primaryDark,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
-        ),
-      ),
+    final p = context.tl;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 23, 18, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: const Icon(
-                  Icons.person_outline_rounded,
-                  color: Colors.white,
-                  size: 23,
-                ),
+              Image.asset(
+                'assets/Logo.png',
+                width: 35,
+                height: 35,
+                errorBuilder: (_, _, _) =>
+                    Icon(Icons.emoji_events_rounded, color: p.orange, size: 32),
               ),
-
-              const SizedBox(width: 12),
-
-              const Expanded(
+              const SizedBox(width: 9),
+              Expanded(
                 child: Text(
-                  'TERNATE LOMBA',
+                  'TERNATELOMBA  /  PROFILE',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
+                    fontSize: 10.5,
+                    letterSpacing: 1.25,
+                    fontWeight: FontWeight.w900,
+                    color: p.navy,
                   ),
                 ),
               ),
-
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: cream,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'AKUN',
-                  style: TextStyle(
-                    color: primary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                  ),
-                ),
+              TLPlayful.statusPill(
+                context,
+                'ACCOUNT',
+                p.orange,
+                icon: Icons.stars_rounded,
               ),
             ],
           ),
-
-          const SizedBox(height: 27),
-
-          const Text(
-            'PENGATURAN AKUN',
-            style: TextStyle(
-              color: cream,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.5,
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          const Text(
-            'Profil Saya',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 30,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.7,
-            ),
-          ),
-
-          const SizedBox(height: 7),
-
-          const Text(
-            'Kelola informasi dan pengaturan akunmu.',
-            style: TextStyle(
-              color: Color(0xFFDCE6F0),
-              fontSize: 13,
-              height: 1.5,
-            ),
-          ),
-
           const SizedBox(height: 23),
-
-          // Kartu identitas
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: creamLight,
-              borderRadius: BorderRadius.circular(23),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+          Text(
+            'Your space.\nYour progress.',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 28,
+              height: 1.05,
+              letterSpacing: -1.15,
+              color: p.navy,
             ),
-            child: Row(
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Identitas dan pengaturan untuk tetap fokus pada tujuanmu.',
+            style: TextStyle(fontSize: 12.5, height: 1.4, color: p.grey),
+          ),
+          const SizedBox(height: 19),
+          Container(
+            decoration: TLPlayful.card(context, radius: 29),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
               children: [
-                _buildProfileAvatar(),
-
-                const SizedBox(width: 15),
-
-                Expanded(
+                Positioned(
+                  right: -23,
+                  top: -35,
+                  child: Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      color: p.cream.withValues(alpha: .45),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(17, 19, 17, 19),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        _username,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: textColor,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 11,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: cream,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          widget.role,
-                          style: const TextStyle(
-                            color: primary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
+                      Row(
+                        children: [
+                          _buildProfileAvatar(),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _username,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: p.navy,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TLPlayful.statusPill(
+                                  context,
+                                  widget.role,
+                                  p.mint,
+                                  icon: Icons.verified_rounded,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-
-                      const SizedBox(height: 8),
-
-                      const Text(
-                        'Ketuk foto untuk mengganti avatar',
-                        style: TextStyle(color: muted, fontSize: 10),
+                      const SizedBox(height: 17),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: p.surface.withValues(alpha: .75),
+                          borderRadius: BorderRadius.circular(17),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.camera_alt_rounded,
+                              color: p.primary,
+                              size: 19,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Ketuk avatar untuk memperbarui foto profil',
+                                style: TextStyle(
+                                  color: p.grey,
+                                  height: 1.3,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ),
-
-                const Icon(
-                  Icons.verified_user_outlined,
-                  color: primary,
-                  size: 24,
                 ),
               ],
             ),
@@ -601,10 +530,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _sectionHeading(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 13),
+      padding: EdgeInsets.only(bottom: 13),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           color: muted,
           fontSize: 11,
           fontWeight: FontWeight.w800,
@@ -624,58 +553,73 @@ class _ProfilePageState extends State<ProfilePage> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
+    final p = context.tl;
+    final accent = title.contains('Bantuan')
+        ? p.mint
+        : title.contains('Tentang')
+        ? p.orange
+        : title.contains('Profil')
+        ? p.coral
+        : p.lavender;
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(19),
-        hoverColor: cream,
-        splashColor: creamDark.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(23),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 17),
+          padding: const EdgeInsets.fromLTRB(13, 14, 12, 14),
           child: Row(
             children: [
               Container(
-                width: 46,
-                height: 46,
+                height: 53,
+                width: 53,
                 decoration: BoxDecoration(
-                  color: cream,
-                  borderRadius: BorderRadius.circular(15),
+                  color: Color.alphaBlend(
+                    accent.withValues(alpha: .17),
+                    p.surface,
+                  ),
+                  borderRadius: BorderRadius.circular(19),
                 ),
-                alignment: Alignment.center,
-                child: Icon(icon, color: primary, size: 23),
+                child: Icon(icon, color: accent, size: 25),
               ),
-
-              const SizedBox(width: 14),
-
+              const SizedBox(width: 13),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: textColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: p.navy,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
-
-                    const SizedBox(height: 5),
-
+                    const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: muted,
-                        fontSize: 11,
-                        height: 1.4,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        height: 1.35,
+                        color: p.grey,
                       ),
                     ),
                   ],
                 ),
               ),
-
-              const Icon(Icons.chevron_right_rounded, color: muted, size: 23),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: p.fieldBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.arrow_outward_rounded,
+                  color: p.navy,
+                  size: 17,
+                ),
+              ),
             ],
           ),
         ),
@@ -690,14 +634,206 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildAccountMenu() {
     return Container(
       decoration: _cardDecoration(),
-      child: _menuRow(
-        icon: Icons.manage_accounts_outlined,
-        title: 'Edit Profil',
-        subtitle: 'Ubah username dan kata sandi',
-        onTap: _openEditProfile,
+      child: Column(
+        children: [
+          _menuRow(
+            icon: Icons.manage_accounts_outlined,
+            title: 'Edit Profil',
+            subtitle: 'Ubah username dan kata sandi',
+            onTap: _openEditProfile,
+          ),
+        ],
       ),
     );
   }
+
+  Widget _menuDivider() => Padding(
+    padding: EdgeInsets.symmetric(horizontal: 18),
+    child: Divider(height: 1, thickness: 1, color: borderColor),
+  );
+
+  Widget _buildHelpMenu() {
+    return Container(
+      decoration: _cardDecoration(),
+      child: Column(
+        children: [
+          _menuRow(
+            icon: Icons.help_outline_rounded,
+            title: 'Pusat Bantuan',
+            subtitle: 'Panduan dan pertanyaan umum',
+            onTap: _showHelp,
+          ),
+          _menuDivider(),
+          _menuRow(
+            icon: Icons.info_outline_rounded,
+            title: 'Tentang TernateLomba',
+            subtitle: 'Informasi aplikasi dan versi',
+            onTap: _showAbout,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showInfoSheet({
+    required String title,
+    required IconData icon,
+    required Widget content,
+  }) async {
+    await AppPopup.show<void>(
+      context: context,
+      title: title,
+      icon: icon,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(2, 3, 2, 18),
+        child: content,
+      ),
+    );
+  }
+
+  Widget _infoLine(String title, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 11),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 112,
+            child: Text(
+              title,
+              style: TextStyle(
+                color: muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _faqItem(String question, String answer) {
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+        childrenPadding: EdgeInsets.fromLTRB(14, 0, 14, 16),
+        iconColor: primary,
+        collapsedIconColor: muted,
+        title: Text(
+          question,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              answer,
+              style: TextStyle(color: muted, fontSize: 12, height: 1.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showHelp() => _showInfoSheet(
+    title: 'Pusat Bantuan',
+    icon: Icons.help_outline_rounded,
+    content: Container(
+      decoration: _cardDecoration(),
+      child: Column(
+        children: [
+          _faqItem(
+            'Bagaimana mencari lomba?',
+            'Buka Beranda atau Jelajahi Lomba. Gunakan kolom pencarian dan filter kategori untuk menemukan lomba.',
+          ),
+          _menuDivider(),
+          _faqItem(
+            'Bagaimana cara mengikuti lomba?',
+            'Pilih lomba, baca detail dan persyaratannya, lalu isi formulir pendaftaran jika pendaftaran masih dibuka.',
+          ),
+          _menuDivider(),
+          _faqItem(
+            'Bagaimana membuat lomba?',
+            'Buka Lomba Saya, ketuk tombol Ajukan Lomba, lalu lengkapi setiap tahap formulir. Pengajuan akan diperiksa administrator.',
+          ),
+          _menuDivider(),
+          _faqItem(
+            'Di mana saya melihat status lomba?',
+            'Buka Lomba Saya untuk melihat lomba yang diikuti dan dibuat, serta status pengajuan atau pendaftaran.',
+          ),
+          _menuDivider(),
+          _faqItem(
+            'Bagaimana menggunakan chat?',
+            'Buka tab Chat pada navigasi utama, lalu pilih percakapan lomba yang tersedia untuk akunmu.',
+          ),
+          _menuDivider(),
+          _faqItem(
+            'Bagaimana mengganti foto profil?',
+            'Buka Profil, kemudian ketuk foto profil untuk memilih gambar baru dari galeri.',
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _showAbout() => _showInfoSheet(
+    title: 'Tentang TernateLomba',
+    icon: Icons.info_outline_rounded,
+    content: Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(20),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: cream,
+              borderRadius: BorderRadius.circular(17),
+            ),
+            child: Icon(Icons.emoji_events_rounded, size: 30, color: primary),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'TernateLomba',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 21,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(height: 9),
+          Text(
+            'TernateLomba adalah platform informasi lomba yang membantu pengguna menemukan, mengikuti, dan mengajukan lomba dalam satu aplikasi.',
+            style: TextStyle(color: muted, fontSize: 13, height: 1.65),
+          ),
+          SizedBox(height: 18),
+          Divider(color: borderColor),
+          _infoLine('Versi aplikasi', '1.0.0+1'),
+        ],
+      ),
+    ),
+  );
 
   // ==========================================
   // LOGOUT BUTTON
@@ -705,28 +841,28 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildLogoutButton() {
     return Material(
-      color: const Color(0xFFFFF0EF),
+      color: context.tl.statusBadBg,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: _isLoggingOut ? null : _logout,
         borderRadius: BorderRadius.circular(20),
-        hoverColor: const Color(0xFFFFE4E1),
+        hoverColor: context.tl.statusBadBg,
         child: Container(
-          padding: const EdgeInsets.all(17),
+          padding: EdgeInsets.all(17),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFF8DAD7)),
+            border: Border.all(color: context.tl.statusBadBg),
           ),
           child: Row(
             children: [
-              const Icon(Icons.logout_rounded, color: danger, size: 22),
+              Icon(Icons.logout_rounded, color: danger, size: 22),
 
-              const SizedBox(width: 14),
+              SizedBox(width: 14),
 
               Expanded(
                 child: Text(
                   _isLoggingOut ? 'Sedang keluar...' : 'Keluar dari Akun',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: danger,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -734,7 +870,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
 
-              const Icon(Icons.chevron_right_rounded, color: danger, size: 23),
+              Icon(Icons.chevron_right_rounded, color: danger, size: 23),
             ],
           ),
         ),
@@ -754,17 +890,16 @@ class _ProfilePageState extends State<ProfilePage> {
       body: SafeArea(
         bottom: false,
         child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
+          physics: BouncingScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // HEADER
 
               _buildHeader(),
-
               // MENU
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 27, 20, 130),
+                padding: EdgeInsets.fromLTRB(20, 27, 20, 130),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -772,7 +907,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
                     _buildAccountMenu(),
 
-                    const SizedBox(height: 28),
+                    SizedBox(height: 28),
+
+                    _sectionHeading('BANTUAN & INFORMASI'),
+
+                    _buildHelpMenu(),
+
+                    SizedBox(height: 28),
 
                     _sectionHeading('SESI AKUN'),
 

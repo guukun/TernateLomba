@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\LombaLifecycleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -15,8 +16,10 @@ class ProfileController extends Controller
     /** GET /api/users */
     public function show(Request $request): JsonResponse
     {
+        app(LombaLifecycleService::class)->sync();
+
         /** @var User $user */
-        $user = $request->user();
+        $user = $request->user()->fresh();
 
         return response()->json([
             'user' => $this->formatUser($user),
@@ -51,6 +54,9 @@ class ProfileController extends Controller
 
         if (!empty($data['password'])) {
             $user->password = Hash::make($data['password']);
+            // Password baru membatalkan token sebelumnya, termasuk pada perangkat lain.
+            $user->api_token_hash = null;
+            $user->api_token_expires_at = null;
         }
 
         $user->save();

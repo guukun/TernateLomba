@@ -26,6 +26,19 @@ class Lomba extends Model
         return $value === null ? null : ucfirst(strtolower((string) $value));
     }
 
+    public function getStatusEfektifAttribute(): ?string
+    {
+        if ($this->penghentian) {
+            return $this->penghentian->jenis_tindakan === 'Batalkan' ? 'Dibatalkan' : 'Dihentikan';
+        }
+        return $this->status_lomba;
+    }
+
+    public function penghentian(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(LombaPenghentian::class, 'id_lomba', 'id_lomba');
+    }
+
     public function pengajuan(): BelongsTo
     {
         return $this->belongsTo(

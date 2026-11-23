@@ -7,6 +7,7 @@ use App\Http\Controllers\PendaftaranController;
 use App\Http\Controllers\PengajuanLombaController;
 use App\Http\Controllers\PosterLombaController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PenyelenggaraLombaController;
 use App\Http\Middleware\AuthenticateApiToken;
 use Illuminate\Support\Facades\Route;
 
@@ -60,6 +61,14 @@ Route::get('/lomba/{id}/form-fields', [
     'formFields'
 ])->whereNumber('id');
 
+// File jawaban peserta menggunakan signed URL berumur 10 menit.
+Route::get('/penyelenggara/pendaftaran/{id}/jawaban/{idJawaban}/file', [
+    PenyelenggaraLombaController::class,
+    'downloadFile',
+])->whereNumber('id')->whereNumber('idJawaban')
+  ->middleware('signed')
+  ->name('penyelenggara.pendaftaran.file');
+
 // ==========================================
 // ENDPOINT YANG MEMERLUKAN TOKEN API AKTIF
 // ==========================================
@@ -71,6 +80,7 @@ Route::middleware(AuthenticateApiToken::class)->group(function () {
     Route::patch('/notifikasi/{id}/baca', [NotifikasiController::class, 'read'])->whereNumber('id');
     Route::patch('/notifikasi/baca-semua', [NotifikasiController::class, 'readAll']);
     Route::delete('/notifikasi/{id}', [NotifikasiController::class, 'destroy'])->whereNumber('id');
+
 
     // PROFIL PENGGUNA
 
@@ -118,6 +128,23 @@ Route::middleware(AuthenticateApiToken::class)->group(function () {
         'decide'
     ])->whereNumber('id');
 
+    // MANAJEMEN PESERTA OLEH PENYELENGGARA
+
+    Route::get('/penyelenggara/lomba/{id}/peserta', [
+        PenyelenggaraLombaController::class,
+        'peserta',
+    ])->whereNumber('id');
+
+    Route::get('/penyelenggara/pendaftaran/{id}', [
+        PenyelenggaraLombaController::class,
+        'detailPendaftaran',
+    ])->whereNumber('id');
+
+    Route::patch('/penyelenggara/pendaftaran/{id}/keputusan', [
+        PenyelenggaraLombaController::class,
+        'keputusan',
+    ])->whereNumber('id');
+
     // PENDAFTARAN PESERTA
 
     Route::post('/lomba/{id}/pendaftaran', [
@@ -143,4 +170,32 @@ Route::middleware(AuthenticateApiToken::class)->group(function () {
         ]
     )->whereNumber('id')->whereNumber('idJawaban');
 
+    // CEK STATUS PENDAFTARAN LOMBA
+    Route::get('/lomba/{id}/status-pendaftaran', [
+        PendaftaranController::class,
+        'statusPendaftaran'
+    ])->whereNumber('id');
+
+    // FAVORIT: privat untuk tiap akun, semua role.
+    Route::get('/favorit', [\App\Http\Controllers\FavoritController::class, 'index']);
+    Route::post('/favorit/{id}', [\App\Http\Controllers\FavoritController::class, 'store'])->whereNumber('id');
+    Route::delete('/favorit/{id}', [\App\Http\Controllers\FavoritController::class, 'destroy'])->whereNumber('id');
+
+    // ROOM CHAT: hanya pembuat lomba atau peserta dengan status Diterima.
+    Route::get('/chat/rooms', [\App\Http\Controllers\ChatLombaController::class, 'rooms']);
+    Route::get('/chat/rooms/{id}/messages', [\App\Http\Controllers\ChatLombaController::class, 'messages'])->whereNumber('id');
+    Route::post('/chat/rooms/{id}/messages', [\App\Http\Controllers\ChatLombaController::class, 'store'])
+        ->whereNumber('id')->middleware('throttle:30,1');
+
+    // DASHBOARD DAN PENGELOLAAN SISTEM: otorisasi tambahan di controller.
+    Route::get('/admin/panel', [\App\Http\Controllers\AdminPanelController::class, 'overview']);
+    Route::get('/admin/kategori', [\App\Http\Controllers\AdminPanelController::class, 'categories']);
+    Route::post('/admin/kategori', [\App\Http\Controllers\AdminPanelController::class, 'createCategory']);
+    Route::put('/admin/kategori/{id}', [\App\Http\Controllers\AdminPanelController::class, 'updateCategory'])->whereNumber('id');
+    Route::delete('/admin/kategori/{id}', [\App\Http\Controllers\AdminPanelController::class, 'deleteCategory'])->whereNumber('id');
+    Route::get('/admin/pengguna', [\App\Http\Controllers\AdminPanelController::class, 'users']);
+    Route::get('/admin/semua-lomba', [\App\Http\Controllers\AdminPanelController::class, 'lomba']);
+    Route::get('/admin/semua-lomba/{id}', [\App\Http\Controllers\AdminLombaActionController::class, 'show'])->whereNumber('id');
+    Route::patch('/admin/semua-lomba/{id}/batalkan', [\App\Http\Controllers\AdminLombaActionController::class, 'cancel'])->whereNumber('id')->middleware('throttle:5,1');
+    Route::patch('/admin/semua-lomba/{id}/hentikan', [\App\Http\Controllers\AdminLombaActionController::class, 'stop'])->whereNumber('id')->middleware('throttle:5,1');
 });

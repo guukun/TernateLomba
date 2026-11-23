@@ -10,9 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class PengajuanLomba extends Model
 {
     protected $table = 'pengajuan_lomba';
-
     protected $primaryKey = 'id_pengajuan';
-
     public $timestamps = false;
 
     protected $fillable = [
@@ -21,9 +19,13 @@ class PengajuanLomba extends Model
         'nama_lomba',
         'deskripsi',
         'persyaratan',
+        'tanggal_mulai_pendaftaran',
         'tanggal_pelaksanaan',
+        'tanggal_selesai_pelaksanaan',
         'batas_pendaftaran',
         'lokasi_pendaftaran',
+        'metode_pelaksanaan',
+        'detail_pelaksanaan',
         'biaya',
         'hadiah',
         'kuota_peserta',
@@ -35,7 +37,9 @@ class PengajuanLomba extends Model
     ];
 
     protected $casts = [
+        'tanggal_mulai_pendaftaran' => 'date',
         'tanggal_pelaksanaan' => 'date',
+        'tanggal_selesai_pelaksanaan' => 'date',
         'batas_pendaftaran' => 'date',
         'tanggal_pengajuan' => 'datetime',
         'biaya' => 'decimal:2',
@@ -44,44 +48,31 @@ class PengajuanLomba extends Model
 
     public function getStatusPengajuanAttribute($value): ?string
     {
-        return $value === null
-            ? null
-            : ucfirst(strtolower((string) $value));
+        return $value === null ? null : ucfirst(strtolower((string) $value));
     }
 
     public function penyelenggara(): BelongsTo
     {
-        return $this->belongsTo(
-            User::class,
-            'id_user',
-            'id_user'
-        );
+        return $this->belongsTo(User::class, 'id_user', 'id_user');
     }
 
     public function kategori(): BelongsTo
     {
-        return $this->belongsTo(
-            KategoriLomba::class,
-            'id_kategori',
-            'id_kategori'
-        );
+        return $this->belongsTo(KategoriLomba::class, 'id_kategori', 'id_kategori');
     }
 
     public function lomba(): HasOne
     {
-        return $this->hasOne(
-            Lomba::class,
-            'id_pengajuan',
-            'id_pengajuan'
-        );
+        return $this->hasOne(Lomba::class, 'id_pengajuan', 'id_pengajuan');
     }
 
     public function formFields(): HasMany
     {
-        return $this->hasMany(
-            FormField::class,
-            'id_pengajuan',
-            'id_pengajuan'
-        );
+        return $this->hasMany(FormField::class, 'id_pengajuan', 'id_pengajuan');
+    }
+
+    public function informasiTambahan(): HasMany
+    {
+        return $this->hasMany(InformasiLomba::class, 'id_pengajuan', 'id_pengajuan');
     }
 }

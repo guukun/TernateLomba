@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'config/appTheme.dart';
+import 'widgets/app_feedback.dart';
 import 'screens/splash/splashScreen.dart';
 import 'pages/ajukan/ajukanPage.dart';
 
-void main() {
+Future<void> main() async {
   runApp(const TernateLombaApp());
 }
 
@@ -14,13 +15,13 @@ class TernateLombaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      scaffoldMessengerKey: AppNotification.messengerKey,
       title: 'TernateLomba',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      themeMode: ThemeMode.light,
       home: const SplashScreen(),
-      routes: {
-        '/ajukan': (context) => const AjukanPage(),
-      },
+      routes: {'/ajukan': (context) => const AjukanPage()},
     );
   }
 }

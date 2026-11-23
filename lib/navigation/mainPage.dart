@@ -1,12 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../config/appTheme.dart';
 import '../pages/beranda/homePage.dart';
-import '../pages/lombaSaya/lombaSayaPage.dart';
-import '../pages/ajukan/ajukanPage.dart';
+import '../pages/favorit/favoritPage.dart';
+import '../pages/lombaSaya/LombaSayaPage.dart';
+import '../pages/ajukan/formAjukanLombaPage.dart';
 import '../pages/profile/profilePage.dart';
 import '../pages/admin/pengajuanPage.dart';
+import '../pages/admin/adminHubPage.dart';
+import '../pages/chat/chatPage.dart';
 import '../widgets/floatingNavigationBar.dart';
+import '../services/api_service.dart';
 
 class MainPage extends StatefulWidget {
   final String username;
@@ -24,128 +30,221 @@ class MainPage extends StatefulWidget {
   State<MainPage> createState() => _MainPageState();
 }
 
-class _MainPageState extends State<MainPage> {
-  int selectedIndex = 0;
+class _MainPageState extends State<MainPage>
+    with SingleTickerProviderStateMixin {
+  // TERNATELOMBA_SMOOTH_MOTION_V1
+  late final AnimationController _tabMotionController;
+  late final Animation<double> _tabOpacity;
+  int _currentTab = 0;
+  late String _username;
+  late String _role;
+  Timer? _roleTimer;
+  bool _checkingRole = false;
+  int _profileRevision = 0;
+  int _mineRevision = 0;
+  int _favoriteRevision = 0;
 
-  late String currentUsername;
-
-  int profileRefreshVersion = 0;
-  int lombaSayaRefreshVersion = 0;
+  bool get _isAdmin => _role.trim().toLowerCase() == 'administrator';
 
   @override
   void initState() {
     super.initState();
-    currentUsername = widget.username;
+    _tabMotionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 230),
+      value: 1,
+    );
+    _tabOpacity = Tween<double>(begin: 0.78, end: 1).animate(
+      CurvedAnimation(parent: _tabMotionController, curve: Curves.easeOutCubic),
+    );
+    _username = widget.username;
+    _role = widget.role;
+    _syncRole();
+    _roleTimer = Timer.periodic(const Duration(seconds: 5), (_) => _syncRole());
   }
 
-  bool get _isAdmin => widget.role.trim().toLowerCase() == 'administrator';
-
-  void _onProfileChanged() {
-    if (!mounted) return;
-
-    setState(() {
-      profileRefreshVersion++;
-    });
+  @override
+  void didUpdateWidget(covariant MainPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.username != widget.username) _username = widget.username;
+    if (oldWidget.role != widget.role) _role = widget.role;
   }
 
-  void _onNavigationTap(int index) {
-    final maxIndex = _isAdmin ? 4 : 3;
+  @override
+  void dispose() {
+    _roleTimer?.cancel();
+    _tabMotionController.dispose();
+    super.dispose();
+  }
 
-    if (index < 0 || index > maxIndex || index == selectedIndex) {
-      return;
+  Future<void> _syncRole() async {
+    if (_checkingRole || !mounted) return;
+    _checkingRole = true;
+    try {
+      final data = await ApiService.getCurrentUser(token: widget.token);
+      if (!mounted) return;
+      final role = data['role']?.toString() ?? _role;
+      final username = data['username']?.toString() ?? _username;
+      if (role != _role || username != _username) {
+        final oldAdmin = _isAdmin;
+        final newAdmin = role.trim().toLowerCase() == 'administrator';
+        setState(() {
+          _role = role;
+          _username = username;
+          // Hindari membuka halaman dengan indeks sama tetapi hak akses berbeda.
+          if (oldAdmin != newAdmin) _currentTab = 0;
+        });
+      }
+    } catch (e) {
+      debugPrint('Gagal sinkronisasi role: $e');
+    } finally {
+      _checkingRole = false;
     }
+  }
 
+  void _select(int index) {
+    if (index < 0 || index > (_isAdmin ? 5 : 4) || index == _currentTab) return;
+    _tabMotionController.forward(from: 0);
     setState(() {
-      selectedIndex = index;
+      _currentTab = index;
+      if (index == 1) _favoriteRevision++;
+      if (index == 2) _mineRevision++;
     });
   }
 
-  void _onUsernameChanged(String usernameBaru) {
+  Future<void> _openAjukan() async {
+    // Langsung masuk tahap pertama, tanpa halaman pengantar Ajukan.
+    final berhasil = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => FormAjukanLombaPage(token: widget.token),
+      ),
+    );
     if (!mounted) return;
-
+    if (berhasil == true) ApiService.notifyDataChanged();
     setState(() {
-      currentUsername = usernameBaru;
-    });
-  }
-
-  void _onLombaDiajukan() {
-    if (!mounted) return;
-
-    setState(() {
-      selectedIndex = 1;
-      lombaSayaRefreshVersion++;
+      _mineRevision++;
+      _currentTab = 2;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    // Admin memakai 6 tab; user tetap 5 tab.
+    final List<Widget> tabs = _isAdmin
+        ? [
+            AdminHubPage(
+              key: const PageStorageKey('adminHub'),
+              token: widget.token,
+              username: _username,
+              role: _role,
+              profileRevision: _profileRevision,
+              onOpenPengajuan: () => _select(3),
+              onOpenProfile: () => _select(5),
+            ),
+            FavoritPage(
+              key: ValueKey('admin-favorite-$_favoriteRevision'),
+              token: widget.token,
+            ),
+            LombaSayaPage(
+              key: const PageStorageKey('adminMyLomba'),
+              token: widget.token,
+              refreshVersion: _mineRevision,
+              onJelajahiLomba: () => _select(0),
+              onAjukanLomba: _openAjukan,
+            ),
+            PengajuanPage(
+              key: const PageStorageKey('adminPengajuan'),
+              token: widget.token,
+            ),
+            ChatPage(
+              key: const PageStorageKey('adminChat'),
+              token: widget.token,
+            ),
+            ProfilePage(
+              key: const PageStorageKey('adminProfile'),
+              username: _username,
+              role: _role,
+              token: widget.token,
+              onUsernameChanged: (name) {
+                if (mounted) setState(() => _username = name);
+              },
+              onProfileChanged: () {
+                if (mounted) setState(() => _profileRevision++);
+              },
+            ),
+          ]
+        : [
+            HomePage(
+              key: const PageStorageKey('home'),
+              username: _username,
+              role: _role,
+              token: widget.token,
+              profileRefreshVersion: _profileRevision,
+            ),
+            FavoritPage(
+              key: ValueKey('favorite-$_favoriteRevision'),
+              token: widget.token,
+            ),
+            LombaSayaPage(
+              key: const PageStorageKey('myLomba'),
+              token: widget.token,
+              refreshVersion: _mineRevision,
+              onJelajahiLomba: () => _select(0),
+              onAjukanLomba: _openAjukan,
+            ),
+            ChatPage(key: const PageStorageKey('chat'), token: widget.token),
+            ProfilePage(
+              key: const PageStorageKey('profile'),
+              username: _username,
+              role: _role,
+              token: widget.token,
+              onUsernameChanged: (name) {
+                if (mounted) setState(() => _username = name);
+              },
+              onProfileChanged: () {
+                if (mounted) setState(() => _profileRevision++);
+              },
+            ),
+          ];
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          IndexedStack(
-            index: selectedIndex,
-            children: [
-              // 0. Beranda
-              HomePage(
-                key: const PageStorageKey('homePage'),
-                username: currentUsername,
-                role: widget.role,
-                token: widget.token,
-                profileRefreshVersion: profileRefreshVersion,
-              ),
-
-              // 1. Lomba Saya
-              LombaSayaPage(
-                key: const PageStorageKey('lombaSayaPage'),
-                token: widget.token,
-                refreshVersion: lombaSayaRefreshVersion,
-                onJelajahiLomba: () {
-                  _onNavigationTap(0);
-                },
-                onAjukanLomba: () {
-                  _onNavigationTap(2);
-                },
-              ),
-
-              // 2. Ajukan
-              AjukanPage(
-                key: const PageStorageKey('ajukanPage'),
-                token: widget.token,
-                onLombaDiajukan: _onLombaDiajukan,
-              ),
-
-              // 3. Pengajuan (khusus administrator)
-              if (_isAdmin)
-                PengajuanPage(
-                  key: const PageStorageKey('pengajuanPage'),
-                  token: widget.token,
-                ),
-
-              // Profil berada di urutan terakhir.
-              // Admin: indeks 4.
-              // User biasa: indeks 3.
-              ProfilePage(
-                key: const PageStorageKey('profilePage'),
-                username: currentUsername,
-                role: widget.role,
-                token: widget.token,
-                onUsernameChanged: _onUsernameChanged,
-                onProfileChanged: _onProfileChanged,
-              ),
-            ],
+          // Keep IndexedStack alive: no tab state reset on animation.
+          FadeTransition(
+            opacity: _tabOpacity,
+            child: IndexedStack(index: _currentTab, children: tabs),
           ),
-
-          // Navigasi bawah
+          if (_currentTab == 2)
+            Positioned(
+              right: 24,
+              bottom: 116 + MediaQuery.of(context).padding.bottom,
+              child: FloatingActionButton.extended(
+                heroTag: 'ajukan-lomba-main',
+                onPressed: _openAjukan,
+                backgroundColor: context.tl.primary,
+                foregroundColor: Colors.white,
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text(
+                  'Ajukan Lomba',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
             child: FloatingNavigationBar(
-              currentIndex: selectedIndex,
-              onTap: _onNavigationTap,
+              currentIndex: _currentTab,
               isAdmin: _isAdmin,
+              onTap: _select,
             ),
           ),
         ],
